@@ -260,6 +260,114 @@ def cargar_css():
         font-size: 1.8rem;
         font-weight: 700;
     }
+    <style>
+    /* ... tu CSS existente ... */
+    
+    /* TABLAS CON FORMATO MEJORADO */
+    .dataframe {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        font-size: 0.9rem;
+    }
+    
+    .dataframe thead th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 700;
+        padding: 15px;
+        text-align: left;
+        border: none;
+    }
+    
+    .dataframe tbody tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+    
+    .dataframe tbody tr:nth-child(odd) {
+        background-color: white;
+    }
+    
+    .dataframe tbody tr:hover {
+        background-color: #e3f2fd;
+        transition: all 0.3s;
+    }
+    
+    .dataframe td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    /* TABLAS POR NIVEL CON COLORES ESPECÍFICOS */
+    .tabla-vencido thead th {
+        background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+    }
+    
+    .tabla-critico thead th {
+        background: linear-gradient(135deg, #f57c00 0%, #e65100 100%);
+    }
+    
+    .tabla-urgente thead th {
+        background: linear-gradient(135deg, #fbc02d 0%, #f9a825 100%);
+    }
+    
+    .tabla-preventivo thead th {
+        background: linear-gradient(135deg, #fb8c00 0%, #f57c00 100%);
+    }
+    
+    /* TARJETAS DE TOTALES */
+    .total-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 25px;
+        color: white;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        margin: 10px 0;
+    }
+    
+    .total-card h3 {
+        margin: 0;
+        font-size: 0.9rem;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .total-card .valor {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 10px 0;
+    }
+    
+    /* BADGES DE ACCIÓN */
+    .badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .badge-vencido {
+        background: #ffebee;
+        color: #c62828;
+    }
+    
+    .badge-critico {
+        background: #fff3e0;
+        color: #ef6c00;
+    }
+    
+    .badge-urgente {
+        background: #fffde7;
+        color: #f9a825;
+    }
+    
+    .badge-preventivo {
+        background: #fbe9e7;
+        color: #e65100;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -973,12 +1081,12 @@ def mostrar_resumen_ejecutivo_detalle(fecha_hoy, df_riesgo, total_riesgo, total_
 
 
 def mostrar_top_productos(df_riesgo, fecha_hoy):
-    """Muestra TODOS los productos por nivel de riesgo con expander en TODOS los niveles"""
+    """Muestra TODOS los productos por nivel con tablas formateadas"""
     st.header("📦 PRODUCTOS POR NIVEL DE RIESGO")
     
     df_filtrado = df_riesgo[df_riesgo['Días_para_Vencimiento'] >= 0].copy()
     
-    # Calcular totales por nivel
+    # Calcular totales
     totales = {}
     for nivel in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']:
         df_nivel = df_filtrado[df_filtrado['Nivel_Riesgo'] == nivel]
@@ -989,32 +1097,29 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
                 'valor': df_nivel['Valor_Stock_Costo'].sum()
             }
     
+    # Colores y badges
+    config_niveles = {
+        'VENCIDO': {'color': '🔴', 'badge': 'badge-vencido', 'clase': 'tabla-vencido'},
+        'CRITICO': {'color': '🟠', 'badge': 'badge-critico', 'clase': 'tabla-critico'},
+        'URGENTE': {'color': '🟡', 'badge': 'badge-urgente', 'clase': 'tabla-urgente'},
+        'PREVENTIVO': {'color': '🔵', 'badge': 'badge-preventivo', 'clase': 'tabla-preventivo'}
+    }
+    
     for nivel in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']:
         df_nivel = df_filtrado[df_filtrado['Nivel_Riesgo'] == nivel].sort_values('Valor_Stock_Costo', ascending=False)
         
         if len(df_nivel) == 0:
             continue
         
-        # Colores por nivel
-        colores = {
-            'VENCIDO': '🔴',
-            'CRITICO': '🟠',
-            'URGENTE': '🟡',
-            'PREVENTIVO': '🔵'
-        }
-        
-        # Título con resumen
+        config = config_niveles[nivel]
         total_valor = totales[nivel]['valor']
         total_unidades = totales[nivel]['unidades']
         total_productos = totales[nivel]['productos']
         
-        titulo = f"{colores[nivel]} {nivel} ({total_productos} productos | {total_unidades:,} unidades | {clp(total_valor)} CLP)"
+        titulo = f"{config['color']} {nivel} ({total_productos} productos | {total_unidades:,} unidades | {clp(total_valor)} CLP)"
         
-        # ✅ TODOS LOS NIVELES CON EXPANDER (siempre colapsado al inicio)
         with st.expander(titulo, expanded=False):
-            st.markdown(f"**Mostrando {total_productos} productos** - Ordenados por valor en riesgo (mayor a menor)")
-            
-            # Mostrar tabla completa
+            # Preparar datos con badges
             tabla_datos = []
             for _, row in df_nivel.iterrows():
                 dias = int(row['Días_para_Vencimiento'])
@@ -1023,27 +1128,34 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
                 fecha_venc = fecha_hoy + timedelta(days=dias)
                 
                 if nivel == 'VENCIDO':
-                    accion = "DONAR HOY"
+                    accion = '<span class="badge badge-vencido">DONAR HOY</span>'
                 elif nivel == 'CRITICO':
-                    accion = "40% dto"
+                    accion = '<span class="badge badge-critico">40% dto</span>'
                 elif nivel == 'URGENTE':
-                    accion = "25% dto"
+                    accion = '<span class="badge badge-urgente">25% dto</span>'
                 else:
-                    accion = "15% dto"
+                    accion = '<span class="badge badge-preventivo">15% dto</span>'
                 
                 tabla_datos.append({
-                    'Producto': str(row['Producto'])[:40] if pd.notna(row['Producto']) else 'Sin nombre',
-                    'Días': dias,
-                    'Unidades': unidades,
-                    'Valor Riesgo': clp(valor),
-                    'Fecha Venc.': fecha_venc.strftime('%d/%m/%Y'),
-                    'Acción': accion
+                    '📦 Producto': str(row['Producto'])[:35] if pd.notna(row['Producto']) else 'Sin nombre',
+                    '⏰ Días': dias,
+                    '📦 Unidades': f"{unidades:,}",
+                    '💰 Valor Riesgo': clp(valor),
+                    '📅 Fecha Venc.': fecha_venc.strftime('%d/%m/%Y'),
+                    '⚡ Acción': accion
                 })
             
-            st.dataframe(pd.DataFrame(tabla_datos), use_container_width=True, hide_index=True)
+            df_tabla = pd.DataFrame(tabla_datos)
+            
+            # Mostrar tabla con HTML personalizado para colores
+            st.markdown(f"""
+            <div class="{config['clase']}">
+            {df_tabla.to_html(escape=False, index=False, classes='dataframe')}
+            </div>
+            """, unsafe_allow_html=True)
             
             # Botón de descarga
-            csv = pd.DataFrame(tabla_datos).to_csv(index=False, sep=';').encode('utf-8')
+            csv = df_tabla.to_csv(index=False, sep=';').encode('utf-8')
             st.download_button(
                 label=f"📥 Descargar {nivel} (CSV)",
                 data=csv,
@@ -1051,18 +1163,6 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
                 mime="text/csv",
                 use_container_width=True
             )
-    
-    # Botón para expandir/colapsar todos
-    st.markdown("---")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📂 Expandir Todos", use_container_width=True):
-            st.session_state['expandir_todos'] = True
-            st.rerun()
-    with col2:
-        if st.button("📁 Colapsar Todos", use_container_width=True):
-            st.session_state['expandir_todos'] = False
-            st.rerun()
 
 
 def mostrar_plan_accion(df_riesgo, fecha_hoy):
