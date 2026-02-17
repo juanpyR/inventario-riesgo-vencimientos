@@ -673,7 +673,7 @@ def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy, df_con_meses=No
     col1, col2 = st.columns([1, 1])
     
     with col1:
-    st.markdown(f"""
+        st.markdown(f"""
             <div class='classification-item vencido'>
                 <span class='indicator' style='background-color: #9c27b0;'></span>
                 <strong>Vencido:</strong> {vencidos} productos | {clp(valor_vencidos)} CLP
