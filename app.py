@@ -1294,27 +1294,7 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Caja de conclusión ejecutiva
-    st.markdown(f"""
-    <div class="conclusion-box">
-        <div class="conclusion-item conclusion-error">
-            <strong>❌ Si no donamos:</strong> Pérdida total de <strong>{clp(valor_vencido)} CLP</strong> hoy
-        </div>
-        <div class="conclusion-item conclusion-success">
-            <strong>✅ Con donación:</strong> Recuperamos <strong>{clp(credito_trib)} CLP</strong> en crédito tributario (27%)
-        </div>
-        <div class="conclusion-item conclusion-info">
-            <strong>📈 En 48h:</strong> Rescatamos entre <strong>{clp(valor_critico*0.40 + valor_urgente*0.30)} CLP</strong> y <strong>{clp(valor_critico*0.60 + valor_urgente*0.50)} CLP</strong>
-        </div>
-        <div style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); padding: 25px; border-radius: 12px; margin-top: 20px; text-align: center; color: white;">
-            <div style="font-size: 1.2rem; margin-bottom: 10px;">💵 TOTAL RECUPERADO ESPERADO</div>
-            <div style="font-size: 3rem; font-weight: 700;">{clp(total_recuperado)} CLP</div>
-            <div style="font-size: 0.9rem; margin-top: 10px; opacity: 0.9;">Crédito tributario + Recuperación por descuentos</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
+
 def mostrar_plan_accion(df_riesgo, fecha_hoy):
     """Muestra el plan de acción 48H con formato visual profesional"""
     
