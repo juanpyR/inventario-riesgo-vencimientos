@@ -553,18 +553,13 @@ def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy, df_con_meses=No
         if urgentes > 0:
             recuperacion = valor_urgentes * 0.40
             acciones.append(f"• <strong>{urgentes} urgentes</strong>: Descuento 25% → Recuperación estimada {clp(recuperacion)} CLP")
-        if preventivos > 0:
-            recuperacion = valor_preventivos * 0.30
-            acciones.append(f"• <strong>{preventivos} preventivos</strong>: Promoción 15% → Recuperación estimada {clp(recuperacion)} CLP")
         
         plan_texto = "<br>".join(acciones) if acciones else "No se requieren acciones inmediatas"
-        
         # Calcular totales del plan
         total_credito = valor_vencidos * 0.27 if vencidos > 0 else 0
         total_recuperacion = (
             (valor_criticos * 0.50 if criticos > 0 else 0) +
-            (valor_urgentes * 0.40 if urgentes > 0 else 0) +
-            (valor_preventivos * 0.30 if preventivos > 0 else 0)
+            (valor_urgentes * 0.40 if urgentes > 0 else 0)
         )
         total_recuperado = total_credito + total_recuperacion
         
@@ -590,7 +585,7 @@ def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy, df_con_meses=No
                         <span class='metric-value'>{clp(total_credito)} CLP</span>
                     </div>
                     <div class='metric-row'>
-                        <span class='metric-label'>📈 Recuperación por Descuentos:</span>
+                        <span class='metric-label'>📈 Recuperación por Descuentos (48h):</span>
                         <span class='metric-value'>{clp(total_recuperacion)} CLP</span>
                     </div>
                     <div class='metric-row' style='background: #c8e6c9; font-size: 1.2rem;'>
