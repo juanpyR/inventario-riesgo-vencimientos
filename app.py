@@ -1199,15 +1199,15 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
             
             st.markdown(html_tabla, unsafe_allow_html=True)
 def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, productos_urgentes, total_recuperado):
-    """Muestra el resumen final ejecutivo con formato visual corregido"""
+    """Muestra el resumen final ejecutivo con el formato púrpura corregido"""
     
     st.markdown('<h2 style="color: #1a237e; margin-bottom: 20px;">📊 RESUMEN FINAL</h2>', unsafe_allow_html=True)
     
     valor_critico = productos_criticos['Valor_Stock_Costo'].sum() if len(productos_criticos) > 0 else 0
     valor_urgente = productos_urgentes['Valor_Stock_Costo'].sum() if len(productos_urgentes) > 0 else 0
     
-    # Caja de resumen de impacto
-    st.markdown(textwrap.dedent(f"""
+    # IMPORTANTE: textwrap.dedent elimina la indentación que Streamlit confunde con código
+    caja_purpura = textwrap.dedent(f"""
         <div class="resumen-final-box">
             <h3 style="margin: 0 0 20px 0; text-align: center; color: white;">💵 Impacto Financiero del Plan</h3>
             <div class="resumen-grid">
@@ -1235,10 +1235,11 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
                 </div>
             </div>
         </div>
-    """), unsafe_allow_html=True)
+    """)
+    st.markdown(caja_purpura, unsafe_allow_html=True)
 
-    # Conclusión Ejecutiva
-    st.markdown(textwrap.dedent(f"""
+    # Bloque de Conclusión Final
+    conclusion_html = textwrap.dedent(f"""
         <div class="conclusion-box">
             <div class="conclusion-item conclusion-error">
                 <strong>❌ Si no donamos:</strong> Pérdida total de <strong>{clp(valor_vencido)} CLP</strong> hoy
@@ -1247,14 +1248,15 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
                 <strong>✅ Con donación:</strong> Recuperamos <strong>{clp(credito_trib)} CLP</strong> en crédito tributario (27%)
             </div>
             <div class="conclusion-item conclusion-info">
-                <strong>📈 En 48h:</strong> Rescatamos entre <strong>{clp(valor_critico*0.4+valor_urgente*0.3)}</strong> y <strong>{clp(valor_critico*0.6+valor_urgente*0.5)}</strong>
+                <strong>📈 En 48h:</strong> Rescatamos entre <strong>{clp(valor_critico*0.4 + valor_urgente*0.3)}</strong> y <strong>{clp(valor_critico*0.6 + valor_urgente*0.5)}</strong>
             </div>
-            <div style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); padding: 25px; border-radius: 12px; text-align: center; color: white;">
+            <div style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); padding: 25px; border-radius: 12px; text-align: center; color: white; margin-top: 20px;">
                 <div style="font-size: 1.2rem; margin-bottom: 10px;">💵 TOTAL RECUPERADO ESPERADO</div>
                 <div style="font-size: 3rem; font-weight: 700;">{clp(total_recuperado)} CLP</div>
             </div>
         </div>
-    """), unsafe_allow_html=True)
+    """)
+    st.markdown(conclusion_html, unsafe_allow_html=True)
     
 def mostrar_plan_accion(df_riesgo, fecha_hoy):
     """Muestra el plan de acción 48H con formato visual mejorado"""
