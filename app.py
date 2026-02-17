@@ -264,10 +264,10 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
         ax.axvline(pos, color='gray', linestyle='--', linewidth=1.0, alpha=0.35)
     
     ax.set_xticks([0, 1, 2, 3])
-    ax.set_xticklabels(['VENCIDO\n(días = 0)', 'CRITICO\n(1-3 días)', 'URGENTE\n(4-7 días)', 'PREVENTIVO\n(8-10 días)'],
+    ax.set_xticklabels(['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO'],
                        fontsize=11, fontweight='bold')
     ax.set_yticks([0, 1, 2, 3])
-    ax.set_yticklabels(['VENCIDO', '1-3 días', '4-7 días', '8-10 días'], fontsize=10)
+    ax.set_yticklabels(['Hoy', '1-3 días', '4-7 días', '8-10 días'], fontsize=10)
     
     ax.set_xlabel('Nivel de Riesgo', fontsize=12, fontweight='bold')
     ax.set_ylabel('Días para Vencimiento', fontsize=12, fontweight='bold')
