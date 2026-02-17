@@ -588,43 +588,50 @@ def determinar_meses_a_mostrar(resumen_por_mes, fecha_hoy):
 # SECCIÓN RESUMEN - NUEVO DISEÑO
 # =============================================================================
 def mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy):
-    """Muestra el resumen ejecutivo con datos REALES"""
+    st.markdown('<h1 class="main-header">Resumen Ejecutivo</h1>', unsafe_allow_html=True)
     
-    st.markdown('<h1 class="main-header">Resúmen</h1>', unsafe_allow_html=True)
-    
-    # Calcular totales CONSISTENTES
     total_productos = len(df_riesgo)
     total_unidades = int(df_riesgo['Stock_Inicial'].sum())
     
-    col1, col2, col3 = st.columns([1, 2.5, 1])
+    # Grid de métricas principales
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.markdown("### Acciones Rápidas")
-        if st.button("🔄 Actualizar", use_container_width=True, key="btn_actualizar"):
-            st.rerun()
-        if st.button("📊 Ver Detalle Completo", use_container_width=True, key="btn_detalle"):
-            st.session_state['ver_detalle'] = True
-    
-    with col2:
-        st.markdown(f"""
-        <div class='info-card'>
-            <h2 style='color: #1565c0; margin: 0;'>Análisis al {fecha_hoy.strftime('%d/%m/%Y')}</h2>
-            <p style='font-size: 1.3rem; margin: 15px 0; font-weight: 600;'>
-                <span style='color: #d32f2f;'>{total_productos}</span> productos | 
-                <span style='color: #1976d2;'>{total_unidades:,}</span> unidades | 
-                <span style='color: #f57c00;'>{clp(total_riesgo)} CLP</span>
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    
-    with col3:
-        st.markdown("### Estado")
-        st.success("✅ Activo")
-        chile_tz = pytz.timezone('America/Santiago')
-        hora_chile = datetime.now(chile_tz)
+        st.markdown(f"""<div class="info-card">
+            <div class="metric-label-sub">Total SKU</div>
+            <div class="metric-value-large">{total_productos}</div>
+            <div style="color: #d32f2f; font-weight: bold;">En Riesgo</div>
+        </div>""", unsafe_allow_html=True)
         
-        st.info(f"🕒 {hora_chile.strftime('%H:%M:%S')}")
+    with col2:
+        st.markdown(f"""<div class="info-card">
+            <div class="metric-label-sub">Unidades</div>
+            <div class="metric-value-large">{total_unidades:,}</div>
+            <div style="color: #1976d2; font-weight: bold;">Por Vencer</div>
+        </div>""", unsafe_allow_html=True)
+        
+    with col3:
+        st.markdown(f"""<div class="info-card">
+            <div class="metric-label-sub">Valor Riesgo</div>
+            <div class="metric-value-large">{clp(total_riesgo)}</div>
+            <div style="color: #f57c00; font-weight: bold;">CLP a Costo</div>
+        </div>""", unsafe_allow_html=True)
+
+    with col4:
+        # Calcular % de recuperación estimada (base 45%)
+        rec_est = total_riesgo * 0.45
+        st.markdown(f"""<div class="info-card" style="background: #e8f5e9; border-color: #4caf50;">
+            <div class="metric-label-sub" style="color: #2e7d32;">Recuperable Est.</div>
+            <div class="metric-value-large" style="color: #2e7d32;">{clp(rec_est)}</div>
+            <div style="color: #2e7d32; font-weight: bold;">Acción 48h</div>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown(f"""
+        <div style="text-align: center; margin-top: 20px; padding: 10px; background: #f5f5f5; border-radius: 8px;">
+            <strong>Snapshot Operativo:</strong> Datos analizados al {fecha_hoy.strftime('%d/%m/%Y')} | 
+            Costo de inacción: <span style="color: #d32f2f; font-weight: bold;">{clp(total_riesgo/10)} CLP / día</span>
+        </div>
+    """, unsafe_allow_html=True)
 
 
 def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy, df_con_meses=None):
