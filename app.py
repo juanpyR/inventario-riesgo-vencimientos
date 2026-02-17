@@ -964,14 +964,14 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
                 fontsize=13, pad=15)
     
     legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label='VENCIDO', markerfacecolor='#d32f2f', markersize=14),
-        Line2D([0], [0], marker='o', color='w', label='CRÍTICO', markerfacecolor='#f57c00', markersize=14),
-        Line2D([0], [0], marker='o', color='w', label='URGENTE', markerfacecolor='#fbc02d', markersize=14),
-        Line2D([0], [0], marker='o', color='w', label='PREVENTIVO', markerfacecolor='#fb8c00', markersize=14),
-        plt.scatter([], [], s=80, c='gray', alpha=0.6, label='~100k CLP', edgecolors='none'),
-        plt.scatter([], [], s=250, c='gray', alpha=0.6, label='~500k CLP', edgecolors='none'),
-        plt.scatter([], [], s=450, c='gray', alpha=0.6, label='~1M+ CLP', edgecolors='none')
-    ]
+    Line2D([0], [0], marker='o', color='w', label='VENCIDO', markerfacecolor='#9c27b0', markersize=14),  # 🟣 Violeta
+    Line2D([0], [0], marker='o', color='w', label='CRÍTICO', markerfacecolor='#d32f2f', markersize=14),  # 🔴 Rojo
+    Line2D([0], [0], marker='o', color='w', label='URGENTE', markerfacecolor='#f57c00', markersize=14),  # 🟠 Naranja
+    Line2D([0], [0], marker='o', color='w', label='PREVENTIVO', markerfacecolor='#fbc02d', markersize=14),  # 🟡 Amarillo
+    plt.scatter([], [], s=80, c='gray', alpha=0.6, label='~100k CLP', edgecolors='none'),
+    plt.scatter([], [], s=250, c='gray', alpha=0.6, label='~500k CLP', edgecolors='none'),
+    plt.scatter([], [], s=450, c='gray', alpha=0.6, label='~1M+ CLP', edgecolors='none')
+]
 
     ax.legend(handles=legend_elements, loc='upper left',
               title='Nivel | Tamaño = Valor', fontsize=10, title_fontsize=11,
