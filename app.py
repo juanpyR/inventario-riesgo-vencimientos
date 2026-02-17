@@ -1735,31 +1735,24 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         <div class="plan-section plan-cierre">
             <div class="plan-header">
                 <h3 class="plan-title">🔵 MAÑANA 18:00 | CIERRE OPERATIVO 48H</h3>
-                <span class="plan-badge" style="color: #1976d2;">📈 RESULTADOS PROYECTADOS</span>
+                <span class="plan-badge" style="color: #1976d2;">📈 RESULTADOS</span>
             </div>
             
             <div class="metric-grid">
                 <div class="metric-item">
                     <div class="metric-label">💰 Valor Rescatado</div>
                     <div class="metric-value">{clp(valor_rescatado_base)}</div>
-                    <div class="metric-sub">Ventas por descuentos flash</div>
+                    <div class="metric-sub">Descuentos aplicados</div>
                 </div>
                 <div class="metric-item">
                     <div class="metric-label">🏛️ Crédito Tributario</div>
                     <div class="metric-value">{clp(credito_trib)}</div>
-                    <div class="metric-sub">Ahorro fiscal (Ley 19.885)</div>
+                    <div class="metric-sub">27% donaciones</div>
                 </div>
                 <div class="metric-item" style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);">
                     <div class="metric-label" style="color: white;">✅ TOTAL RECUPERADO</div>
                     <div class="metric-value" style="color: white;">{clp(total_recuperado_base)}</div>
-                    <div class="metric-sub" style="color: rgba(255,255,255,0.9);">Liquidez neta inyectada</div>
-                </div>
-            </div>
-
-            <div style="background: rgba(25, 118, 210, 0.1); padding: 15px; border-radius: 10px; border-left: 5px solid #1976d2; margin-top: 15px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight: 600; color: #1a237e;">🎯 Eficiencia del Rescate Financiero:</span>
-                    <span style="font-size: 1.2rem; font-weight: 700; color: #1a237e;">{tasa_exito:.1f}% del capital en riesgo</span>
+                    <div class="metric-sub" style="color: rgba(255,255,255,0.9);">Suma de ambas acciones</div>
                 </div>
             </div>
         </div>
