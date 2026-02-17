@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 import calendar
 import warnings
 import io
-import streamlit as st
+import streamlit as stfrom reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 
 warnings.filterwarnings('ignore')
 
@@ -557,7 +558,40 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
     st.info(f"En 48h: Rescatamos entre {valor_critico*0.40 + valor_urgente*0.30:,.0f} y {valor_critico*0.60 + valor_urgente*0.50:,.0f} CLP")
     st.metric("Total recuperado esperado", f"{total_recuperado:,.0f} CLP")
 
-
+def generar_pdf_simple(df_riesgo, fecha_hoy, total_riesgo, valor_vencido, credito_trib, total_recuperado):
+    """Genera PDF básico del reporte"""
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    
+    # Título
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(100, height - 50, "SISTEMA DE GESTION DE VENCIMIENTOS")
+    
+    # Fecha
+    c.setFont("Helvetica", 12)
+    c.drawString(100, height - 80, f"Reporte al: {fecha_hoy.strftime('%d/%m/%Y')}")
+    
+    # Resumen
+    c.drawString(100, height - 110, f"Total en riesgo: {total_riesgo:,.0f} CLP")
+    c.drawString(100, height - 130, f"Productos en riesgo: {len(df_riesgo)}")
+    c.drawString(100, height - 150, f"Productos vencidos: {len(df_riesgo[df_riesgo['Nivel_Riesgo']=='VENCIDO'])}")
+    
+    # Financiero
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(100, height - 190, "PROYECCION FINANCIERA")
+    c.setFont("Helvetica", 12)
+    c.drawString(100, height - 210, f"Perdida sin accion: {valor_vencido:,.0f} CLP")
+    c.drawString(100, height - 230, f"Credito tributario (27%): +{credito_trib:,.0f} CLP")
+    c.drawString(100, height - 250, f"Total recuperado (48h): {total_recuperado:,.0f} CLP")
+    
+    # Footer
+    c.setFont("Helvetica-Oblique", 9)
+    c.drawString(100, 50, "Reporte generado automaticamente - Sistema de Gestion de Vencimientos")
+    
+    c.save()
+    buffer.seek(0)
+    return buffer
 # =============================================================================
 # FUNCIÓN PRINCIPAL - STREAMLIT APP
 # =============================================================================
@@ -692,12 +726,12 @@ def main():
             
             # ✅ Botón para descargar reporte completo
             st.markdown("---")
-            st.download_button(
-                label="Descargar Reporte Completo (CSV)",
-                data=df_riesgo.to_csv(index=False).encode('utf-8'),
-                file_name=f"reporte_vencimientos_{fecha_hoy.strftime('%Y%m%d')}.csv",
-                mime="text/csv"
-            )
+            pdf_buffer = generar_pdf_simple(df_riesgo, fecha_hoy, total_riesgo, valor_vencido, credito_trib, total_recuperado)
+            st.download_button( label="Descargar Reporte (PDF)", 
+                               data=pdf_buffer, f
+                               ile_name=f"reporte_vencimientos_{fecha_hoy.strftime('%Y%m%d')}.pdf",
+                                mime="application/pdf"
+                              )
             
         except Exception as e:
             st.error(f"Error en el análisis: {str(e)}")
