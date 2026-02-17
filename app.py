@@ -28,7 +28,7 @@ warnings.filterwarnings('ignore')
 def clp(valor):
     """Formatea número con estilo chileno: 1.234.567"""
     if isinstance(valor, str):
-        return valor  # Ya está formateado
+        return valor
     if valor is None or (isinstance(valor, float) and pd.isna(valor)):
         return "0"
     try:
@@ -40,16 +40,6 @@ def clp(valor):
 def clp_full(valor):
     """Formatea número con estilo chileno + CLP: 1.234.567 CLP"""
     return f"{clp(valor)} CLP"
-
-# Monkey Patching de st.metric
-_metric_original = st.metric
-
-def metric_con_formato(label, value, delta=None, delta_color="normal"):
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        value = clp_full(value)
-    _metric_original(label, value, delta=delta, delta_color=delta_color)
-
-st.metric = metric_con_formato
 
 # Formato para DataFrames de Pandas
 pd.options.display.float_format = lambda x: f'{x:,.0f}'.replace(',', '.')
@@ -317,13 +307,6 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
 # FUNCIONES DE VISUALIZACIÓN - TABLAS Y REPORTES
 # =============================================================================
 
-def formato_rango_fechas(fecha_inicio, fecha_fin):
-    """Formatea rango de fechas considerando cruce de mes"""
-    inicio_str = fecha_inicio.strftime('%d/%m')
-    fin_str = fecha_fin.strftime('%d/%m')
-    return f"{inicio_str} a {fin_str}"
-
-
 def mostrar_resumen_ejecutivo(fecha_hoy, df_riesgo, total_riesgo, total_riesgo_mes, resumen_por_mes, df_con_meses):
     """Muestra el resumen ejecutivo unificado"""
     st.header("RESUMEN EJECUTIVO")
@@ -356,11 +339,11 @@ def mostrar_resumen_ejecutivo(fecha_hoy, df_riesgo, total_riesgo, total_riesgo_m
         
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Total Mercadería", total_valor)
+            st.metric("Total Mercadería", clp_full(total_valor))
         with col2:
-            st.metric("Ya Perdida", valor_perdido, delta=f"-{pct_perdido:.1f}%")
+            st.metric("Ya Perdida", clp_full(valor_perdido), delta=f"-{pct_perdido:.1f}%")
         with col3:
-            st.metric("Recuperable", valor_recuperable, delta=f"{pct_recuperable:.1f}%")
+            st.metric("Recuperable", clp_full(valor_recuperable), delta=f"{pct_recuperable:.1f}%")
         
         if es_mes_parcial:
             st.info("Mes en curso. Los 'perdidos' incluyen vencimientos anteriores a hoy.")
@@ -466,9 +449,9 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         with col1:
             st.metric("Productos", len(productos_vencidos))
         with col2:
-            st.metric("Unidades", productos_vencidos['Stock_Inicial'].sum())
+            st.metric("Unidades", int(productos_vencidos['Stock_Inicial'].sum()))
         with col3:
-            st.metric("Valor en Riesgo", valor_vencido)
+            st.metric("Valor en Riesgo", clp_full(valor_vencido))
         st.success(f"Crédito tributario 27%: +{clp_full(credito_trib)}")
     else:
         st.info("Sin productos vencidos hoy")
@@ -487,9 +470,9 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         with col1:
             st.metric("Productos", len(productos_criticos))
         with col2:
-            st.metric("Unidades", productos_criticos['Stock_Inicial'].sum())
+            st.metric("Unidades", int(productos_criticos['Stock_Inicial'].sum()))
         with col3:
-            st.metric("Valor en Riesgo", valor_critico)
+            st.metric("Valor en Riesgo", clp_full(valor_critico))
         st.info("Aplicar 40% descuento en entrada principal")
     else:
         st.info("Sin productos críticos")
@@ -508,9 +491,9 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         with col1:
             st.metric("Productos", len(productos_urgentes))
         with col2:
-            st.metric("Unidades", productos_urgentes['Stock_Inicial'].sum())
+            st.metric("Unidades", int(productos_urgentes['Stock_Inicial'].sum()))
         with col3:
-            st.metric("Valor en Riesgo", valor_urgente)
+            st.metric("Valor en Riesgo", clp_full(valor_urgente))
         st.info("Aplicar 25% descuento")
     else:
         st.info("Sin productos urgentes")
@@ -523,11 +506,11 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Valor Rescatado", valor_rescatado)
+        st.metric("Valor Rescatado", clp_full(valor_rescatado))
     with col2:
-        st.metric("Crédito Tributario", credito_trib)
+        st.metric("Crédito Tributario", clp_full(credito_trib))
     with col3:
-        st.metric("Total Recuperado", total_recuperado)
+        st.metric("Total Recuperado", clp_full(total_recuperado))
     
     return valor_vencido, credito_trib, valor_critico, valor_urgente, total_recuperado
 
@@ -559,7 +542,7 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
     st.error(f"Si no donamos: Pérdida de {clp_full(valor_vencido)} hoy")
     st.success(f"Con donación: Recuperamos {clp_full(credito_trib)} en crédito")
     st.info(f"En 48h: Rescatamos entre {clp_full(valor_critico*0.40 + valor_urgente*0.30)} y {clp_full(valor_critico*0.60 + valor_urgente*0.50)}")
-    st.metric("Total recuperado esperado", total_recuperado)
+    st.metric("Total recuperado esperado", clp_full(total_recuperado))
 
 
 def generar_pdf(df_riesgo, total_riesgo):
