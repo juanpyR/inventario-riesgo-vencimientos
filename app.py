@@ -37,10 +37,10 @@ pd.options.display.float_format = lambda x: f'{x:,.0f}'.replace(',', '.')
 # COLORES SEMÁFORO COHERENTES
 # =============================================================================
 COLOR_MAP = {
-    'VENCIDO': '#d32f2f',
-    'CRITICO': '#f57c00',
-    'URGENTE': '#fbc02d',
-    'PREVENTIVO': '#fb8c00'
+    'VENCIDO': '#9c27b0',      # Violeta
+    'CRITICO': '#d32f2f',      # Rojo
+    'URGENTE': '#f57c00',      # Naranja
+    'PREVENTIVO': '#fbc02d'    # Amarillo
 }
 
 # =============================================================================
@@ -228,10 +228,10 @@ def cargar_css():
     .dataframe tbody tr:hover { background-color: #e3f2fd; transition: all 0.3s; }
     .dataframe td { padding: 12px 15px; border-bottom: 1px solid #e0e0e0; }
     
-    .tabla-vencido thead th { background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); }
-    .tabla-critico thead th { background: linear-gradient(135deg, #f57c00 0%, #e65100 100%); }
-    .tabla-urgente thead th { background: linear-gradient(135deg, #fbc02d 0%, #f9a825 100%); }
-    .tabla-preventivo thead th { background: linear-gradient(135deg, #fb8c00 0%, #f57c00 100%); }
+    .tabla-vencido thead th { background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); }
+    .tabla-critico thead th { background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); }
+    .tabla-urgente thead th { background: linear-gradient(135deg, #f57c00 0%, #e65100 100%); }
+    .tabla-preventivo thead th { background: linear-gradient(135deg, #fbc02d 0%, #f9a825 100%); }
     
     /* BADGES */
     .badge {
@@ -242,10 +242,10 @@ def cargar_css():
         font-weight: 600;
     }
     
-    .badge-vencido { background: #ffebee; color: #c62828; }
-    .badge-critico { background: #fff3e0; color: #ef6c00; }
-    .badge-urgente { background: #fffde7; color: #f9a825; }
-    .badge-preventivo { background: #fbe9e7; color: #e65100; }
+    .badge-vencido { background: #f3e5f5;  /* Fondo violeta claro */ color: #7b1fa2; }
+    .badge-critico { background: #ffebee;  /* Fondo rojo claro */ color: #c62828; }
+    .badge-urgente { background: #fff3e0;  /* Fondo naranja claro */ color: #e65100; }
+    .badge-preventivo { background: #fffde7;  /* Fondo amarillo claro */ color: #f9a825; }
     
     /* PLAN DE ACCIÓN */
     .plan-section {
@@ -673,24 +673,24 @@ def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy, df_con_meses=No
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        st.markdown(f"""
-        <div class='classification-item vencido'>
-            <span class='indicator' style='background-color: #d32f2f;'></span>
-            <strong>Vencido:</strong> {vencidos} productos | {clp(valor_vencidos)} CLP
-        </div>
-        <div class='classification-item critico'>
-            <span class='indicator' style='background-color: #f57c00;'></span>
-            <strong>Crítico:</strong> {criticos} productos | {clp(valor_criticos)} CLP
-        </div>
-        <div class='classification-item urgente'>
-            <span class='indicator' style='background-color: #fbc02d;'></span>
-            <strong>Urgente:</strong> {urgentes} productos | {clp(valor_urgentes)} CLP
-        </div>
-        <div class='classification-item preventivo'>
-            <span class='indicator' style='background-color: #fb8c00;'></span>
-            <strong>Preventivo:</strong> {preventivos} productos | {clp(valor_preventivos)} CLP
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown(f"""
+            <div class='classification-item vencido'>
+                <span class='indicator' style='background-color: #9c27b0;'></span>
+                <strong>Vencido:</strong> {vencidos} productos | {clp(valor_vencidos)} CLP
+            </div>
+            <div class='classification-item critico'>
+                <span class='indicator' style='background-color: #d32f2f;'></span>
+                <strong>Crítico:</strong> {criticos} productos | {clp(valor_criticos)} CLP
+            </div>
+            <div class='classification-item urgente'>
+                <span class='indicator' style='background-color: #f57c00;'></span>
+                <strong>Urgente:</strong> {urgentes} productos | {clp(valor_urgentes)} CLP
+            </div>
+            <div class='classification-item preventivo'>
+                <span class='indicator' style='background-color: #fbc02d;'></span>
+                <strong>Preventivo:</strong> {preventivos} productos | {clp(valor_preventivos)} CLP
+            </div>
+            """, unsafe_allow_html=True)
     
     with col2:
         # Generar resumen dinámico del plan
@@ -824,7 +824,7 @@ def mostrar_visualizacion_nueva(df_riesgo):
     )
     
     # Colores del semáforo
-    colors_semaforo = ['#d32f2f', '#f57c00', '#fbc02d', '#fb8c00']
+    colors_semaforo = ['#9c27b0', '#d32f2f', '#f57c00', '#fbc02d']
     
     # Gráfico 1 - Por Nivel (cantidad)
     fig.add_trace(go.Pie(
@@ -884,36 +884,36 @@ def mostrar_visualizacion_nueva(df_riesgo):
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
+    st.markdown("""
+    <div class='legend-box' style='border-color: #9c27b0; background: #f3e5f5;'>
+        <span class='indicator' style='background-color: #9c27b0;'></span>
+        <strong>Vencido</strong><br>
+        <small style='color: #666;'>Hoy</small>
+    </div>
+    """, unsafe_allow_html=True)
+
+    with col2:
         st.markdown("""
-        <div class='legend-box' style='border-color: #f57c00; background: #fff3e0;'>
-            <span class='indicator' style='background-color: #f57c00;'></span>
+        <div class='legend-box' style='border-color: #d32f2f; background: #ffebee;'>
+            <span class='indicator' style='background-color: #d32f2f;'></span>
             <strong>Crítico</strong><br>
             <small style='color: #666;'>1-3 días</small>
         </div>
         """, unsafe_allow_html=True)
     
-    with col2:
+    with col3:
         st.markdown("""
-        <div class='legend-box' style='border-color: #fbc02d; background: #fffde7;'>
-            <span class='indicator' style='background-color: #fbc02d;'></span>
+        <div class='legend-box' style='border-color: #f57c00; background: #fff3e0;'>
+            <span class='indicator' style='background-color: #f57c00;'></span>
             <strong>Urgente</strong><br>
             <small style='color: #666;'>4-7 días</small>
         </div>
         """, unsafe_allow_html=True)
     
-    with col3:
-        st.markdown("""
-        <div class='legend-box' style='border-color: #d32f2f; background: #ffebee;'>
-            <span class='indicator' style='background-color: #d32f2f;'></span>
-            <strong>Vencido</strong><br>
-            <small style='color: #666;'>Hoy</small>
-        </div>
-        """, unsafe_allow_html=True)
-    
     with col4:
         st.markdown("""
-        <div class='legend-box' style='border-color: #fb8c00; background: #fbe9e7;'>
-            <span class='indicator' style='background-color: #fb8c00;'></span>
+        <div class='legend-box' style='border-color: #fbc02d; background: #fffde7;'>
+            <span class='indicator' style='background-color: #fbc02d;'></span>
             <strong>Preventivo</strong><br>
             <small style='color: #666;'>8-10 días</small>
         </div>
@@ -1174,11 +1174,11 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
     
     # Colores y badges
     config_niveles = {
-        'VENCIDO': {'color': '🔴', 'badge': 'badge-vencido', 'clase': 'tabla-vencido'},
-        'CRITICO': {'color': '🟠', 'badge': 'badge-critico', 'clase': 'tabla-critico'},
-        'URGENTE': {'color': '🟡', 'badge': 'badge-urgente', 'clase': 'tabla-urgente'},
-        'PREVENTIVO': {'color': '🔵', 'badge': 'badge-preventivo', 'clase': 'tabla-preventivo'}
-    }
+    'VENCIDO': {'color': '🟣', 'badge': 'badge-vencido', 'clase': 'tabla-vencido'},
+    'CRITICO': {'color': '🔴', 'badge': 'badge-critico', 'clase': 'tabla-critico'},
+    'URGENTE': {'color': '🟠', 'badge': 'badge-urgente', 'clase': 'tabla-urgente'},
+    'PREVENTIVO': {'color': '🟡', 'badge': 'badge-preventivo', 'clase': 'tabla-preventivo'}
+      }
     
     for nivel in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']:
         df_nivel = df_filtrado[df_filtrado['Nivel_Riesgo'] == nivel].sort_values('Valor_Stock_Costo', ascending=False)
