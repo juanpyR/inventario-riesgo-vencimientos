@@ -884,13 +884,13 @@ def mostrar_visualizacion_nueva(df_riesgo):
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-    st.markdown("""
-    <div class='legend-box' style='border-color: #9c27b0; background: #f3e5f5;'>
-        <span class='indicator' style='background-color: #9c27b0;'></span>
-        <strong>Vencido</strong><br>
-        <small style='color: #666;'>Hoy</small>
-    </div>
-    """, unsafe_allow_html=True)
+        st.markdown("""
+        <div class='legend-box' style='border-color: #9c27b0; background: #f3e5f5;'>
+            <span class='indicator' style='background-color: #9c27b0;'></span>
+            <strong>Vencido</strong><br>
+            <small style='color: #666;'>Hoy</small>
+        </div>
+        """, unsafe_allow_html=True)
 
     with col2:
         st.markdown("""
