@@ -462,9 +462,9 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     if len(productos_criticos) > 0:
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Productos", len(productos_criticos))
+            st.metric("Productos", f"{len(productos_criticos)}")
         with col2:
-            st.metric("Unidades", int(productos_criticos['Stock_Inicial'].sum()))
+            st.metric("Unidades", f"{int(productos_criticos['Stock_Inicial'].sum())}")
         with col3:
             st.metric("Valor en Riesgo", f"{clp(valor_critico)} CLP")
         st.info("Aplicar 40% descuento en entrada principal")
@@ -483,9 +483,9 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     if len(productos_urgentes) > 0:
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Productos", len(productos_urgentes))
+            st.metric("Productos", f"{len(productos_urgentes)}")
         with col2:
-            st.metric("Unidades", int(productos_urgentes['Stock_Inicial'].sum()))
+            st.metric("Unidades", f"{int(productos_urgentes['Stock_Inicial'].sum())}")
         with col3:
             st.metric("Valor en Riesgo", f"{clp(valor_urgente)} CLP")
         st.info("Aplicar 25% descuento")
