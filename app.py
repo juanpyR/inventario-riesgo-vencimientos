@@ -1442,30 +1442,38 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     """), unsafe_allow_html=True)
 
     # --- 6. CIERRE OPERATIVO ---
+    # --- 6. CIERRE OPERATIVO ---
+
+# Disclaimer de proyecciones
+    st.info("""
+    ⚠️ **Nota:** Estas son **proyecciones estimadas**. Los resultados reales dependen del tráfico de tienda, 
+    ubicación de productos y respuesta de clientes.
+    """)
+    
     st.markdown(textwrap.dedent(f"""
-        <div class="plan-section plan-cierre">
-            <div class="plan-header">
-                <h3 class="plan-title">🔵 MAÑANA 18:00 | CIERRE OPERATIVO 48H</h3>
-                <span class="plan-badge" style="color: #1976d2;">📈 RESULTADOS</span>
+    <div class="plan-section plan-cierre">
+        <div class="plan-header">
+            <h3 class="plan-title">🔵 MAÑANA 18:00 | CIERRE OPERATIVO 48H</h3>
+            <span class="plan-badge" style="color: #1976d2;">📈 PROYECCIÓN ESTIMADA</span>
+        </div>
+        <div class="metric-grid">
+            <div class="metric-item">
+                <div class="metric-label">💰 Valor Rescatado (ESTIMADO)</div>
+                <div class="metric-value">{clp(valor_rescatado_base)}</div>
+                <div class="metric-sub">50% críticos + 40% urgentes</div>
             </div>
-            <div class="metric-grid">
-                <div class="metric-item">
-                    <div class="metric-label">💰 Valor Rescatado</div>
-                    <div class="metric-value">{clp(valor_rescatado_base)}</div>
-                    <div class="metric-sub">Ventas proyectadas</div>
-                </div>
-                <div class="metric-item">
-                    <div class="metric-label">🏛️ Crédito Tributario</div>
-                    <div class="metric-value">{clp(credito_trib)}</div>
-                    <div class="metric-sub">27% s/donaciones</div>
-                </div>
-                <div class="metric-item" style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);">
-                    <div class="metric-label" style="color: white;">✅ TOTAL RECUPERADO</div>
-                    <div class="metric-value" style="color: white;">{clp(total_recuperado_base)}</div>
-                    <div class="metric-sub" style="color: rgba(255,255,255,0.9);">Inyección de liquidez</div>
-                </div>
+            <div class="metric-item">
+                <div class="metric-label">🏛️ Crédito Tributario</div>
+                <div class="metric-value">{clp(credito_trib)}</div>
+                <div class="metric-sub">27% s/donaciones</div>
+            </div>
+            <div class="metric-item" style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);">
+                <div class="metric-label" style="color: white;">✅ TOTAL RECUPERADO</div>
+                <div class="metric-value" style="color: white;">{clp(total_recuperado_base)}</div>
+                <div class="metric-sub" style="color: rgba(255,255,255,0.9);">Inyección de liquidez proyectada</div>
             </div>
         </div>
+    </div>
     """), unsafe_allow_html=True)
 
     return valor_vencido, credito_trib, valor_critico, valor_urgente, total_recuperado_base
