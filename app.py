@@ -24,7 +24,6 @@ warnings.filterwarnings('ignore')
 # =============================================================================
 # FORMATO CHILENO - AL INICIO (DESPUÉS DE IMPORTS)
 # =============================================================================
-
 def clp(valor):
     """Formatea número con estilo chileno: 1.234.567"""
     if isinstance(valor, str):
@@ -447,10 +446,13 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     if len(productos_vencidos) > 0:
         col1, col2, col3 = st.columns(3)
         with col1:
+            # ✅ CONTEOS - Sin CLP
             st.metric("Productos", len(productos_vencidos))
         with col2:
+            # ✅ CONTEOS - Sin CLP
             st.metric("Unidades", int(productos_vencidos['Stock_Inicial'].sum()))
         with col3:
+            # ✅ MONETARIO - Con CLP
             st.metric("Valor en Riesgo", clp_full(valor_vencido))
         st.success(f"Crédito tributario 27%: +{clp_full(credito_trib)}")
     else:
@@ -468,11 +470,11 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         valor_critico = productos_criticos['Valor_Stock_Costo'].sum()
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Productos", len(productos_criticos))
+            st.metric("Productos", len(productos_criticos))  # ✅ Sin CLP
         with col2:
-            st.metric("Unidades", int(productos_criticos['Stock_Inicial'].sum()))
+            st.metric("Unidades", int(productos_criticos['Stock_Inicial'].sum()))  # ✅ Sin CLP
         with col3:
-            st.metric("Valor en Riesgo", clp_full(valor_critico))
+            st.metric("Valor en Riesgo", clp_full(valor_critico))  # ✅ Con CLP
         st.info("Aplicar 40% descuento en entrada principal")
     else:
         st.info("Sin productos críticos")
@@ -489,11 +491,11 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         valor_urgente = productos_urgentes['Valor_Stock_Costo'].sum()
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Productos", len(productos_urgentes))
+            st.metric("Productos", len(productos_urgentes))  # ✅ Sin CLP
         with col2:
-            st.metric("Unidades", int(productos_urgentes['Stock_Inicial'].sum()))
+            st.metric("Unidades", int(productos_urgentes['Stock_Inicial'].sum()))  # ✅ Sin CLP
         with col3:
-            st.metric("Valor en Riesgo", clp_full(valor_urgente))
+            st.metric("Valor en Riesgo", clp_full(valor_urgente))  # ✅ Con CLP
         st.info("Aplicar 25% descuento")
     else:
         st.info("Sin productos urgentes")
@@ -506,11 +508,11 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Valor Rescatado", clp_full(valor_rescatado))
+        st.metric("Valor Rescatado", clp_full(valor_rescatado))  # ✅ Con CLP
     with col2:
-        st.metric("Crédito Tributario", clp_full(credito_trib))
+        st.metric("Crédito Tributario", clp_full(credito_trib))  # ✅ Con CLP
     with col3:
-        st.metric("Total Recuperado", clp_full(total_recuperado))
+        st.metric("Total Recuperado", clp_full(total_recuperado))  # ✅ Con CLP
     
     return valor_vencido, credito_trib, valor_critico, valor_urgente, total_recuperado
 
