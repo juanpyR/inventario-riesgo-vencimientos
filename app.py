@@ -820,6 +820,10 @@ def main():
         except Exception as e:
             st.error(f"Error en el análisis: {str(e)}")
             st.exception(e)  # Muestra el traceback completo para debugging
+      
+        st.metric("Test 1", 1234567)
+        st.metric(123.141.141)
+        st.metric("Test 2", 987654, delta="+10%")
 
 if __name__ == "__main__":
     main()
