@@ -1341,16 +1341,38 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     st.markdown('<h2 style="color: #1a237e; margin-bottom: 20px;">⏱️ PLAN DE ACCIÓN 48H</h2>', unsafe_allow_html=True)
 
     # ============================================
-    # 1. PRODUCTOS VENCIDOS
+    # CÁLCULOS BASE - DEFINIR VARIABLES ANTES DE USARLAS
     # ============================================
+    
+    # 1. PRODUCTOS VENCIDOS
     productos_vencidos = df_riesgo[
         (df_riesgo['Nivel_Riesgo'] == 'VENCIDO') &
         (df_riesgo['Días_para_Vencimiento'] >= 0)
     ].copy()
-    
     valor_vencido = productos_vencidos['Valor_Stock_Costo'].sum() if len(productos_vencidos) > 0 else 0
     credito_trib = valor_vencido * 0.27
 
+    # 2. PRODUCTOS CRÍTICOS
+    productos_criticos = df_riesgo[
+        (df_riesgo['Nivel_Riesgo'] == 'CRITICO') &
+        (df_riesgo['Días_para_Vencimiento'].between(1, 3))
+    ].copy()
+    valor_critico = productos_criticos['Valor_Stock_Costo'].sum() if len(productos_criticos) > 0 else 0
+
+    # 3. PRODUCTOS URGENTES
+    productos_urgentes = df_riesgo[
+        (df_riesgo['Nivel_Riesgo'] == 'URGENTE') &
+        (df_riesgo['Días_para_Vencimiento'].between(4, 7))
+    ].copy()
+    valor_urgente = productos_urgentes['Valor_Stock_Costo'].sum() if len(productos_urgentes) > 0 else 0
+
+    # 4. CÁLCULOS PARA SENSIBILIDAD Y CIERRE (ANTES DE CUALQUIER st.markdown)
+    valor_rescatado_descuentos = (valor_critico * 0.50) + (valor_urgente * 0.40)
+    total_recuperado_base = valor_rescatado_descuentos + credito_trib
+
+    # ============================================
+    # 1. SECCIÓN VENCIDOS (Visual)
+    # ============================================
     if len(productos_vencidos) > 0:
         st.markdown(textwrap.dedent(f"""
         <div class="plan-section plan-vencido">
@@ -1376,15 +1398,8 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         """), unsafe_allow_html=True)
 
     # ============================================
-    # 2. PRODUCTOS CRÍTICOS
+    # 2. SECCIÓN CRÍTICOS (Visual)
     # ============================================
-    productos_criticos = df_riesgo[
-        (df_riesgo['Nivel_Riesgo'] == 'CRITICO') &
-        (df_riesgo['Días_para_Vencimiento'].between(1, 3))
-    ].copy()
-    
-    valor_critico = productos_criticos['Valor_Stock_Costo'].sum() if len(productos_criticos) > 0 else 0
-
     if len(productos_criticos) > 0:
         st.markdown(textwrap.dedent(f"""
         <div class="plan-section plan-critico">
@@ -1407,15 +1422,8 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         """), unsafe_allow_html=True)
 
     # ============================================
-    # 3. PRODUCTOS URGENTES
+    # 3. SECCIÓN URGENTES (Visual)
     # ============================================
-    productos_urgentes = df_riesgo[
-        (df_riesgo['Nivel_Riesgo'] == 'URGENTE') &
-        (df_riesgo['Días_para_Vencimiento'].between(4, 7))
-    ].copy()
-    
-    valor_urgente = productos_urgentes['Valor_Stock_Costo'].sum() if len(productos_urgentes) > 0 else 0
-
     if len(productos_urgentes) > 0:
         st.markdown(textwrap.dedent(f"""
         <div class="plan-section plan-urgente">
@@ -1446,10 +1454,6 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     # ============================================
     # 5. ANÁLISIS DE SENSIBILIDAD
     # ============================================
-    
-    # Calcular componentes base
-    valor_rescatado_descuentos = (valor_critico * 0.50) + (valor_urgente * 0.40)
-    total_recuperado_base = valor_rescatado_descuentos + credito_trib
     
     # Disclaimer prominente
     st.warning("""
@@ -1620,7 +1624,7 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         <div class="metric-grid">
             <div class="metric-item">
                 <div class="metric-label">💰 Valor Rescatado (ESTIMADO)</div>
-                <div class="metric-value">{clp(valor_rescatado_base)}</div>
+                <div class="metric-value">{clp(valor_rescatado_descuentos)}</div>
                 <div class="metric-sub">50% críticos + 40% urgentes</div>
             </div>
             <div class="metric-item">
@@ -1637,6 +1641,9 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     </div>
     """), unsafe_allow_html=True)
 
+    # ============================================
+    # RETURN - Al final de la función
+    # ============================================
     return valor_vencido, credito_trib, valor_critico, valor_urgente, total_recuperado_base
 
 
