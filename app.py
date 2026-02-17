@@ -772,7 +772,7 @@ def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy, df_con_meses=No
             <h3 style='color: #2e7d32; margin-top: 0; text-align: center;'>
                 💵 Resumen Financiero del Plan
             </h3>
-            ... (tu código actual) ...
+            
         </div>
         """, unsafe_allow_html=True)
         
