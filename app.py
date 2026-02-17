@@ -237,7 +237,6 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
     
     sizes = np.clip(df_viz['Valor_Stock_Costo'] / df_viz['Valor_Stock_Costo'].max() * 600 + 40, 40, 600)
     
-    # ✅ FIGURA MÁS PEQUEÑA
     fig, ax = plt.subplots(figsize=(12, 7))
     
     x_map = {'VENCIDO': 0.0, 'CRITICO': 1.0, 'URGENTE': 2.0, 'PREVENTIVO': 3.0}
@@ -271,23 +270,23 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
     ax.set_title(f'Riesgo de Vencimiento - {fecha_hoy.date()}\n{len(df_viz)} productos | {total_riesgo:,.0f} CLP',
                 fontsize=13, pad=15)
     
-    # ✅ LEYENDA CON BURBUJAS DE TAMAÑO - Organizadas en 2 secciones
+    # Leyenda con burbujas
     legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label='VENCIDO', markerfacecolor='#000000', markersize=10),
-        Line2D([0], [0], marker='o', color='w', label='CRÍTICO', markerfacecolor='#d32f2f', markersize=10),
-        Line2D([0], [0], marker='o', color='w', label='URGENTE', markerfacecolor='#f57c00', markersize=10),
-        Line2D([0], [0], marker='o', color='w', label='PREVENTIVO', markerfacecolor='#fbc02d', markersize=10),
-        plt.scatter([], [], s=60, c='gray', alpha=0.5, label='~100k CLP', edgecolors='none'),
-        plt.scatter([], [], s=200, c='gray', alpha=0.5, label='~500k CLP', edgecolors='none'),
-        plt.scatter([], [], s=400, c='gray', alpha=0.5, label='~1M+ CLP', edgecolors='none')
+        Line2D([0], [0], marker='o', color='w', label='VENCIDO', markerfacecolor='#000000', markersize=14),
+        Line2D([0], [0], marker='o', color='w', label='CRÍTICO', markerfacecolor='#d32f2f', markersize=14),
+        Line2D([0], [0], marker='o', color='w', label='URGENTE', markerfacecolor='#f57c00', markersize=14),
+        Line2D([0], [0], marker='o', color='w', label='PREVENTIVO', markerfacecolor='#fbc02d', markersize=14),
+        plt.scatter([], [], s=100, c='gray', alpha=0.6, label='~100k CLP', edgecolors='none'),
+        plt.scatter([], [], s=300, c='gray', alpha=0.6, label='~500k CLP', edgecolors='none'),
+        plt.scatter([], [], s=500, c='gray', alpha=0.6, label='~1M+ CLP', edgecolors='none')
     ]
     
-    # ✅ LEYENDA COMPACTA - 2 columnas, tamaños reducidos
+    # Leyenda
     ax.legend(handles=legend_elements, loc='upper left',
-              title='Nivel | Tamaño = Valor', fontsize=7, title_fontsize=8,
+              title='Nivel | Tamaño = Valor', fontsize=10, title_fontsize=11,
               frameon=True, edgecolor='gray', facecolor='white',
-              borderpad=0.4, labelspacing=0.3, handletextpad=0.3,
-              columnspacing=0.6, ncol=2)
+              borderpad=0.8, labelspacing=0.6, handletextpad=0.6,
+              columnspacing=1.0, ncol=2)
     
     ax.set_xlim(-0.7, 3.7)
     ax.set_ylim(-0.7, 3.7)
