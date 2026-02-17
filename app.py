@@ -1302,123 +1302,151 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
 import textwrap
 
 def mostrar_plan_accion(df_riesgo, fecha_hoy):
-    """Muestra el plan de acción 48H con formato visual profesional y renderizado HTML corregido"""
+    """Muestra el plan de acción 48H con formato visual profesional"""
     
-    # Inyectar estilos CSS (Asegúrate de que este bloque no tenga espacios a la izquierda del tag <style>)
+    # Inyectar estilos CSS
     st.markdown(textwrap.dedent("""
-        <style>
-        .plan-section { border-radius: 15px; padding: 25px; margin: 20px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-left: 6px solid; }
-        .plan-vencido { background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%); border-color: #d32f2f; }
-        .plan-critico { background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border-color: #f57c00; }
-        .plan-urgente { background: linear-gradient(135deg, #fffde7 0%, #fff9c4 100%); border-color: #fbc02d; }
-        .plan-cierre { background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-color: #1976d2; }
-        .plan-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid rgba(0,0,0,0.1); }
-        .plan-title { font-size: 1.3rem; font-weight: 700; color: #1a237e; margin: 0; }
-        .plan-badge { background: rgba(255,255,255,0.9); padding: 8px 15px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
-        .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; }
-        .metric-item { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .metric-label { font-size: 0.85rem; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .metric-value { font-size: 1.8rem; font-weight: 700; color: #1a237e; }
-        .metric-sub { font-size: 0.75rem; color: #999; margin-top: 5px; }
-        .action-list { background: white; border-radius: 10px; padding: 20px; margin: 15px 0; }
-        .action-item { display: flex; align-items: center; padding: 12px; margin: 8px 0; background: #f5f5f5; border-radius: 8px; border-left: 4px solid; }
-        .action-icon { font-size: 1.5rem; margin-right: 15px; }
-        .action-text { flex: 1; font-size: 0.95rem; }
-        .sensitivity-box { background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); border-radius: 12px; padding: 20px; margin: 20px 0; border: 2px solid #9c27b0; }
-        .sensitivity-title { font-size: 1.1rem; font-weight: 700; color: #6a1b9a; margin-bottom: 15px; }
-        .sensitivity-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .sensitivity-item { background: white; padding: 15px; border-radius: 8px; text-align: center; }
-        .sensitivity-label { font-size: 0.8rem; color: #666; margin-bottom: 5px; }
-        .sensitivity-value { font-size: 1.2rem; font-weight: 700; color: #6a1b9a; }
-        .timeline { display: flex; justify-content: space-between; align-items: center; margin: 20px 0; padding: 20px; background: white; border-radius: 12px; }
-        .timeline-item { text-align: center; flex: 1; position: relative; }
-        .timeline-time { font-size: 0.9rem; font-weight: 700; color: #1a237e; margin-bottom: 5px; }
-        .timeline-action { font-size: 0.8rem; color: #666; }
-        .timeline-dot { width: 12px; height: 12px; border-radius: 50%; margin: 10px auto; background: #667eea; }
-        </style>
+    <style>
+    .plan-section { border-radius: 15px; padding: 25px; margin: 20px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-left: 6px solid; }
+    .plan-vencido { background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%); border-color: #d32f2f; }
+    .plan-critico { background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border-color: #f57c00; }
+    .plan-urgente { background: linear-gradient(135deg, #fffde7 0%, #fff9c4 100%); border-color: #fbc02d; }
+    .plan-cierre { background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-color: #1976d2; }
+    .plan-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid rgba(0,0,0,0.1); }
+    .plan-title { font-size: 1.3rem; font-weight: 700; color: #1a237e; margin: 0; }
+    .plan-badge { background: rgba(255,255,255,0.9); padding: 8px 15px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+    .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; }
+    .metric-item { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .metric-label { font-size: 0.85rem; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric-value { font-size: 1.8rem; font-weight: 700; color: #1a237e; }
+    .metric-sub { font-size: 0.75rem; color: #999; margin-top: 5px; }
+    .action-list { background: white; border-radius: 10px; padding: 20px; margin: 15px 0; }
+    .action-item { display: flex; align-items: center; padding: 12px; margin: 8px 0; background: #f5f5f5; border-radius: 8px; border-left: 4px solid; }
+    .action-icon { font-size: 1.5rem; margin-right: 15px; }
+    .action-text { flex: 1; font-size: 0.95rem; }
+    .sensitivity-box { background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); border-radius: 12px; padding: 20px; margin: 20px 0; border: 2px solid #9c27b0; }
+    .sensitivity-title { font-size: 1.1rem; font-weight: 700; color: #6a1b9a; margin-bottom: 15px; }
+    .sensitivity-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .sensitivity-item { background: white; padding: 15px; border-radius: 8px; text-align: center; }
+    .sensitivity-label { font-size: 0.8rem; color: #666; margin-bottom: 5px; }
+    .sensitivity-value { font-size: 1.2rem; font-weight: 700; color: #6a1b9a; }
+    .timeline { display: flex; justify-content: space-between; align-items: center; margin: 20px 0; padding: 20px; background: white; border-radius: 12px; }
+    .timeline-item { text-align: center; flex: 1; position: relative; }
+    .timeline-time { font-size: 0.9rem; font-weight: 700; color: #1a237e; margin-bottom: 5px; }
+    .timeline-action { font-size: 0.8rem; color: #666; }
+    .timeline-dot { width: 12px; height: 12px; border-radius: 50%; margin: 10px auto; background: #667eea; }
+    </style>
     """), unsafe_allow_html=True)
 
     st.markdown('<h2 style="color: #1a237e; margin-bottom: 20px;">⏱️ PLAN DE ACCIÓN 48H</h2>', unsafe_allow_html=True)
 
-    # --- 1. PRODUCTOS VENCIDOS ---
-    productos_vencidos = df_riesgo[(df_riesgo['Nivel_Riesgo'] == 'VENCIDO') & (df_riesgo['Días_para_Vencimiento'] >= 0)].copy()
+    # ============================================
+    # 1. PRODUCTOS VENCIDOS
+    # ============================================
+    productos_vencidos = df_riesgo[
+        (df_riesgo['Nivel_Riesgo'] == 'VENCIDO') &
+        (df_riesgo['Días_para_Vencimiento'] >= 0)
+    ].copy()
+    
     valor_vencido = productos_vencidos['Valor_Stock_Costo'].sum() if len(productos_vencidos) > 0 else 0
     credito_trib = valor_vencido * 0.27
 
     if len(productos_vencidos) > 0:
         st.markdown(textwrap.dedent(f"""
-            <div class="plan-section plan-vencido">
-                <div class="plan-header">
-                    <h3 class="plan-title">🔴 HOY 08:00 - 10:00 | DONACIONES OBLIGATORIAS</h3>
-                    <span class="plan-badge" style="color: #d32f2f;">⚠️ PRIORIDAD MÁXIMA</span>
-                </div>
-                <div class="metric-grid">
-                    <div class="metric-item"><div class="metric-label">📦 Productos</div><div class="metric-value">{len(productos_vencidos)}</div></div>
-                    <div class="metric-item"><div class="metric-label">📊 Unidades</div><div class="metric-value">{int(productos_vencidos['Stock_Inicial'].sum()):,}</div></div>
-                    <div class="metric-item"><div class="metric-label">💰 Valor en Riesgo</div><div class="metric-value">{clp(valor_vencido)}</div></div>
-                </div>
-                <div class="action-list">
-                    <div class="action-item" style="border-color: #4caf50;"><span class="action-icon">📋</span><span class="action-text"><strong>Generar acta de donación</strong> - Crédito tributario Ley 19.885</span></div>
-                </div>
-                <div style="background: #c8e6c9; padding: 15px; border-radius: 10px; margin-top: 15px; text-align: center;">
-                    <span style="font-size: 1.5rem; font-weight: 700; color: #2e7d32;">💰 +{clp(credito_trib)} CLP de ahorro fiscal proyectado</span>
+        <div class="plan-section plan-vencido">
+            <div class="plan-header">
+                <h3 class="plan-title">🔴 HOY 08:00 - 10:00 | DONACIONES OBLIGATORIAS</h3>
+                <span class="plan-badge" style="color: #d32f2f;">⚠️ PRIORIDAD MÁXIMA</span>
+            </div>
+            <div class="metric-grid">
+                <div class="metric-item"><div class="metric-label">📦 Productos</div><div class="metric-value">{len(productos_vencidos)}</div></div>
+                <div class="metric-item"><div class="metric-label">📊 Unidades</div><div class="metric-value">{int(productos_vencidos['Stock_Inicial'].sum()):,}</div></div>
+                <div class="metric-item"><div class="metric-label">💰 Valor en Riesgo</div><div class="metric-value">{clp(valor_vencido)}</div></div>
+            </div>
+            <div class="action-list">
+                <div class="action-item" style="border-color: #4caf50;">
+                    <span class="action-icon">📋</span>
+                    <span class="action-text"><strong>Generar acta de donación</strong> - Crédito tributario Ley 19.885</span>
                 </div>
             </div>
+            <div style="background: #c8e6c9; padding: 15px; border-radius: 10px; margin-top: 15px; text-align: center;">
+                <span style="font-size: 1.5rem; font-weight: 700; color: #2e7d32;">💰 +{clp(credito_trib)} CLP de ahorro fiscal proyectado</span>
+            </div>
+        </div>
         """), unsafe_allow_html=True)
 
-    # --- 2. PRODUCTOS CRÍTICOS ---
-    productos_criticos = df_riesgo[(df_riesgo['Nivel_Riesgo'] == 'CRITICO') & (df_riesgo['Días_para_Vencimiento'].between(1, 3))].copy()
+    # ============================================
+    # 2. PRODUCTOS CRÍTICOS
+    # ============================================
+    productos_criticos = df_riesgo[
+        (df_riesgo['Nivel_Riesgo'] == 'CRITICO') &
+        (df_riesgo['Días_para_Vencimiento'].between(1, 3))
+    ].copy()
+    
     valor_critico = productos_criticos['Valor_Stock_Costo'].sum() if len(productos_criticos) > 0 else 0
 
     if len(productos_criticos) > 0:
         st.markdown(textwrap.dedent(f"""
-            <div class="plan-section plan-critico">
-                <div class="plan-header">
-                    <h3 class="plan-title">🟠 HOY 10:00 - 12:00 | ACCIÓN CRÍTICA</h3>
-                    <span class="plan-badge" style="color: #f57c00;">⚡ ALTA URGENCIA</span>
-                </div>
-                <div class="metric-grid">
-                    <div class="metric-item"><div class="metric-label">📦 Productos</div><div class="metric-value">{len(productos_criticos)}</div></div>
-                    <div class="metric-item"><div class="metric-label">📊 Unidades</div><div class="metric-value">{int(productos_criticos['Stock_Inicial'].sum()):,}</div></div>
-                    <div class="metric-item"><div class="metric-label">💰 Valor</div><div class="metric-value">{clp(valor_critico)}</div></div>
-                </div>
-                <div class="action-list">
-                    <div class="action-item" style="border-color: #f57c00;"><span class="action-icon">🏷️</span><span class="action-text"><strong>Markdown 40%</strong> - Reposición prioritaria en entrada principal</span></div>
+        <div class="plan-section plan-critico">
+            <div class="plan-header">
+                <h3 class="plan-title">🟠 HOY 10:00 - 12:00 | ACCIÓN CRÍTICA</h3>
+                <span class="plan-badge" style="color: #f57c00;">⚡ ALTA URGENCIA</span>
+            </div>
+            <div class="metric-grid">
+                <div class="metric-item"><div class="metric-label">📦 Productos</div><div class="metric-value">{len(productos_criticos)}</div></div>
+                <div class="metric-item"><div class="metric-label">📊 Unidades</div><div class="metric-value">{int(productos_criticos['Stock_Inicial'].sum()):,}</div></div>
+                <div class="metric-item"><div class="metric-label">💰 Valor</div><div class="metric-value">{clp(valor_critico)}</div></div>
+            </div>
+            <div class="action-list">
+                <div class="action-item" style="border-color: #f57c00;">
+                    <span class="action-icon">🏷️</span>
+                    <span class="action-text"><strong>Markdown 40%</strong> - Reposición prioritaria en entrada principal</span>
                 </div>
             </div>
+        </div>
         """), unsafe_allow_html=True)
 
-    # --- 3. PRODUCTOS URGENTES ---
-    productos_urgentes = df_riesgo[(df_riesgo['Nivel_Riesgo'] == 'URGENTE') & (df_riesgo['Días_para_Vencimiento'].between(4, 7))].copy()
+    # ============================================
+    # 3. PRODUCTOS URGENTES
+    # ============================================
+    productos_urgentes = df_riesgo[
+        (df_riesgo['Nivel_Riesgo'] == 'URGENTE') &
+        (df_riesgo['Días_para_Vencimiento'].between(4, 7))
+    ].copy()
+    
     valor_urgente = productos_urgentes['Valor_Stock_Costo'].sum() if len(productos_urgentes) > 0 else 0
 
     if len(productos_urgentes) > 0:
         st.markdown(textwrap.dedent(f"""
-            <div class="plan-section plan-urgente">
-                <div class="plan-header">
-                    <h3 class="plan-title">🟡 HOY 14:00 - 16:00 | ACCIÓN URGENTE</h3>
-                    <span class="plan-badge" style="color: #f9a825;">⏰ URGENCIA MEDIA</span>
-                </div>
-                <div class="metric-grid">
-                    <div class="metric-item"><div class="metric-label">📦 Productos</div><div class="metric-value">{len(productos_urgentes)}</div></div>
-                    <div class="metric-item"><div class="metric-label">📊 Unidades</div><div class="metric-value">{int(productos_urgentes['Stock_Inicial'].sum()):,}</div></div>
-                    <div class="metric-item"><div class="metric-label">💰 Valor</div><div class="metric-value">{clp(valor_urgente)}</div></div>
-                </div>
+        <div class="plan-section plan-urgente">
+            <div class="plan-header">
+                <h3 class="plan-title">🟡 HOY 14:00 - 16:00 | ACCIÓN URGENTE</h3>
+                <span class="plan-badge" style="color: #f9a825;">⏰ URGENCIA MEDIA</span>
             </div>
+            <div class="metric-grid">
+                <div class="metric-item"><div class="metric-label">📦 Productos</div><div class="metric-value">{len(productos_urgentes)}</div></div>
+                <div class="metric-item"><div class="metric-label">📊 Unidades</div><div class="metric-value">{int(productos_urgentes['Stock_Inicial'].sum()):,}</div></div>
+                <div class="metric-item"><div class="metric-label">💰 Valor</div><div class="metric-value">{clp(valor_urgente)}</div></div>
+            </div>
+        </div>
         """), unsafe_allow_html=True)
 
-    # --- 4. TIMELINE VISUAL ---
+    # ============================================
+    # 4. TIMELINE VISUAL
+    # ============================================
     st.markdown(textwrap.dedent("""
-        <div class="timeline">
-            <div class="timeline-item"><div class="timeline-time">08:00</div><div class="timeline-dot"></div><div class="timeline-action">Donar Vencidos</div></div>
-            <div class="timeline-item"><div class="timeline-time">10:00</div><div class="timeline-dot"></div><div class="timeline-action">Críticos (40%)</div></div>
-            <div class="timeline-item"><div class="timeline-time">14:00</div><div class="timeline-dot"></div><div class="timeline-action">Urgentes (25%)</div></div>
-            <div class="timeline-item"><div class="timeline-time">Mañana</div><div class="timeline-dot"></div><div class="timeline-action">Cierre 48h</div></div>
-        </div>
+    <div class="timeline">
+        <div class="timeline-item"><div class="timeline-time">08:00</div><div class="timeline-dot"></div><div class="timeline-action">Donar Vencidos</div></div>
+        <div class="timeline-item"><div class="timeline-time">10:00</div><div class="timeline-dot"></div><div class="timeline-action">Críticos (40%)</div></div>
+        <div class="timeline-item"><div class="timeline-time">14:00</div><div class="timeline-dot"></div><div class="timeline-action">Urgentes (25%)</div></div>
+        <div class="timeline-item"><div class="timeline-time">Mañana</div><div class="timeline-dot"></div><div class="timeline-action">Cierre 48h</div></div>
+    </div>
     """), unsafe_allow_html=True)
 
-    # --- 5. ANÁLISIS DE SENSIBILIDAD ---
-
+    # ============================================
+    # 5. ANÁLISIS DE SENSIBILIDAD
+    # ============================================
+    
     # Calcular componentes base
     valor_rescatado_descuentos = (valor_critico * 0.50) + (valor_urgente * 0.40)
     total_recuperado_base = valor_rescatado_descuentos + credito_trib
@@ -1458,6 +1486,7 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         - Escenario Optimista: +30% sobre ventas proyectadas
         """)
     
+    # Header de sensibilidad
     st.markdown(f"""
     <div style='background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); 
                 border-radius: 12px; padding: 20px; margin: 20px 0; 
@@ -1479,14 +1508,12 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         'Muy Optimista': {'factor': 1.5, 'color': '#cddc39', 'label': '🔵 Muy Optimista (+50%)'}
     }
     
-    # Crear grid de escenarios
-    st.markdown('<div class="sensitivity-grid" style="grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0;">', unsafe_allow_html=True)
+    # Crear grid de escenarios - ABRIR contenedor
+    st.markdown('<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0;">', unsafe_allow_html=True)
     
-    for i, (nombre, datos) in enumerate(escenarios.items()):
+    for nombre, datos in escenarios.items():
         valor_rescatado = valor_rescatado_descuentos * datos['factor']
         total_recuperado = valor_rescatado + credito_trib
-        
-        # Determinar si es el escenario base
         es_base = nombre == 'Base'
         estilo_extra = 'style="background: #e8f5e9; border: 3px solid #4caf50;"' if es_base else ''
         
@@ -1507,75 +1534,78 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
             {'<div style="margin-top: 10px; padding: 5px; background: #c8e6c9; border-radius: 5px; font-size: 0.75rem; color: #2e7d32; font-weight: 600;">✅ PROYECCIÓN PRINCIPAL</div>' if es_base else ''}
         </div>
         """, unsafe_allow_html=True)
+    
+    # CERRAR contenedor del grid
+    st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
-
-# Visualización de rango
-st.markdown(f"""
-<div style='background: linear-gradient(90deg, #ffebee 0%, #fff3e0 50%, #e8f5e9 100%); 
-            padding: 20px; border-radius: 12px; margin: 20px 0; text-align: center;
-            border: 2px solid #ddd;'>
-    <div style='font-size: 1.1rem; font-weight: 700; color: #1a237e; margin-bottom: 15px;'>
-        📊 RANGO DE RECUPERACIÓN PROYECTADA
-    </div>
-    <div style='display: flex; justify-content: space-between; align-items: center; 
-                padding: 15px; background: white; border-radius: 8px;'>
-        <div style='text-align: center;'>
-            <div style='font-size: 0.85rem; color: #666;'>Mínimo Esperado</div>
-            <div style='font-size: 1.5rem; font-weight: 700; color: #d32f2f;'>
-                {clp((valor_rescatado_descuentos * 0.5) + credito_trib)} CLP
-            </div>
-            <div style='font-size: 0.75rem; color: #999;'>Escenario muy pesimista</div>
+    # Visualización de rango
+    st.markdown(f"""
+    <div style='background: linear-gradient(90deg, #ffebee 0%, #fff3e0 50%, #e8f5e9 100%); 
+                padding: 20px; border-radius: 12px; margin: 20px 0; text-align: center;
+                border: 2px solid #ddd;'>
+        <div style='font-size: 1.1rem; font-weight: 700; color: #1a237e; margin-bottom: 15px;'>
+            📊 RANGO DE RECUPERACIÓN PROYECTADA
         </div>
-        <div style='text-align: center; padding: 0 30px;'>
-            <div style='font-size: 0.85rem; color: #666;'>Escenario Base</div>
-            <div style='font-size: 2rem; font-weight: 700; color: #4caf50;'>
-                {clp(total_recuperado_base)} CLP
+        <div style='display: flex; justify-content: space-between; align-items: center; 
+                    padding: 15px; background: white; border-radius: 8px;'>
+            <div style='text-align: center;'>
+                <div style='font-size: 0.85rem; color: #666;'>Mínimo Esperado</div>
+                <div style='font-size: 1.5rem; font-weight: 700; color: #d32f2f;'>
+                    {clp((valor_rescatado_descuentos * 0.5) + credito_trib)} CLP
+                </div>
+                <div style='font-size: 0.75rem; color: #999;'>Escenario muy pesimista</div>
             </div>
-            <div style='font-size: 0.75rem; color: #2e7d32; font-weight: 600;'>PROYECCIÓN PRINCIPAL</div>
-        </div>
-        <div style='text-align: center;'>
-            <div style='font-size: 0.85rem; color: #666;'>Máximo Esperado</div>
-            <div style='font-size: 1.5rem; font-weight: 700; color: #388e3c;'>
-                {clp((valor_rescatado_descuentos * 1.5) + credito_trib)} CLP
+            <div style='text-align: center; padding: 0 30px;'>
+                <div style='font-size: 0.85rem; color: #666;'>Escenario Base</div>
+                <div style='font-size: 2rem; font-weight: 700; color: #4caf50;'>
+                    {clp(total_recuperado_base)} CLP
+                </div>
+                <div style='font-size: 0.75rem; color: #2e7d32; font-weight: 600;'>PROYECCIÓN PRINCIPAL</div>
             </div>
-            <div style='font-size: 0.75rem; color: #999;'>Escenario muy optimista</div>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Desglose de fuentes
-st.markdown(f"""
-<div style='background: white; padding: 20px; border-radius: 12px; margin: 20px 0; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
-    <h4 style='color: #1a237e; margin-top: 0;'>💰 Desglose de Fuentes de Recuperación</h4>
-    <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;'>
-        <div style='background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #1976d2;'>
-            <div style='font-weight: 600; color: #1565c0; margin-bottom: 10px;'>🏛️ Crédito Tributario (FIJO)</div>
-            <div style='font-size: 1.5rem; font-weight: 700; color: #0d47a1;'>{clp(credito_trib)} CLP</div>
-            <div style='font-size: 0.85rem; color: #666; margin-top: 5px;'>
-                27% sobre donaciones<br>
-                <em>Valor fijo - no varía</em>
-            </div>
-        </div>
-        <div style='background: #fff3e0; padding: 15px; border-radius: 8px; border-left: 4px solid #f57c00;'>
-            <div style='font-weight: 600; color: #e65100; margin-bottom: 10px;'>💵 Ventas con Descuento (VARIABLE)</div>
-            <div style='font-size: 1.5rem; font-weight: 700; color: #ef6c00;'>
-                {clp(valor_rescatado_descuentos * 0.5)} - {clp(valor_rescatado_descuentos * 1.5)} CLP
-            </div>
-            <div style='font-size: 0.85rem; color: #666; margin-top: 5px;'>
-                Depende de tasa de venta real<br>
-                <em>Rango: 50% - 150% del base</em>
+            <div style='text-align: center;'>
+                <div style='font-size: 0.85rem; color: #666;'>Máximo Esperado</div>
+                <div style='font-size: 1.5rem; font-weight: 700; color: #388e3c;'>
+                    {clp((valor_rescatado_descuentos * 1.5) + credito_trib)} CLP
+                </div>
+                <div style='font-size: 0.75rem; color: #999;'>Escenario muy optimista</div>
             </div>
         </div>
     </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-    # --- 6. CIERRE OPERATIVO ---
+    # Desglose de fuentes
+    st.markdown(f"""
+    <div style='background: white; padding: 20px; border-radius: 12px; margin: 20px 0; 
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+        <h4 style='color: #1a237e; margin-top: 0;'>💰 Desglose de Fuentes de Recuperación</h4>
+        <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;'>
+            <div style='background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #1976d2;'>
+                <div style='font-weight: 600; color: #1565c0; margin-bottom: 10px;'>🏛️ Crédito Tributario (FIJO)</div>
+                <div style='font-size: 1.5rem; font-weight: 700; color: #0d47a1;'>{clp(credito_trib)} CLP</div>
+                <div style='font-size: 0.85rem; color: #666; margin-top: 5px;'>
+                    27% sobre donaciones<br>
+                    <em>Valor fijo - no varía</em>
+                </div>
+            </div>
+            <div style='background: #fff3e0; padding: 15px; border-radius: 8px; border-left: 4px solid #f57c00;'>
+                <div style='font-weight: 600; color: #e65100; margin-bottom: 10px;'>💵 Ventas con Descuento (VARIABLE)</div>
+                <div style='font-size: 1.5rem; font-weight: 700; color: #ef6c00;'>
+                    {clp(valor_rescatado_descuentos * 0.5)} - {clp(valor_rescatado_descuentos * 1.5)} CLP
+                </div>
+                <div style='font-size: 0.85rem; color: #666; margin-top: 5px;'>
+                    Depende de tasa de venta real<br>
+                    <em>Rango: 50% - 150% del base</em>
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-# Disclaimer de proyecciones
+    # ============================================
+    # 6. CIERRE OPERATIVO
+    # ============================================
+    
+    # Disclaimer de proyecciones
     st.info("""
     ⚠️ **Nota:** Estas son **proyecciones estimadas**. Los resultados reales dependen del tráfico de tienda, 
     ubicación de productos y respuesta de clientes.
