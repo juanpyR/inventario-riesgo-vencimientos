@@ -804,7 +804,7 @@ def main():
             
             # Botón para descargar reporte completo
             # Botón para descargar reporte completo
-            pdf = generar_pdf_profesional(df_riesgo, total_riesgo)
+            pdf = generar_pdf(df_riesgo, total_riesgo)
 
             st.download_button(
                 label="📄 Descargar Reporte Ejecutivo en PDF",
