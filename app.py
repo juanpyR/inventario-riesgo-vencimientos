@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 import calendar
 import warnings
 import io
-import streamlit as stfrom reportlab.lib.pagesizes import A4
+import streamlit as st
+from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 warnings.filterwarnings('ignore')
