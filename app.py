@@ -237,7 +237,7 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
     
     sizes = np.clip(df_viz['Valor_Stock_Costo'] / df_viz['Valor_Stock_Costo'].max() * 600 + 40, 40, 600)
     
-    # ✅ FIGURA MÁS PEQUEÑA (de 14x10 a 12x7)
+    # ✅ FIGURA MÁS PEQUEÑA
     fig, ax = plt.subplots(figsize=(12, 7))
     
     x_map = {'VENCIDO': 0.0, 'CRITICO': 1.0, 'URGENTE': 2.0, 'PREVENTIVO': 3.0}
@@ -271,21 +271,20 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
     ax.set_title(f'Riesgo de Vencimiento - {fecha_hoy.date()}\n{len(df_viz)} productos | {total_riesgo:,.0f} CLP',
                 fontsize=13, pad=15)
     
+    # ✅ LEYENDA SIMPLIFICADA - Solo niveles de riesgo (sin tamaños de burbujas)
     legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label='VENCIDO (hoy)', markerfacecolor='#000000', markersize=12),
-        Line2D([0], [0], marker='o', color='w', label='CRITICO (1-3 días)', markerfacecolor='#d32f2f', markersize=12),
-        Line2D([0], [0], marker='o', color='w', label='URGENTE (4-7 días)', markerfacecolor='#f57c00', markersize=12),
-        Line2D([0], [0], marker='o', color='w', label='PREVENTIVO (8-10 días)', markerfacecolor='#fbc02d', markersize=12),
-        plt.scatter([], [], s=80, c='gray', alpha=0.6, label='~100k CLP'),
-        plt.scatter([], [], s=300, c='gray', alpha=0.6, label='~500k CLP'),
-        plt.scatter([], [], s=600, c='gray', alpha=0.6, label='~1M+ CLP')
+        Line2D([0], [0], marker='o', color='w', label='VENCIDO', markerfacecolor='#000000', markersize=10),
+        Line2D([0], [0], marker='o', color='w', label='CRÍTICO', markerfacecolor='#d32f2f', markersize=10),
+        Line2D([0], [0], marker='o', color='w', label='URGENTE', markerfacecolor='#f57c00', markersize=10),
+        Line2D([0], [0], marker='o', color='w', label='PREVENTIVO', markerfacecolor='#fbc02d', markersize=10)
     ]
     
-    # ✅ LEYENDA EN ESQUINA SUPERIOR IZQUIERDA (loc='upper left')
+    # ✅ LEYENDA COMPACTA - Esquina superior izquierda
     ax.legend(handles=legend_elements, loc='upper left',
-              title='Tamaño = Valor en riesgo', fontsize=9, title_fontsize=10,
-              frameon=True, edgecolor='gray', facecolor='white', fancybox=True,
-              borderpad=0.8, labelspacing=0.8)
+              title='Nivel de Riesgo', fontsize=8, title_fontsize=9,
+              frameon=True, edgecolor='gray', facecolor='white',
+              borderpad=0.5, labelspacing=0.4, handletextpad=0.5,
+              columnspacing=0.8, ncol=2)  # ✅ 2 columnas para hacerla más compacta
     
     ax.set_xlim(-0.7, 3.7)
     ax.set_ylim(-0.7, 3.7)
