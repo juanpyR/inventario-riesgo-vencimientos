@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from datetime import datetime, timedelta
 import calendar
+import textwrap
 import warnings
 import io
 import streamlit as st
