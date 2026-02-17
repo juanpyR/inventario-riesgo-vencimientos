@@ -1434,19 +1434,7 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         """), unsafe_allow_html=True)
 
     # ============================================
-    # 4. TIMELINE VISUAL
-    # ============================================
-    st.markdown(textwrap.dedent("""
-    <div class="timeline">
-        <div class="timeline-item"><div class="timeline-time">08:00</div><div class="timeline-dot"></div><div class="timeline-action">Donar Vencidos</div></div>
-        <div class="timeline-item"><div class="timeline-time">10:00</div><div class="timeline-dot"></div><div class="timeline-action">Críticos (40%)</div></div>
-        <div class="timeline-item"><div class="timeline-time">14:00</div><div class="timeline-dot"></div><div class="timeline-action">Urgentes (25%)</div></div>
-        <div class="timeline-item"><div class="timeline-time">Mañana</div><div class="timeline-dot"></div><div class="timeline-action">Cierre 48h</div></div>
-    </div>
-    """), unsafe_allow_html=True)
-
-    # ============================================
-    # 5. ANÁLISIS DE SENSIBILIDAD - GRID COMPACTO 2x3
+    # 4. ANÁLISIS DE SENSIBILIDAD
     # ============================================
     
     st.markdown(f"""
@@ -1505,7 +1493,7 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     """)
 
     # ============================================
-    # 6. CIERRE OPERATIVO
+    # 5. CIERRE OPERATIVO
     # ============================================
     
     st.markdown(textwrap.dedent(f"""
