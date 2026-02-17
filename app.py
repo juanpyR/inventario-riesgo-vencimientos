@@ -1200,6 +1200,7 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
 def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, productos_urgentes, total_recuperado):
     """Muestra el resumen final ejecutivo con formato visual mejorado"""
     
+    # ✅ PRIMERO cargar CSS
     st.markdown("""
     <style>
     .resumen-final-box {
@@ -1285,7 +1286,7 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
         color: #1565c0;
     }
     </style>
-    """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)  # ✅ ESTO DEBE ESTAR AQUÍ
     
     st.markdown('<h2 style="color: #1a237e; margin-bottom: 20px;">📊 RESUMEN FINAL</h2>', unsafe_allow_html=True)
     
@@ -1347,7 +1348,7 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
             </div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)  # ✅ ESTO DEBE ESTAR AQUÍ
     
     # Caja de conclusión ejecutiva
     st.markdown('<h3 style="color: #1a237e; margin: 30px 0 20px 0;">🎯 CONCLUSIÓN EJECUTIVA</h3>', unsafe_allow_html=True)
@@ -1374,8 +1375,8 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
             </div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
-
+    """, unsafe_allow_html=True) 
+    
 def mostrar_plan_accion(df_riesgo, fecha_hoy):
     """Muestra el plan de acción 48H con formato visual mejorado"""
     
@@ -1847,8 +1848,8 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     """, unsafe_allow_html=True)
     
     # ============================================
-    # 6. CIERRE OPERATIVO
-    # ============================================
+# 6. CIERRE OPERATIVO
+# ============================================
     st.markdown(f"""
     <div class="plan-section plan-cierre">
         <div class="plan-header">
@@ -1874,7 +1875,7 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
             </div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)  # ✅ ESTO DEBE ESTAR AQUÍ
     
     return valor_vencido, credito_trib, valor_critico, valor_urgente, total_recuperado_base
 
