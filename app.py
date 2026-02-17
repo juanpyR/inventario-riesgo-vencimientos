@@ -15,24 +15,18 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfbase import pdfmetrics
 
 from io import BytesIO
 import tempfile
 
-
 warnings.filterwarnings('ignore')
 
 # =============================================================================
-# AL INICIO DE APP.PY (después de imports)
+# FORMATO CHILENO - AL INICIO (DESPUÉS DE IMPORTS)
 # =============================================================================
-import pandas as pd
-import streamlit as st
-
 
 def clp(valor):
-    """Formatea número con estilo chileno: 1.234.567 CLP"""
+    """Formatea número con estilo chileno: 1.234.567"""
     if isinstance(valor, str):
         return valor  # Ya está formateado
     if valor is None or (isinstance(valor, float) and pd.isna(valor)):
@@ -46,6 +40,8 @@ def clp(valor):
 def clp_full(valor):
     """Formatea número con estilo chileno + CLP: 1.234.567 CLP"""
     return f"{clp(valor)} CLP"
+
+# Monkey Patching de st.metric
 _metric_original = st.metric
 
 def metric_con_formato(label, value, delta=None, delta_color="normal"):
@@ -54,6 +50,8 @@ def metric_con_formato(label, value, delta=None, delta_color="normal"):
     _metric_original(label, value, delta=delta, delta_color=delta_color)
 
 st.metric = metric_con_formato
+
+# Formato para DataFrames de Pandas
 pd.options.display.float_format = lambda x: f'{x:,.0f}'.replace(',', '.')
 
 # =============================================================================
@@ -96,7 +94,6 @@ def cargar_datos(ruta_csv):
     df = pd.read_csv(ruta_csv)
     df.columns = df.columns.str.strip()
     
-    # Convertir columna Fecha a datetime
     for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y']:
         try:
             df['Fecha'] = pd.to_datetime(df['Fecha'], format=fmt, errors='coerce')
@@ -178,16 +175,6 @@ def aplicar_clasificacion(df):
 # =============================================================================
 # FUNCIONES DE CÁLCULO CONTABLE
 # =============================================================================
-
-def calcular_fechas_vencimiento(df, fecha_hoy):
-    """Calcula la fecha real de vencimiento para cada producto"""
-    df['Fecha_Vencimiento_Real'] = df.apply(
-        lambda row: fecha_hoy + timedelta(days=int(row['Días_para_Vencimiento']))
-        if pd.notna(row['Días_para_Vencimiento']) else pd.NaT,
-        axis=1
-    )
-    return df
-
 
 def agrupar_por_mes_vencimiento(df_base, fecha_referencia):
     """Agrupa productos por mes de vencimiento con lógica contable"""
@@ -299,7 +286,7 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
     
     ax.set_xlabel('Nivel de Riesgo', fontsize=12, fontweight='bold')
     ax.set_ylabel('Días para Vencimiento', fontsize=12, fontweight='bold')
-    ax.set_title(f'Riesgo de Vencimiento - {fecha_hoy.date()}\n{len(df_viz)} productos | {total_riesgo:,.0f} CLP',
+    ax.set_title(f'Riesgo de Vencimiento - {fecha_hoy.date()}\n{len(df_viz)} productos | {clp_full(total_riesgo)}',
                 fontsize=13, pad=15)
     
     legend_elements = [
@@ -335,37 +322,6 @@ def formato_rango_fechas(fecha_inicio, fecha_fin):
     inicio_str = fecha_inicio.strftime('%d/%m')
     fin_str = fecha_fin.strftime('%d/%m')
     return f"{inicio_str} a {fin_str}"
-
-
-def calcular_fechas_por_nivel(fecha_hoy):
-    """Calcula las fechas de vencimiento por nivel de riesgo"""
-    niveles_config = {
-        'VENCIDO': (0, 0),
-        'CRITICO': (1, 3),
-        'URGENTE': (4, 7),
-        'PREVENTIVO': (8, 10)
-    }
-    
-    fechas = {}
-    for nivel, (dias_inicio, dias_fin) in niveles_config.items():
-        fecha_inicio = fecha_hoy + timedelta(days=dias_inicio)
-        fecha_fin = fecha_hoy + timedelta(days=dias_fin)
-        fechas[nivel] = formato_rango_fechas(fecha_inicio, fecha_fin)
-    
-    return fechas
-
-
-def generar_resumen_por_nivel(df_riesgo, total_riesgo_mes):
-    """Genera el resumen agrupado por nivel de riesgo"""
-    resumen = df_riesgo.groupby('Nivel_Riesgo').agg({
-        'Producto': 'count',
-        'Stock_Inicial': 'sum',
-        'Valor_Stock_Costo': 'sum'
-    }).round(0)
-    resumen.columns = ['Productos', 'Unidades', 'Valor Riesgo']
-    resumen = resumen.reindex(['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO'], fill_value=0)
-    resumen['% del Mes'] = (resumen['Valor Riesgo'] / total_riesgo_mes * 100).round(1) if total_riesgo_mes > 0 else 0
-    return resumen
 
 
 def mostrar_resumen_ejecutivo(fecha_hoy, df_riesgo, total_riesgo, total_riesgo_mes, resumen_por_mes, df_con_meses):
@@ -430,7 +386,7 @@ def mostrar_resumen_ejecutivo(fecha_hoy, df_riesgo, total_riesgo, total_riesgo_m
                         'Nivel': nivel,
                         'Productos': len(df_nivel),
                         'Unidades': int(df_nivel['Stock_Inicial'].sum()),
-                        'Valor': f"{valor_nivel:,.0f}",
+                        'Valor': clp(valor_nivel),
                         '% del Mes': f"{pct_nivel:.1f}%"
                     })
             
@@ -441,12 +397,12 @@ def mostrar_resumen_ejecutivo(fecha_hoy, df_riesgo, total_riesgo, total_riesgo_m
     st.markdown("### ALERTA OPERATIVA")
     col1, col2 = st.columns(2)
     with col1:
-        st.error(f"Total en riesgo (10 días): {total_riesgo:,.0f} CLP")
+        st.error(f"Total en riesgo (10 días): {clp_full(total_riesgo)}")
         vencidos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO']
-        st.warning(f"VENCIDOS hoy: {len(vencidos)} productos | {vencidos['Valor_Stock_Costo'].sum():,.0f} CLP")
+        st.warning(f"VENCIDOS hoy: {len(vencidos)} productos | {clp_full(vencidos['Valor_Stock_Costo'].sum())}")
     with col2:
         criticos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO']
-        st.info(f"CRITICOS (1-3 días): {len(criticos)} productos | {criticos['Valor_Stock_Costo'].sum():,.0f} CLP")
+        st.info(f"CRITICOS (1-3 días): {len(criticos)} productos | {clp_full(criticos['Valor_Stock_Costo'].sum())}")
 
 
 def mostrar_top_productos(df_riesgo, fecha_hoy):
@@ -483,7 +439,7 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
                 'Producto': str(row['Producto'])[:33] if pd.notna(row['Producto']) else 'Sin nombre',
                 'Días': dias,
                 'Unidades': unidades,
-                'Valor Riesgo': f"{valor:,.0f}",
+                'Valor Riesgo': clp(valor),
                 'Fecha Venc.': fecha_venc.strftime('%d/%m/%Y'),
                 'Acción': accion
             })
@@ -531,9 +487,9 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         with col1:
             st.metric("Productos", len(productos_criticos))
         with col2:
-            st.metric("Unidades", f"{productos_criticos['Stock_Inicial'].sum()}")
+            st.metric("Unidades", productos_criticos['Stock_Inicial'].sum())
         with col3:
-            st.metric("Valor en Riesgo", f"{valor_critico}")
+            st.metric("Valor en Riesgo", valor_critico)
         st.info("Aplicar 40% descuento en entrada principal")
     else:
         st.info("Sin productos críticos")
@@ -552,9 +508,9 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         with col1:
             st.metric("Productos", len(productos_urgentes))
         with col2:
-            st.metric("Unidades", f"{productos_urgentes['Stock_Inicial'].sum()}")
+            st.metric("Unidades", productos_urgentes['Stock_Inicial'].sum())
         with col3:
-            st.metric("Valor en Riesgo", f"{valor_urgente}")
+            st.metric("Valor en Riesgo", valor_urgente)
         st.info("Aplicar 25% descuento")
     else:
         st.info("Sin productos urgentes")
@@ -567,11 +523,11 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Valor Rescatado", f"{valor_rescatado}")
+        st.metric("Valor Rescatado", valor_rescatado)
     with col2:
-        st.metric("Crédito Tributario", f"{credito_trib}")
+        st.metric("Crédito Tributario", credito_trib)
     with col3:
-        st.metric("Total Recuperado", f"{total_recuperado}")
+        st.metric("Total Recuperado", total_recuperado)
     
     return valor_vencido, credito_trib, valor_critico, valor_urgente, total_recuperado
 
@@ -584,7 +540,7 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
     
     with col1:
         st.markdown("#### LO QUE SÍ CONTROLAMOS")
-        st.success(f"Donar productos vencidos: {credito_trib:,.0f} CLP crédito tributario")
+        st.success(f"Donar productos vencidos: {clp_full(credito_trib)} crédito tributario")
         st.success("Descuentos estratégicos: 40% (CRITICO), 25% (URGENTE), 15% (PREVENTIVO)")
         st.success("Posicionar en alto tráfico")
         st.success("Monitoreo cada 4 horas")
@@ -600,37 +556,32 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
     valor_critico = productos_criticos['Valor_Stock_Costo'].sum() if len(productos_criticos) > 0 else 0
     valor_urgente = productos_urgentes['Valor_Stock_Costo'].sum() if len(productos_urgentes) > 0 else 0
     
-    st.error(f"Si no donamos: Pérdida de {valor_vencido} hoy")
-    st.success(f"Con donación: Recuperamos {credito_trib} en crédito")
-    st.info(f"En 48h: Rescatamos entre {valor_critico*0.40 + valor_urgente*0.30} y {valor_critico*0.60 + valor_urgente*0.50}")
-    st.metric("Total recuperado esperado", f"{total_recuperado}")
+    st.error(f"Si no donamos: Pérdida de {clp_full(valor_vencido)} hoy")
+    st.success(f"Con donación: Recuperamos {clp_full(credito_trib)} en crédito")
+    st.info(f"En 48h: Rescatamos entre {clp_full(valor_critico*0.40 + valor_urgente*0.30)} y {clp_full(valor_critico*0.60 + valor_urgente*0.50)}")
+    st.metric("Total recuperado esperado", total_recuperado)
 
 
 def generar_pdf(df_riesgo, total_riesgo):
+    """Genera PDF con el reporte completo"""
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     elements = []
     styles = getSampleStyleSheet()
 
-    # =========================
     # TÍTULO
-    # =========================
     elements.append(Paragraph("Reporte Ejecutivo de Riesgo de Inventario", styles["Title"]))
     elements.append(Spacer(1, 12))
 
-    # =========================
     # MÉTRICAS PRINCIPALES
-    # =========================
     total_productos = len(df_riesgo)
 
     elements.append(Paragraph(f"Productos en riesgo: {total_productos}", styles["Normal"]))
-    elements.append(Paragraph(f"Valor total en riesgo: ${total_riesgo:,.0f} CLP", styles["Normal"]))
+    elements.append(Paragraph(f"Valor total en riesgo: {clp_full(total_riesgo)}", styles["Normal"]))
     elements.append(Spacer(1, 12))
 
-    # =========================
     # TABLA TOP 10 CRÍTICOS
-    # =========================
     df_top = df_riesgo.sort_values(
         by="Valor_Stock_Costo",
         ascending=False
@@ -642,7 +593,7 @@ def generar_pdf(df_riesgo, total_riesgo):
         data.append([
             str(row["Producto"]),
             int(row["Días_para_Vencimiento"]),
-            f"${row['Valor_Stock_Costo']:,.0f}"
+            clp(row['Valor_Stock_Costo'])
         ])
 
     table = Table(data, colWidths=[2.5*inch, 1*inch, 1.5*inch])
@@ -659,9 +610,7 @@ def generar_pdf(df_riesgo, total_riesgo):
     elements.append(table)
     elements.append(Spacer(1, 20))
 
-    # =========================
     # GRÁFICO
-    # =========================
     fig, ax = plt.subplots()
 
     df_riesgo.groupby("Nivel_Riesgo")["Valor_Stock_Costo"].sum().plot(
@@ -682,13 +631,11 @@ def generar_pdf(df_riesgo, total_riesgo):
     elements.append(Image(temp_image.name, width=5*inch, height=3*inch))
     elements.append(Spacer(1, 20))
 
-    # =========================
     # RESUMEN EJECUTIVO AUTOMÁTICO
-    # =========================
     resumen_texto = f"""
     El análisis determinista identifica {total_productos} productos en riesgo
     dentro de los próximos 10 días, con una exposición financiera total de
-    ${total_riesgo:,.0f} CLP.
+    {clp_full(total_riesgo)}.
 
     Se recomienda priorizar liquidación de productos clasificados como CRÍTICO
     y URGENTE para minimizar pérdidas operativas.
@@ -698,13 +645,13 @@ def generar_pdf(df_riesgo, total_riesgo):
     elements.append(Spacer(1, 8))
     elements.append(Paragraph(resumen_texto, styles["Normal"]))
 
-    # =========================
     # CONSTRUIR PDF
-    # =========================
     doc.build(elements)
     buffer.seek(0)
 
     return buffer
+
+
 # =============================================================================
 # FUNCIÓN PRINCIPAL - STREAMLIT APP
 # =============================================================================
@@ -727,7 +674,6 @@ def main():
         
         mostrar_grafico = st.checkbox("Mostrar Matriz de Riesgo", value=True)
         
-        # Botón de ejecución
         boton_ejecutar = st.button("Ejecutar Análisis", type="primary")
     
     # Inicializar session state
@@ -736,21 +682,20 @@ def main():
     if 'datos_procesados' not in st.session_state:
         st.session_state['datos_procesados'] = None
     
-    # Ejecutar cuando se presiona el botón o hay datos en session state
+    # Ejecutar cuando se presiona el botón
     if boton_ejecutar or st.session_state['ejecutar']:
         
-        #  Verificar que se haya subido un archivo
+        # Verificar que se haya subido un archivo
         if archivo_subido is None:
             st.warning("⚠️  Por favor suba un archivo CSV para continuar")
             st.stop()
         
         try:
-            # Cargar datos desde el archivo subido (no desde ruta)
+            # Cargar datos desde el archivo subido
             with st.spinner("Cargando datos..."):
                 df = pd.read_csv(archivo_subido)
                 df.columns = df.columns.str.strip()
                 
-                # Convertir columna Fecha a datetime
                 for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y']:
                     try:
                         df['Fecha'] = pd.to_datetime(df['Fecha'], format=fmt, errors='coerce')
@@ -837,7 +782,6 @@ def main():
             }
             
             # Botón para descargar reporte completo
-            # Botón para descargar reporte completo
             pdf = generar_pdf(df_riesgo, total_riesgo)
 
             st.download_button(
@@ -846,12 +790,11 @@ def main():
                 file_name="reporte_riesgo_inventario.pdf",
                 mime="application/pdf"
             )
-
             
         
         except Exception as e:
             st.error(f"Error en el análisis: {str(e)}")
-            st.exception(e)  # Muestra el traceback completo para debugging
+            st.exception(e)
       
 
 if __name__ == "__main__":
