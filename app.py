@@ -443,7 +443,7 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
             st.metric("Productos", f"{len(productos_vencidos)}")
             
         with col2:
-            st.metric("Unidades", f"{int(productos_vencidos['Stock_Inicial'].sum()}"))
+            st.metric("Unidades", f"{int(productos_vencidos['Stock_Inicial'].sum()})")
         with col3:
             st.metric("Valor en Riesgo", f"{clp(valor_vencido)} CLP")
         st.success(f"Crédito tributario 27%: +{clp(credito_trib)} CLP")
