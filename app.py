@@ -7,6 +7,20 @@ import calendar
 import warnings
 import io
 import streamlit as st
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer,
+    Table, TableStyle, Image
+)
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+
+from io import BytesIO
+import tempfile
+
 
 warnings.filterwarnings('ignore')
 
@@ -558,36 +572,105 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
     st.metric("Total recuperado esperado", f"{total_recuperado:,.0f} CLP")
 
 
-def agregar_boton_imprimir_pdf():
-    """Botón para imprimir el dashboard completo como PDF"""
+def generar_pdf(df_riesgo, total_riesgo):
 
-    st.markdown("""
-        <style>
-        @media print {
-            header, footer, #MainMenu {
-                display: none !important;
-            }
-            section[data-testid="stSidebar"] {
-                display: none !important;
-            }
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
+    styles = getSampleStyleSheet()
 
-    st.markdown("""
-        <button onclick="window.print()" style="
-            background-color: #FF4B4B;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            cursor: pointer;
-            margin: 10px 0;
-        ">
-        📄 Guardar Dashboard como PDF
-        </button>
-    """, unsafe_allow_html=True)
+    # =========================
+    # TÍTULO
+    # =========================
+    elements.append(Paragraph("Reporte Ejecutivo de Riesgo de Inventario", styles["Title"]))
+    elements.append(Spacer(1, 12))
+
+    # =========================
+    # MÉTRICAS PRINCIPALES
+    # =========================
+    total_productos = len(df_riesgo)
+
+    elements.append(Paragraph(f"Productos en riesgo: {total_productos}", styles["Normal"]))
+    elements.append(Paragraph(f"Valor total en riesgo: ${total_riesgo:,.0f} CLP", styles["Normal"]))
+    elements.append(Spacer(1, 12))
+
+    # =========================
+    # TABLA TOP 10 CRÍTICOS
+    # =========================
+    df_top = df_riesgo.sort_values(
+        by="Valor_Stock_Costo",
+        ascending=False
+    ).head(10)
+
+    data = [["Producto", "Días", "Valor (CLP)"]]
+
+    for _, row in df_top.iterrows():
+        data.append([
+            str(row["Producto"]),
+            int(row["Días_para_Vencimiento"]),
+            f"${row['Valor_Stock_Costo']:,.0f}"
+        ])
+
+    table = Table(data, colWidths=[2.5*inch, 1*inch, 1.5*inch])
+
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.grey),
+        ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('ALIGN',(1,1),(-1,-1),'CENTER')
+    ]))
+
+    elements.append(Paragraph("Top 10 productos con mayor riesgo financiero", styles["Heading2"]))
+    elements.append(Spacer(1, 8))
+    elements.append(table)
+    elements.append(Spacer(1, 20))
+
+    # =========================
+    # GRÁFICO
+    # =========================
+    fig, ax = plt.subplots()
+
+    df_riesgo.groupby("Nivel_Riesgo")["Valor_Stock_Costo"].sum().plot(
+        kind="bar",
+        ax=ax
+    )
+
+    ax.set_title("Distribución del riesgo por nivel")
+    ax.set_ylabel("Valor en CLP")
+
+    temp_image = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    plt.tight_layout()
+    plt.savefig(temp_image.name)
+    plt.close(fig)
+
+    elements.append(Paragraph("Distribución del riesgo", styles["Heading2"]))
+    elements.append(Spacer(1, 8))
+    elements.append(Image(temp_image.name, width=5*inch, height=3*inch))
+    elements.append(Spacer(1, 20))
+
+    # =========================
+    # RESUMEN EJECUTIVO AUTOMÁTICO
+    # =========================
+    resumen_texto = f"""
+    El análisis determinista identifica {total_productos} productos en riesgo
+    dentro de los próximos 10 días, con una exposición financiera total de
+    ${total_riesgo:,.0f} CLP.
+
+    Se recomienda priorizar liquidación de productos clasificados como CRÍTICO
+    y URGENTE para minimizar pérdidas operativas.
+    """
+
+    elements.append(Paragraph("Resumen Ejecutivo", styles["Heading2"]))
+    elements.append(Spacer(1, 8))
+    elements.append(Paragraph(resumen_texto, styles["Normal"]))
+
+    # =========================
+    # CONSTRUIR PDF
+    # =========================
+    doc.build(elements)
+    buffer.seek(0)
+
+    return buffer
 # =============================================================================
 # FUNCIÓN PRINCIPAL - STREAMLIT APP
 # =============================================================================
@@ -598,11 +681,10 @@ def main():
     st.title("SISTEMA DE GESTION DE VENCIMIENTOS")
     st.markdown("---")
     
-    # Sidebar para configuración
+    # Sidebar para configuración y subir archivo
     with st.sidebar:
         st.header("Configuración")
         
-        # ✅ CORRECCIÓN: Subida de archivo en lugar de ruta
         archivo_subido = st.file_uploader(
             "Subir archivo CSV",
             type=['csv'],
@@ -623,13 +705,13 @@ def main():
     # Ejecutar cuando se presiona el botón o hay datos en session state
     if boton_ejecutar or st.session_state['ejecutar']:
         
-        # ✅ Verificar que se haya subido un archivo
+        #  Verificar que se haya subido un archivo
         if archivo_subido is None:
             st.warning("⚠️  Por favor suba un archivo CSV para continuar")
             st.stop()
         
         try:
-            # ✅ Cargar datos desde el archivo subido (no desde ruta)
+            # Cargar datos desde el archivo subido (no desde ruta)
             with st.spinner("Cargando datos..."):
                 df = pd.read_csv(archivo_subido)
                 df.columns = df.columns.str.strip()
@@ -662,7 +744,7 @@ def main():
                     st.error(f"Faltan columnas requeridas: {faltantes}")
                     st.stop()
             
-            # ✅ Mostrar información del archivo
+            # Mostrar información del archivo
             st.success(f"Archivo cargado: {archivo_subido.name}")
             st.info(f"Análisis para: {fecha_hoy.date()} | Productos: {len(df_hoy)}")
             
@@ -687,7 +769,7 @@ def main():
                     fig = crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy)
                     st.pyplot(fig)
                     
-                    # ✅ Botón para descargar la imagen
+                    # Botón para descargar la imagen
                     buf = io.BytesIO()
                     fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
                     buf.seek(0)
@@ -712,7 +794,7 @@ def main():
             productos_urgentes = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE']
             mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, productos_urgentes, total_recuperado)
             
-            # ✅ Marcar como ejecutado
+            # Marcar como ejecutado
             st.session_state['ejecutar'] = True
             st.session_state['datos_procesados'] = {
                 'fecha': fecha_hoy,
@@ -720,13 +802,16 @@ def main():
                 'total_recuperado': total_recuperado
             }
             
-            # ✅ Botón para descargar reporte completo
             # Botón para descargar reporte completo
-            st.markdown("---")
-            st.subheader("Exportar Dashboard")
-            
-            agregar_boton_imprimir_pdf()
-            st.caption("Usa 'Guardar como PDF' en el diálogo de impresión")
+            # Botón para descargar reporte completo
+            pdf = generar_pdf_profesional(df_riesgo, total_riesgo)
+
+            st.download_button(
+                label="📄 Descargar Reporte Ejecutivo en PDF",
+                data=pdf,
+                file_name="reporte_riesgo_inventario.pdf",
+                mime="application/pdf"
+            )
 
             
         
