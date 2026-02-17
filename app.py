@@ -725,21 +725,14 @@ def main():
             st.markdown("---")
             st.subheader("Exportar Dashboard")
             
-            col1, col2 = st.columns(2)
+            col1 = st.columns(1)
             
             with col1:
                 # Botón Imprimir PDF (captura TODO el dashboard)
                 agregar_boton_imprimir_pdf()
                 st.caption("Usa 'Guardar como PDF' en el diálogo de impresión")
             
-            with col2:
-                # Botón Descargar Datos (opcional)
-                st.download_button(
-                    label="Descargar Datos (CSV)",
-                    data=df_riesgo.to_csv(index=False).encode('utf-8'),
-                    file_name=f"datos_vencimientos_{fecha_hoy.strftime('%Y%m%d')}.csv",
-                    mime="text/csv"
-                )
+        
         except Exception as e:
             st.error(f"Error en el análisis: {str(e)}")
             st.exception(e)  # Muestra el traceback completo para debugging
