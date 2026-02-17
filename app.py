@@ -620,7 +620,7 @@ def mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy):
     with col3:
         st.markdown("### Estado")
         st.success("✅ Activo")
-        st.info(f"📅 {fecha_hoy.strftime('%H:%M:%S')}")
+        st.info(f"🕒 {datetime.now().strftime('%H:%M:%S')}")
 
 
 def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy, df_con_meses=None):
