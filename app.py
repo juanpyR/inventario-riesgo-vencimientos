@@ -237,7 +237,8 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
     
     sizes = np.clip(df_viz['Valor_Stock_Costo'] / df_viz['Valor_Stock_Costo'].max() * 600 + 40, 40, 600)
     
-    fig, ax = plt.subplots(figsize=(14, 10))
+    # ✅ FIGURA MÁS PEQUEÑA (de 14x10 a 12x7)
+    fig, ax = plt.subplots(figsize=(12, 7))
     
     x_map = {'VENCIDO': 0.0, 'CRITICO': 1.0, 'URGENTE': 2.0, 'PREVENTIVO': 3.0}
     df_viz['x_pos'] = df_viz['Nivel_Riesgo'].map(x_map).astype(float)
@@ -261,28 +262,30 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
     
     ax.set_xticks([0, 1, 2, 3])
     ax.set_xticklabels(['VENCIDO\n(días = 0)', 'CRITICO\n(1-3 días)', 'URGENTE\n(4-7 días)', 'PREVENTIVO\n(8-10 días)'],
-                       fontsize=13, fontweight='bold')
+                       fontsize=11, fontweight='bold')
     ax.set_yticks([0, 1, 2, 3])
-    ax.set_yticklabels(['VENCIDO', '1-3 días', '4-7 días', '8-10 días'], fontsize=12)
+    ax.set_yticklabels(['VENCIDO', '1-3 días', '4-7 días', '8-10 días'], fontsize=10)
     
-    ax.set_xlabel('Nivel de Riesgo', fontsize=14, fontweight='bold')
-    ax.set_ylabel('Días para Vencimiento', fontsize=14, fontweight='bold')
-    ax.set_title(f'Riesgo de Vencimiento - {fecha_hoy.date()}\n{len(df_viz)} productos en riesgo | {total_riesgo:,.0f} CLP en valor total',
-                fontsize=16, pad=25)
+    ax.set_xlabel('Nivel de Riesgo', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Días para Vencimiento', fontsize=12, fontweight='bold')
+    ax.set_title(f'Riesgo de Vencimiento - {fecha_hoy.date()}\n{len(df_viz)} productos | {total_riesgo:,.0f} CLP',
+                fontsize=13, pad=15)
     
     legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label='VENCIDO (hoy)', markerfacecolor='#000000', markersize=14),
-        Line2D([0], [0], marker='o', color='w', label='CRITICO (1-3 días)', markerfacecolor='#d32f2f', markersize=14),
-        Line2D([0], [0], marker='o', color='w', label='URGENTE (4-7 días)', markerfacecolor='#f57c00', markersize=14),
-        Line2D([0], [0], marker='o', color='w', label='PREVENTIVO (8-10 días)', markerfacecolor='#fbc02d', markersize=14),
+        Line2D([0], [0], marker='o', color='w', label='VENCIDO (hoy)', markerfacecolor='#000000', markersize=12),
+        Line2D([0], [0], marker='o', color='w', label='CRITICO (1-3 días)', markerfacecolor='#d32f2f', markersize=12),
+        Line2D([0], [0], marker='o', color='w', label='URGENTE (4-7 días)', markerfacecolor='#f57c00', markersize=12),
+        Line2D([0], [0], marker='o', color='w', label='PREVENTIVO (8-10 días)', markerfacecolor='#fbc02d', markersize=12),
         plt.scatter([], [], s=80, c='gray', alpha=0.6, label='~100k CLP'),
         plt.scatter([], [], s=300, c='gray', alpha=0.6, label='~500k CLP'),
         plt.scatter([], [], s=600, c='gray', alpha=0.6, label='~1M+ CLP')
     ]
-    ax.legend(handles=legend_elements, loc='center left',
-              title='Tamaño = Valor en riesgo', fontsize=12, title_fontsize=14,
+    
+    # ✅ LEYENDA EN ESQUINA SUPERIOR IZQUIERDA (loc='upper left')
+    ax.legend(handles=legend_elements, loc='upper left',
+              title='Tamaño = Valor en riesgo', fontsize=9, title_fontsize=10,
               frameon=True, edgecolor='gray', facecolor='white', fancybox=True,
-              borderpad=1.2, labelspacing=1.1)
+              borderpad=0.8, labelspacing=0.8)
     
     ax.set_xlim(-0.7, 3.7)
     ax.set_ylim(-0.7, 3.7)
