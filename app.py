@@ -283,8 +283,8 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
     ax.legend(handles=legend_elements, loc='upper left',
               title='Nivel | Tamaño = Valor', fontsize=10, title_fontsize=11,
               frameon=True, edgecolor='gray', facecolor='white',
-              borderpad=0.8, labelspacing=0.8, handletextpad=0.6,
-              columnspacing=1.4, ncol=2)
+              borderpad=0.8, labelspacing=1, handletextpad=0.6,
+              columnspacing=1.2, ncol=2)
     
     ax.set_xlim(-0.7, 3.7)
     ax.set_ylim(-0.7, 3.7)
