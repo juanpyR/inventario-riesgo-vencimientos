@@ -603,9 +603,7 @@ def mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy):
             st.rerun()
         if st.button("📊 Ver Detalle Completo", use_container_width=True, key="btn_detalle"):
             st.session_state['ver_detalle'] = True
-        if st.button("📥 Descargar PDF", use_container_width=True, key="btn_pdf"):
-            st.success("PDF generado exitosamente")
-    
+
     with col2:
         st.markdown(f"""
         <div class='info-card'>
