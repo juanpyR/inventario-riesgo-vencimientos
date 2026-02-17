@@ -489,7 +489,8 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     if len(productos_urgentes) > 0:
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Productos", int(len(productos_urgentes)))
+            st.metric("Productos", f"{len(productos_vencidos):,}".replace(",", "."))
+
         with col2:
             st.metric("Unidades", int(productos_urgentes['Stock_Inicial'].sum()))
         with col3:
