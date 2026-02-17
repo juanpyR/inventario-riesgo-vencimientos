@@ -4,7 +4,11 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from datetime import datetime, timedelta
 import calendar
+import warnings
+import io
 import streamlit as st
+
+warnings.filterwarnings('ignore')
 
 # =============================================================================
 # CONFIGURACIÓN DE PÁGINA STREAMLIT
