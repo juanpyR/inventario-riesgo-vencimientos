@@ -473,22 +473,36 @@ def mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy):
         st.info(f"📅 {fecha_hoy.strftime('%H:%M:%S')}")
 
 
-def mostrar_inventario_nuevo(df_riesgo, total_riesgo):  # ✅ PARÁMETRO AGREGADO
+def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy, df_con_meses=None):
     """Muestra clasificación del inventario con datos REALES y CONSISTENTES"""
     
     st.markdown('<div class="section-title-box"><h2>Inventario</h2></div>', unsafe_allow_html=True)
     st.markdown("### Clasificación")
     
-    # Calcular datos CONSISTENTES
-    vencidos = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO'])
-    criticos = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO'])
-    urgentes = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE'])
-    preventivos = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'PREVENTIVO'])
+    # FILTRAR por el mes actual
+    if df_con_meses is not None:
+        mes_actual_periodo = pd.Period(fecha_hoy, freq='M')
+        df_mes = df_con_meses[df_con_meses['Mes_Vencimiento'] == mes_actual_periodo].copy()
+        df_mes_riesgo = df_mes[df_mes['Días_para_Vencimiento'] >= 0].copy()
+        
+        if len(df_mes_riesgo) > 0:
+            df_mes_riesgo['Nivel'] = df_mes_riesgo['Días_para_Vencimiento'].apply(clasificar_riesgo)
+            df_riesgo_consistente = df_mes_riesgo
+        else:
+            df_riesgo_consistente = df_riesgo
+    else:
+        df_riesgo_consistente = df_riesgo
     
-    valor_vencidos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO']['Valor_Stock_Costo'].sum()
-    valor_criticos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO']['Valor_Stock_Costo'].sum()
-    valor_urgentes = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE']['Valor_Stock_Costo'].sum()
-    valor_preventivos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'PREVENTIVO']['Valor_Stock_Costo'].sum()
+    # Calcular datos CONSISTENTES - USAR df_riesgo_consistente
+    vencidos = len(df_riesgo_consistente[df_riesgo_consistente['Nivel_Riesgo'] == 'VENCIDO'])
+    criticos = len(df_riesgo_consistente[df_riesgo_consistente['Nivel_Riesgo'] == 'CRITICO'])
+    urgentes = len(df_riesgo_consistente[df_riesgo_consistente['Nivel_Riesgo'] == 'URGENTE'])
+    preventivos = len(df_riesgo_consistente[df_riesgo_consistente['Nivel_Riesgo'] == 'PREVENTIVO'])
+    
+    valor_vencidos = df_riesgo_consistente[df_riesgo_consistente['Nivel_Riesgo'] == 'VENCIDO']['Valor_Stock_Costo'].sum()
+    valor_criticos = df_riesgo_consistente[df_riesgo_consistente['Nivel_Riesgo'] == 'CRITICO']['Valor_Stock_Costo'].sum()
+    valor_urgentes = df_riesgo_consistente[df_riesgo_consistente['Nivel_Riesgo'] == 'URGENTE']['Valor_Stock_Costo'].sum()
+    valor_preventivos = df_riesgo_consistente[df_riesgo_consistente['Nivel_Riesgo'] == 'PREVENTIVO']['Valor_Stock_Costo'].sum()
     
     # Guardar en session state
     st.session_state['metricas_inventario'] = {
@@ -1293,7 +1307,7 @@ def main():
             # VISTA RESUMEN
             mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy)
             st.markdown("---")
-            mostrar_inventario_nuevo(df_riesgo, total_riesgo)
+            mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy, df_con_meses)
             st.markdown("---")
             mostrar_visualizacion_nueva(df_riesgo)
             
