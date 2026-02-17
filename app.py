@@ -1240,44 +1240,80 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
 #===============================================================
 
 def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, productos_urgentes, total_recuperado):
-    """Muestra el resumen final ejecutivo con el formato púrpura corregido"""
+    """Muestra el resumen final ejecutivo con formato visual mejorado"""
     
     st.markdown('<h2 style="color: #1a237e; margin-bottom: 20px;">📊 RESUMEN FINAL</h2>', unsafe_allow_html=True)
     
+    # Calcular valores
     valor_critico = productos_criticos['Valor_Stock_Costo'].sum() if len(productos_criticos) > 0 else 0
     valor_urgente = productos_urgentes['Valor_Stock_Costo'].sum() if len(productos_urgentes) > 0 else 0
     
-    # IMPORTANTE: textwrap.dedent elimina la indentación que Streamlit confunde con código
-    caja_purpura = textwrap.dedent(f"""
-        <div class="resumen-final-box">
-            <h3 style="margin: 0 0 20px 0; text-align: center; color: white;">💵 Impacto Financiero del Plan</h3>
-            <div class="resumen-grid">
-                <div class="resumen-card">
-                    <h4 style="color: white;">✅ LO QUE SÍ CONTROLAMOS</h4>
-                    <div class="resumen-item">
-                        <span class="resumen-icon">💰</span>
-                        <span class="resumen-text">Crédito tributario: <strong>{clp(credito_trib)} CLP</strong></span>
-                    </div>
-                    <div class="resumen-item">
-                        <span class="resumen-icon">🏷️</span>
-                        <span class="resumen-text">Descuentos: <strong>40%, 25%, 15%</strong></span>
-                    </div>
+    # Caja púrpura - Impacto Financiero
+    st.markdown(f"""
+    <div class="resumen-final-box">
+        <h3 style="margin: 0 0 20px 0; text-align: center; color: white;">💵 Impacto Financiero del Plan</h3>
+        <div class="resumen-grid">
+            <div class="resumen-card">
+                <h4 style="color: white;">✅ LO QUE SÍ CONTROLAMOS</h4>
+                <div class="resumen-item">
+                    <span class="resumen-icon">💰</span>
+                    <span class="resumen-text">Crédito tributario: <strong>{clp(credito_trib)} CLP</strong></span>
                 </div>
-                <div class="resumen-card">
-                    <h4 style="color: white;">⚠️ LO QUE NO CONTROLAMOS</h4>
-                    <div class="resumen-item">
-                        <span class="resumen-icon">🌧️</span>
-                        <span class="resumen-text">Eventos externos: <strong>Impredecible</strong></span>
-                    </div>
-                    <div class="resumen-item">
-                        <span class="resumen-icon">📦</span>
-                        <span class="resumen-text">Stock residual: <strong>20-30%</strong></span>
-                    </div>
+                <div class="resumen-item">
+                    <span class="resumen-icon">🏷️</span>
+                    <span class="resumen-text">Descuentos: <strong>40%, 25%, 15%</strong></span>
+                </div>
+                <div class="resumen-item">
+                    <span class="resumen-icon">📍</span>
+                    <span class="resumen-text">Posicionamiento: <strong>Alto tráfico</strong></span>
+                </div>
+                <div class="resumen-item">
+                    <span class="resumen-icon">⏰</span>
+                    <span class="resumen-text">Monitoreo: <strong>Cada 4 horas</strong></span>
+                </div>
+            </div>
+            <div class="resumen-card">
+                <h4 style="color: white;">⚠️ LO QUE NO CONTROLAMOS</h4>
+                <div class="resumen-item">
+                    <span class="resumen-icon">👥</span>
+                    <span class="resumen-text">Respuesta clientes: <strong>Variable</strong></span>
+                </div>
+                <div class="resumen-item">
+                    <span class="resumen-icon">🌧️</span>
+                    <span class="resumen-text">Eventos externos: <strong>Impredecible</strong></span>
+                </div>
+                <div class="resumen-item">
+                    <span class="resumen-icon">📦</span>
+                    <span class="resumen-text">Stock residual: <strong>20-30%</strong></span>
+                </div>
+                <div class="resumen-item">
+                    <span class="resumen-icon">🏪</span>
+                    <span class="resumen-text">Tráfico tienda: <strong>Variable</strong></span>
                 </div>
             </div>
         </div>
-    """)
-    st.markdown(caja_purpura, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Caja de conclusión ejecutiva
+    st.markdown(f"""
+    <div class="conclusion-box">
+        <div class="conclusion-item conclusion-error">
+            <strong>❌ Si no donamos:</strong> Pérdida total de <strong>{clp(valor_vencido)} CLP</strong> hoy
+        </div>
+        <div class="conclusion-item conclusion-success">
+            <strong>✅ Con donación:</strong> Recuperamos <strong>{clp(credito_trib)} CLP</strong> en crédito tributario (27%)
+        </div>
+        <div class="conclusion-item conclusion-info">
+            <strong>📈 En 48h:</strong> Rescatamos entre <strong>{clp(valor_critico*0.40 + valor_urgente*0.30)} CLP</strong> y <strong>{clp(valor_critico*0.60 + valor_urgente*0.50)} CLP</strong>
+        </div>
+        <div style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); padding: 25px; border-radius: 12px; margin-top: 20px; text-align: center; color: white;">
+            <div style="font-size: 1.2rem; margin-bottom: 10px;">💵 TOTAL RECUPERADO ESPERADO</div>
+            <div style="font-size: 3rem; font-weight: 700;">{clp(total_recuperado)} CLP</div>
+            <div style="font-size: 0.9rem; margin-top: 10px; opacity: 0.9;">Crédito tributario + Recuperación por descuentos</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
 def mostrar_plan_accion(df_riesgo, fecha_hoy):
     """Muestra el plan de acción 48H con formato visual profesional"""
