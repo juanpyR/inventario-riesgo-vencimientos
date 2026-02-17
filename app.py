@@ -761,62 +761,62 @@ def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy, df_con_meses=No
         
         # Mostrar métricas si el plan fue aceptado
         # Mostrar métricas si el plan fue aceptado
-if st.session_state.get('plan_aceptado', False):
-    st.success("✅ Plan de acción aceptado - Ejecución iniciada")
-    
-    # Resumen financiero (lo que ya tienes)
-    st.markdown(f"""
-    <div style='background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-                border-radius: 15px; padding: 25px; margin: 20px 0;
-                border: 3px solid #4CAF50;'>
-        <h3 style='color: #2e7d32; margin-top: 0; text-align: center;'>
-            💵 Resumen Financiero del Plan
-        </h3>
-        ... (tu código actual) ...
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Checklist de acciones
-    st.markdown("### 📋 Checklist de Ejecución - Próximas 48 Horas")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**🔴 HOY - Mañana 08:00-12:00**")
-        st.checkbox("📋 Generar acta de donación (7 productos)", key="chk1")
-        st.checkbox("🏢 Contactar fundación receptora", key="chk2")
-        st.checkbox("📄 Emitir factura donación", key="chk3")
-        st.checkbox("🏷️ Imprimir etiquetas 40% dto (10 críticos)", key="chk4")
-        st.checkbox("📍 Ubicar críticos en entrada principal", key="chk5")
+    if st.session_state.get('plan_aceptado', False):
+        st.success("✅ Plan de acción aceptado - Ejecución iniciada")
         
-    with col2:
-        st.markdown("**🟡 MAÑANA 14:00-18:00**")
-        st.checkbox("🏷️ Imprimir etiquetas 25% dto (17 urgentes)", key="chk6")
-        st.checkbox("📊 Monitorear ventas (14:00)", key="chk7")
-        st.checkbox("📊 Monitorear ventas (18:00)", key="chk8")
-        st.checkbox("📸 Fotografía evidencia góndolas", key="chk9")
-        st.checkbox("📝 Reporte final de resultados", key="chk10")
-    
-    # Recordatorios
-    st.warning("""
-    **⚠️ Puntos Críticos:**
-    - Documentar TODAS las donaciones para crédito tributario
-    - Monitorear ventas cada 4 horas
-    - Stock no vendido en 48H → Reclasificar como Preventivo
-    - Guardar evidencia fotográfica
-    """)
-    
-    # Botones de acción
-    col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        if st.button("📧 Enviar a Logística", use_container_width=True):
-            st.success("✅ Notificación enviada")
-    with col_b:
-        if st.button("📄 Imprimir Checklist", use_container_width=True):
-            st.success("✅ Listo para imprimir")
-    with col_c:
-        if st.button("✅ Marcar como Completado", use_container_width=True):
-            st.session_state['plan_completado'] = True
-            st.success("✅ Plan marcado como completado")
+        # Resumen financiero (lo que ya tienes)
+        st.markdown(f"""
+        <div style='background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+                    border-radius: 15px; padding: 25px; margin: 20px 0;
+                    border: 3px solid #4CAF50;'>
+            <h3 style='color: #2e7d32; margin-top: 0; text-align: center;'>
+                💵 Resumen Financiero del Plan
+            </h3>
+            ... (tu código actual) ...
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Checklist de acciones
+        st.markdown("### 📋 Checklist de Ejecución - Próximas 48 Horas")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("**🔴 HOY - Mañana 08:00-12:00**")
+            st.checkbox("📋 Generar acta de donación (7 productos)", key="chk1")
+            st.checkbox("🏢 Contactar fundación receptora", key="chk2")
+            st.checkbox("📄 Emitir factura donación", key="chk3")
+            st.checkbox("🏷️ Imprimir etiquetas 40% dto (10 críticos)", key="chk4")
+            st.checkbox("📍 Ubicar críticos en entrada principal", key="chk5")
+            
+        with col2:
+            st.markdown("**🟡 MAÑANA 14:00-18:00**")
+            st.checkbox("🏷️ Imprimir etiquetas 25% dto (17 urgentes)", key="chk6")
+            st.checkbox("📊 Monitorear ventas (14:00)", key="chk7")
+            st.checkbox("📊 Monitorear ventas (18:00)", key="chk8")
+            st.checkbox("📸 Fotografía evidencia góndolas", key="chk9")
+            st.checkbox("📝 Reporte final de resultados", key="chk10")
+        
+        # Recordatorios
+        st.warning("""
+        **⚠️ Puntos Críticos:**
+        - Documentar TODAS las donaciones para crédito tributario
+        - Monitorear ventas cada 4 horas
+        - Stock no vendido en 48H → Reclasificar como Preventivo
+        - Guardar evidencia fotográfica
+        """)
+        
+        # Botones de acción
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            if st.button("📧 Enviar a Logística", use_container_width=True):
+                st.success("✅ Notificación enviada")
+        with col_b:
+            if st.button("📄 Imprimir Checklist", use_container_width=True):
+                st.success("✅ Listo para imprimir")
+        with col_c:
+            if st.button("✅ Marcar como Completado", use_container_width=True):
+                st.session_state['plan_completado'] = True
+                st.success("✅ Plan marcado como completado")
 
 
 def mostrar_visualizacion_nueva(df_riesgo):
