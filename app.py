@@ -625,7 +625,6 @@ def mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy):
         hora_chile = datetime.now(chile_tz)
         
         st.info(f"🕒 {hora_chile.strftime('%H:%M:%S')}")
-        st.caption(f"📅 {hora_chile.strftime('%d/%m/%Y')}")
 
 
 def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy, df_con_meses=None):
