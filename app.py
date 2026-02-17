@@ -1198,61 +1198,62 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
             
             st.markdown(html_tabla, unsafe_allow_html=True)
 def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, productos_urgentes, total_recuperado):
-    """Muestra el resumen final ejecutivo con formato visual mejorado"""
+    """Muestra el resumen final ejecutivo con formato visual corregido"""
     
-    # 1. Definir el CSS sin indentación extra
-    resumen_css = """
-    <style>
-    .resumen-final-box {
-        background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
-        border-radius: 15px;
-        padding: 30px;
-        color: white;
-        margin: 20px 0;
-        box-shadow: 0 4px 15px rgba(26, 35, 126, 0.4);
-    }
-    .resumen-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 20px 0; }
-    .resumen-card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; backdrop-filter: blur(10px); }
-    .resumen-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.2); }
-    .conclusion-box { background: white; border-radius: 12px; padding: 25px; margin: 20px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-    .conclusion-item { padding: 15px; margin: 10px 0; border-radius: 10px; border-left: 5px solid; }
-    .conclusion-error { background: #ffebee; border-color: #d32f2f; color: #c62828; }
-    .conclusion-success { background: #e8f5e9; border-color: #4caf50; color: #2e7d32; }
-    .conclusion-info { background: #e3f2fd; border-color: #1976d2; color: #1565c0; }
-    </style>
-    """
-    st.markdown(resumen_css, unsafe_allow_html=True)
-
-    # 2. Renderizar el HTML asegurándote de que los f-strings empiecen desde el borde izquierdo
+    st.markdown('<h2 style="color: #1a237e; margin-bottom: 20px;">📊 RESUMEN FINAL</h2>', unsafe_allow_html=True)
+    
     valor_critico = productos_criticos['Valor_Stock_Costo'].sum() if len(productos_criticos) > 0 else 0
     valor_urgente = productos_urgentes['Valor_Stock_Costo'].sum() if len(productos_urgentes) > 0 else 0
+    
+    # Caja de resumen de impacto
+    st.markdown(textwrap.dedent(f"""
+        <div class="resumen-final-box">
+            <h3 style="margin: 0 0 20px 0; text-align: center; color: white;">💵 Impacto Financiero del Plan</h3>
+            <div class="resumen-grid">
+                <div class="resumen-card">
+                    <h4 style="color: white;">✅ LO QUE SÍ CONTROLAMOS</h4>
+                    <div class="resumen-item">
+                        <span class="resumen-icon">💰</span>
+                        <span class="resumen-text">Crédito tributario: <strong>{clp(credito_trib)} CLP</strong></span>
+                    </div>
+                    <div class="resumen-item">
+                        <span class="resumen-icon">🏷️</span>
+                        <span class="resumen-text">Descuentos: <strong>40%, 25%, 15%</strong></span>
+                    </div>
+                </div>
+                <div class="resumen-card">
+                    <h4 style="color: white;">⚠️ LO QUE NO CONTROLAMOS</h4>
+                    <div class="resumen-item">
+                        <span class="resumen-icon">🌧️</span>
+                        <span class="resumen-text">Eventos externos: <strong>Impredecible</strong></span>
+                    </div>
+                    <div class="resumen-item">
+                        <span class="resumen-icon">📦</span>
+                        <span class="resumen-text">Stock residual: <strong>20-30%</strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    """), unsafe_allow_html=True)
 
-    resumen_html = f"""
-<div class="resumen-final-box">
-    <h3 style="margin: 0 0 20px 0; text-align: center; color: white;">💵 Impacto Financiero del Plan</h3>
-    <div class="resumen-grid">
-        <div class="resumen-card">
-            <h4 style="color: white;">✅ LO QUE SÍ CONTROLAMOS</h4>
-            <div class="resumen-item"><span>💰 Crédito tributario: <strong>{clp(credito_trib)} CLP</strong></span></div>
-            <div class="resumen-item"><span>🏷️ Descuentos: <strong>40%, 25%, 15%</strong></span></div>
+    # Conclusión Ejecutiva
+    st.markdown(textwrap.dedent(f"""
+        <div class="conclusion-box">
+            <div class="conclusion-item conclusion-error">
+                <strong>❌ Si no donamos:</strong> Pérdida total de <strong>{clp(valor_vencido)} CLP</strong> hoy
+            </div>
+            <div class="conclusion-item conclusion-success">
+                <strong>✅ Con donación:</strong> Recuperamos <strong>{clp(credito_trib)} CLP</strong> en crédito tributario (27%)
+            </div>
+            <div class="conclusion-item conclusion-info">
+                <strong>📈 En 48h:</strong> Rescatamos entre <strong>{clp(valor_critico*0.4+valor_urgente*0.3)}</strong> y <strong>{clp(valor_critico*0.6+valor_urgente*0.5)}</strong>
+            </div>
+            <div style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); padding: 25px; border-radius: 12px; text-align: center; color: white;">
+                <div style="font-size: 1.2rem; margin-bottom: 10px;">💵 TOTAL RECUPERADO ESPERADO</div>
+                <div style="font-size: 3rem; font-weight: 700;">{clp(total_recuperado)} CLP</div>
+            </div>
         </div>
-        <div class="resumen-card">
-            <h4 style="color: white;">⚠️ LO QUE NO CONTROLAMOS</h4>
-            <div class="resumen-item"><span>🌧️ Eventos externos: <strong>Impredecible</strong></span></div>
-            <div class="resumen-item"><span>📦 Stock residual: <strong>20-30%</strong></span></div>
-        </div>
-    </div>
-</div>
-<div class="conclusion-box">
-    <div class="conclusion-item conclusion-error"><strong>❌ Si no donamos:</strong> Pérdida de {clp(valor_vencido)} CLP</div>
-    <div class="conclusion-item conclusion-success"><strong>✅ Con donación:</strong> Recuperamos {clp(credito_trib)} CLP</div>
-    <div style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); padding: 25px; border-radius: 12px; text-align: center; color: white;">
-        <div style="font-size: 1.2rem;">💵 TOTAL RECUPERADO ESPERADO</div>
-        <div style="font-size: 3rem; font-weight: 700;">{clp(total_recuperado)} CLP</div>
-    </div>
-</div>
-"""
-    st.markdown(resumen_html, unsafe_allow_html=True)
+    """), unsafe_allow_html=True)
     
 def mostrar_plan_accion(df_riesgo, fecha_hoy):
     """Muestra el plan de acción 48H con formato visual mejorado"""
