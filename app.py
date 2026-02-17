@@ -1047,7 +1047,7 @@ def mostrar_resumen_ejecutivo_detalle(fecha_hoy, df_riesgo, total_riesgo, total_
         c1, c2, c3 = st.columns(3)
         with c1:
             st.markdown(f"""<div class="info-card">
-                <div class="metric-label-sub">Masa Crítica</div>
+                <div class="metric-label-sub">Total Mercadería del mes</div>
                 <div class="metric-value-large">{clp(fila['Valor_Stock_Costo'])}</div>
                 <div style="color: #1a237e; font-weight: bold;">Valor Total</div>
             </div>""", unsafe_allow_html=True)
