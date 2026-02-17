@@ -36,10 +36,6 @@ def clp(valor):
     except:
         return str(valor)
 
-def clp_full(valor):
-    """Formatea número con estilo chileno + CLP: 1.234.567 CLP"""
-    return f"{clp(valor)} CLP"
-
 # Formato para DataFrames de Pandas
 pd.options.display.float_format = lambda x: f'{x:,.0f}'.replace(',', '.')
 
@@ -275,7 +271,7 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
     
     ax.set_xlabel('Nivel de Riesgo', fontsize=12, fontweight='bold')
     ax.set_ylabel('Días para Vencimiento', fontsize=12, fontweight='bold')
-    ax.set_title(f'Riesgo de Vencimiento - {fecha_hoy.date()}\n{len(df_viz)} productos | {clp_full(total_riesgo)}',
+    ax.set_title(f'Riesgo de Vencimiento - {fecha_hoy.date()}\n{len(df_viz)} productos | {clp(total_riesgo)} CLP',
                 fontsize=13, pad=15)
     
     legend_elements = [
@@ -338,18 +334,17 @@ def mostrar_resumen_ejecutivo(fecha_hoy, df_riesgo, total_riesgo, total_riesgo_m
         
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Total Mercadería", clp_full(total_valor))
+            st.metric("Total Mercadería", f"{clp(total_valor)} CLP")
         with col2:
-            st.metric("Ya Perdida", clp_full(valor_perdido), delta=f"-{pct_perdido:.1f}%")
+            st.metric("Ya Perdida", f"{clp(valor_perdido)} CLP", delta=f"-{pct_perdido:.1f}%")
         with col3:
-            st.metric("Recuperable", clp_full(valor_recuperable), delta=f"{pct_recuperable:.1f}%")
+            st.metric("Recuperable", f"{clp(valor_recuperable)} CLP", delta=f"{pct_recuperable:.1f}%")
         
         if es_mes_parcial:
             st.info("Mes en curso. Los 'perdidos' incluyen vencimientos anteriores a hoy.")
         else:
             st.info("Mes completo. Los 'perdidos' representan mercadería no recuperada.")
         
-        # Detalle por nivel de riesgo
         df_mes = df_con_meses[df_con_meses['Mes_Vencimiento'] == mes_periodo].copy()
         df_mes_riesgo = df_mes[df_mes['Días_para_Vencimiento'] >= 0].copy()
         
@@ -375,16 +370,15 @@ def mostrar_resumen_ejecutivo(fecha_hoy, df_riesgo, total_riesgo, total_riesgo_m
             if tabla_detalle:
                 st.dataframe(pd.DataFrame(tabla_detalle), use_container_width=True, hide_index=True)
     
-    # Alerta operativa
     st.markdown("### ALERTA OPERATIVA")
     col1, col2 = st.columns(2)
     with col1:
-        st.error(f"Total en riesgo (10 días): {clp_full(total_riesgo)}")
+        st.error(f"Total en riesgo (10 días): {clp(total_riesgo)} CLP")
         vencidos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO']
-        st.warning(f"VENCIDOS hoy: {len(vencidos)} productos | {clp_full(vencidos['Valor_Stock_Costo'].sum())}")
+        st.warning(f"VENCIDOS hoy: {len(vencidos)} productos | {clp(vencidos['Valor_Stock_Costo'].sum())} CLP")
     with col2:
         criticos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO']
-        st.info(f"CRITICOS (1-3 días): {len(criticos)} productos | {clp_full(criticos['Valor_Stock_Costo'].sum())}")
+        st.info(f"CRITICOS (1-3 días): {len(criticos)} productos | {clp(criticos['Valor_Stock_Costo'].sum())} CLP")
 
 
 def mostrar_top_productos(df_riesgo, fecha_hoy):
@@ -430,7 +424,7 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
 
 
 def mostrar_plan_accion(df_riesgo, fecha_hoy):
-    """Muestra el plan de acción 48H con formatos corregidos"""
+    """Muestra el plan de acción 48H"""
     st.header("PLAN DE ACCION 48H")
     
     # 1. PRODUCTOS VENCIDOS
@@ -446,13 +440,12 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     if len(productos_vencidos) > 0:
         col1, col2, col3 = st.columns(3)
         with col1:
-            # Pasamos el INT directo para que Streamlit no asuma formato moneda
-            st.metric("Productos", int(len(productos_vencidos)))
+            st.metric("Productos", len(productos_vencidos))
         with col2:
             st.metric("Unidades", int(productos_vencidos['Stock_Inicial'].sum()))
         with col3:
-            st.metric("Valor en Riesgo", clp_full(valor_vencido))
-        st.success(f"Crédito tributario 27%: +{clp_full(credito_trib)}")
+            st.metric("Valor en Riesgo", f"{clp(valor_vencido)} CLP")
+        st.success(f"Crédito tributario 27%: +{clp(credito_trib)} CLP")
     else:
         st.info("Sin productos vencidos hoy")
     
@@ -468,11 +461,11 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     if len(productos_criticos) > 0:
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Productos", int(len(productos_criticos))) # <--- CORRECCIÓN AQUÍ
+            st.metric("Productos", len(productos_criticos))
         with col2:
-            st.metric("Unidades", int(productos_criticos['Stock_Inicial'].sum())) # <--- CORRECCIÓN AQUÍ
+            st.metric("Unidades", int(productos_criticos['Stock_Inicial'].sum()))
         with col3:
-            st.metric("Valor en Riesgo", clp_full(valor_critico))
+            st.metric("Valor en Riesgo", f"{clp(valor_critico)} CLP")
         st.info("Aplicar 40% descuento en entrada principal")
     else:
         st.info("Sin productos críticos")
@@ -489,28 +482,28 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     if len(productos_urgentes) > 0:
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Productos", f"{len(productos_vencidos):,}".replace(",", "."))
-
+            st.metric("Productos", len(productos_urgentes))
         with col2:
             st.metric("Unidades", int(productos_urgentes['Stock_Inicial'].sum()))
         with col3:
-            st.metric("Valor en Riesgo", clp_full(valor_urgente))
+            st.metric("Valor en Riesgo", f"{clp(valor_urgente)} CLP")
         st.info("Aplicar 25% descuento")
     else:
         st.info("Sin productos urgentes")
     
     # 4. CIERRE OPERATIVO
     st.subheader("MAÑANA 18:00 | CIERRE OPERATIVO 48H")
-    valor_rescatado = (valor_critico * 0.50) + (valor_urgente * 0.40)
+    valor_rescatado = (valor_critico * 0.50 if len(productos_criticos) > 0 else 0) + \
+                     (valor_urgente * 0.40 if len(productos_urgentes) > 0 else 0)
     total_recuperado = valor_rescatado + credito_trib
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Valor Rescatado", clp_full(valor_rescatado))
+        st.metric("Valor Rescatado", f"{clp(valor_rescatado)} CLP")
     with col2:
-        st.metric("Crédito Tributario", clp_full(credito_trib))
+        st.metric("Crédito Tributario", f"{clp(credito_trib)} CLP")
     with col3:
-        st.metric("Total Recuperado", clp_full(total_recuperado))
+        st.metric("Total Recuperado", f"{clp(total_recuperado)} CLP")
     
     return valor_vencido, credito_trib, valor_critico, valor_urgente, total_recuperado
 
@@ -523,7 +516,7 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
     
     with col1:
         st.markdown("#### LO QUE SÍ CONTROLAMOS")
-        st.success(f"Donar productos vencidos: {clp_full(credito_trib)} crédito tributario")
+        st.success(f"Donar productos vencidos: {clp(credito_trib)} CLP crédito tributario")
         st.success("Descuentos estratégicos: 40% (CRITICO), 25% (URGENTE), 15% (PREVENTIVO)")
         st.success("Posicionar en alto tráfico")
         st.success("Monitoreo cada 4 horas")
@@ -539,10 +532,10 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
     valor_critico = productos_criticos['Valor_Stock_Costo'].sum() if len(productos_criticos) > 0 else 0
     valor_urgente = productos_urgentes['Valor_Stock_Costo'].sum() if len(productos_urgentes) > 0 else 0
     
-    st.error(f"Si no donamos: Pérdida de {clp_full(valor_vencido)} hoy")
-    st.success(f"Con donación: Recuperamos {clp_full(credito_trib)} en crédito")
-    st.info(f"En 48h: Rescatamos entre {clp_full(valor_critico*0.40 + valor_urgente*0.30)} y {clp_full(valor_critico*0.60 + valor_urgente*0.50)}")
-    st.metric("Total recuperado esperado", clp_full(total_recuperado))
+    st.error(f"Si no donamos: Pérdida de {clp(valor_vencido)} CLP hoy")
+    st.success(f"Con donación: Recuperamos {clp(credito_trib)} CLP en crédito")
+    st.info(f"En 48h: Rescatamos entre {clp(valor_critico*0.40 + valor_urgente*0.30)} CLP y {clp(valor_critico*0.60 + valor_urgente*0.50)} CLP")
+    st.metric("Total recuperado esperado", f"{clp(total_recuperado)} CLP")
 
 
 def generar_pdf(df_riesgo, total_riesgo):
@@ -553,18 +546,15 @@ def generar_pdf(df_riesgo, total_riesgo):
     elements = []
     styles = getSampleStyleSheet()
 
-    # TÍTULO
     elements.append(Paragraph("Reporte Ejecutivo de Riesgo de Inventario", styles["Title"]))
     elements.append(Spacer(1, 12))
 
-    # MÉTRICAS PRINCIPALES
     total_productos = len(df_riesgo)
 
     elements.append(Paragraph(f"Productos en riesgo: {total_productos}", styles["Normal"]))
-    elements.append(Paragraph(f"Valor total en riesgo: {clp_full(total_riesgo)}", styles["Normal"]))
+    elements.append(Paragraph(f"Valor total en riesgo: {clp(total_riesgo)} CLP", styles["Normal"]))
     elements.append(Spacer(1, 12))
 
-    # TABLA TOP 10 CRÍTICOS
     df_top = df_riesgo.sort_values(
         by="Valor_Stock_Costo",
         ascending=False
@@ -593,7 +583,6 @@ def generar_pdf(df_riesgo, total_riesgo):
     elements.append(table)
     elements.append(Spacer(1, 20))
 
-    # GRÁFICO
     fig, ax = plt.subplots()
 
     df_riesgo.groupby("Nivel_Riesgo")["Valor_Stock_Costo"].sum().plot(
@@ -614,11 +603,10 @@ def generar_pdf(df_riesgo, total_riesgo):
     elements.append(Image(temp_image.name, width=5*inch, height=3*inch))
     elements.append(Spacer(1, 20))
 
-    # RESUMEN EJECUTIVO AUTOMÁTICO
     resumen_texto = f"""
     El análisis determinista identifica {total_productos} productos en riesgo
     dentro de los próximos 10 días, con una exposición financiera total de
-    {clp_full(total_riesgo)}.
+    {clp(total_riesgo)} CLP.
 
     Se recomienda priorizar liquidación de productos clasificados como CRÍTICO
     y URGENTE para minimizar pérdidas operativas.
@@ -628,7 +616,6 @@ def generar_pdf(df_riesgo, total_riesgo):
     elements.append(Spacer(1, 8))
     elements.append(Paragraph(resumen_texto, styles["Normal"]))
 
-    # CONSTRUIR PDF
     doc.build(elements)
     buffer.seek(0)
 
@@ -645,7 +632,6 @@ def main():
     st.title("SISTEMA DE GESTION DE VENCIMIENTOS")
     st.markdown("---")
     
-    # Sidebar para configuración y subir archivo
     with st.sidebar:
         st.header("Configuración")
         
@@ -659,22 +645,18 @@ def main():
         
         boton_ejecutar = st.button("Ejecutar Análisis", type="primary")
     
-    # Inicializar session state
     if 'ejecutar' not in st.session_state:
         st.session_state['ejecutar'] = False
     if 'datos_procesados' not in st.session_state:
         st.session_state['datos_procesados'] = None
     
-    # Ejecutar cuando se presiona el botón
     if boton_ejecutar or st.session_state['ejecutar']:
         
-        # Verificar que se haya subido un archivo
         if archivo_subido is None:
             st.warning("⚠️  Por favor suba un archivo CSV para continuar")
             st.stop()
         
         try:
-            # Cargar datos desde el archivo subido
             with st.spinner("Cargando datos..."):
                 df = pd.read_csv(archivo_subido)
                 df.columns = df.columns.str.strip()
@@ -693,24 +675,20 @@ def main():
                 fecha_hoy = df['Fecha'].max()
                 df_hoy = df[df['Fecha'] == fecha_hoy].copy().reset_index(drop=True)
                 
-                # Mapear columnas
                 for col_destino, col_posibles in COLUMNAS_ESPERADAS.items():
                     for col_posible in col_posibles:
                         if col_posible in df_hoy.columns:
                             df_hoy.rename(columns={col_posible: col_destino}, inplace=True)
                             break
                 
-                # Verificar columnas requeridas
                 faltantes = [c for c in COLUMNAS_REQUERIDAS if c not in df_hoy.columns]
                 if faltantes:
                     st.error(f"Faltan columnas requeridas: {faltantes}")
                     st.stop()
             
-            # Mostrar información del archivo
             st.success(f"Archivo cargado: {archivo_subido.name}")
             st.info(f"Análisis para: {fecha_hoy.date()} | Productos: {len(df_hoy)}")
             
-            # Filtrado y clasificación
             df_riesgo = filtrar_productos_riesgo(df_hoy)
             df_riesgo = calcular_valor_stock(df_riesgo)
             total_riesgo = df_riesgo['Valor_Stock_Costo'].sum()
@@ -721,17 +699,14 @@ def main():
             
             df_riesgo = aplicar_clasificacion(df_riesgo)
             
-            # Cálculos contables
             resumen_por_mes, df_con_meses = agrupar_por_mes_vencimiento(df_hoy, fecha_hoy)
             total_riesgo_mes = df_riesgo['Valor_Stock_Costo'].sum()
             
-            # Mostrar matriz de riesgo
             if mostrar_grafico:
                 with st.expander("MATRIZ DE RIESGO", expanded=True):
                     fig = crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy)
                     st.pyplot(fig)
                     
-                    # Botón para descargar la imagen
                     buf = io.BytesIO()
                     fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
                     buf.seek(0)
@@ -742,21 +717,17 @@ def main():
                         mime="image/png"
                     )
             
-            # Mostrar resúmenes
             mostrar_resumen_ejecutivo(fecha_hoy, df_riesgo, total_riesgo, total_riesgo_mes, resumen_por_mes, df_con_meses)
             mostrar_top_productos(df_riesgo, fecha_hoy)
             
-            # Plan de acción
             st.markdown("---")
             valor_vencido, credito_trib, valor_critico, valor_urgente, total_recuperado = mostrar_plan_accion(df_riesgo, fecha_hoy)
             
-            # Resumen final
             st.markdown("---")
             productos_criticos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO']
             productos_urgentes = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE']
             mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, productos_urgentes, total_recuperado)
             
-            # Marcar como ejecutado
             st.session_state['ejecutar'] = True
             st.session_state['datos_procesados'] = {
                 'fecha': fecha_hoy,
@@ -764,7 +735,6 @@ def main():
                 'total_recuperado': total_recuperado
             }
             
-            # Botón para descargar reporte completo
             pdf = generar_pdf(df_riesgo, total_riesgo)
 
             st.download_button(
