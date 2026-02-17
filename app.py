@@ -1097,21 +1097,36 @@ def mostrar_resumen_ejecutivo_detalle(fecha_hoy, df_riesgo, total_riesgo, total_
             
             st.markdown("#### 🔍 Desglose por Nivel de Urgencia")
             
+            # Configuración de estilos para los badges en la tabla
+            config_tabla = {
+                'VENCIDO': {'clase': 'badge-vencido', 'emoji': '🔴'},
+                'CRITICO': {'clase': 'badge-critico', 'emoji': '🟠'},
+                'URGENTE': {'clase': 'badge-urgente', 'emoji': '🟡'},
+                'PREVENTIVO': {'clase': 'badge-preventivo', 'emoji': '🔵'}
+            }
+            
             items_detalle = []
             for nivel in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']:
                 df_nivel = df_mes_riesgo[df_mes_riesgo['Nivel'] == nivel]
                 if len(df_nivel) > 0:
                     valor_nivel = df_nivel['Valor_Stock_Costo'].sum()
+                    conf = config_tabla[nivel]
+                    
                     items_detalle.append({
-                        'Nivel': nivel,
+                        'Nivel': f'<span class="badge {conf["clase"]}">{conf["emoji"]} {nivel}</span>',
                         'Productos': len(df_nivel),
-                        'Unidades': int(df_nivel['Stock_Inicial'].sum()),
-                        'Valor Riesgo': clp(valor_nivel),
+                        'Unidades': f"{int(df_nivel['Stock_Inicial'].sum()):,}".replace(",", "."),
+                        'Valor Riesgo': f"<strong>{clp(valor_nivel)} CLP</strong>",
                         '% del Mes': f"{(valor_nivel / fila['Valor_Stock_Costo'] * 100):.1f}%"
                     })
             
             if items_detalle:
-                st.dataframe(pd.DataFrame(items_detalle), use_container_width=True, hide_index=True)
+                # Convertimos a DataFrame
+                df_detalle_html = pd.DataFrame(items_detalle)
+                
+                # Renderizamos como HTML usando tus clases CSS ya definidas
+                tabla_html = df_detalle_html.to_html(index=False, escape=False, classes='dataframe')
+                st.markdown(f'<div class="dataframe">{tabla_html}</div>', unsafe_allow_html=True)
 
     # Alerta Operativa Final con Formato de Tarjeta
     st.markdown("---")
@@ -1219,6 +1234,11 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
             html_tabla = f'<div class="{clase_css}">{tabla_html}</div>'
             
             st.markdown(html_tabla, unsafe_allow_html=True)
+
+#===============================================================
+# RESUMEN FINAL
+#===============================================================
+
 def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, productos_urgentes, total_recuperado):
     """Muestra el resumen final ejecutivo con el formato púrpura corregido"""
     
