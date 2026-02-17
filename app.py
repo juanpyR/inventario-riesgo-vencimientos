@@ -473,6 +473,25 @@ def verificar_columnas(df):
     if faltantes:
         raise ValueError(f"Faltan columnas: {faltantes}")
 
+# =============================================================================
+# VERIFICACION DE ACTUALIZACIONES
+# =============================================================================
+
+def verificar_actualizacion_datos(df, fecha_hoy):
+    
+    fecha_maxima = df['Fecha'].max()
+    dias_sin_actualizar = (fecha_hoy - fecha_maxima).days
+    
+    if dias_sin_actualizar > 0:
+        st.warning(f"""
+        ⚠️ **Datos con {dias_sin_actualizar} día(s) de antigüedad**
+        
+        Última actualización: {fecha_maxima.strftime('%d/%m/%Y')}
+        
+        Para un plan efectivo, se recomienda actualizar **diariamente**.
+        """)
+        return False
+    return True
 
 # =============================================================================
 # FUNCIONES DE FILTRADO Y CLASIFICACIÓN
@@ -1430,6 +1449,45 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     return valor_vencido, credito_trib, valor_critico, valor_urgente, total_recuperado_base
 
 
+def generar_pdf(df_riesgo, total_riesgo):
+    """Genera PDF básico del reporte"""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+    from io import BytesIO
+    
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+    
+    # Título
+    c.setFont("Helvetica-Bold", 20)
+    c.drawString(100, height - 50, "Reporte de Riesgo de Vencimientos")
+    
+    # Fecha
+    c.setFont("Helvetica", 12)
+    c.drawString(100, height - 80, f"Total productos en riesgo: {len(df_riesgo)}")
+    c.drawString(100, height - 100, f"Valor total: {clp(total_riesgo)} CLP")
+    
+    # Detalles por nivel
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(100, height - 140, "Distribución por Nivel:")
+    
+    c.setFont("Helvetica", 11)
+    y_pos = height - 170
+    for nivel in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']:
+        df_nivel = df_riesgo[df_riesgo['Nivel_Riesgo'] == nivel]
+        if len(df_nivel) > 0:
+            valor = df_nivel['Valor_Stock_Costo'].sum()
+            c.drawString(120, y_pos, f"{nivel}: {len(df_nivel)} productos - {clp(valor)} CLP")
+            y_pos -= 25
+    
+    c.save()
+    buffer.seek(0)
+    return buffer
+
+
+
+
 # =============================================================================
 # FUNCIÓN PRINCIPAL
 # =============================================================================
@@ -1507,9 +1565,20 @@ def main():
                     st.error(f"Faltan columnas requeridas: {faltantes}")
                     st.stop()
             
-            st.success(f"Archivo cargado: {archivo_subido.name}")
+           st.success(f"Archivo cargado: {archivo_subido.name}")
             st.info(f"Análisis para: {fecha_hoy.date()} | Productos: {len(df_hoy)}")
             
+            # ✅ AGREGAR VERIFICACIÓN DE ANTIGÜEDAD DE DATOS
+            dias_sin_actualizar = (datetime.now() - fecha_hoy).days
+            if dias_sin_actualizar > 0:
+                st.warning(f"""
+                ⚠️ **Datos con {dias_sin_actualizar} día(s) de antigüedad**
+                
+                Última actualización: {fecha_hoy.strftime('%d/%m/%Y')}
+                
+                Para un plan efectivo, se recomienda actualizar **diariamente**.
+                """)
+                        
             df_riesgo = filtrar_productos_riesgo(df_hoy)
             df_riesgo = calcular_valor_stock(df_riesgo)
             total_riesgo = df_riesgo['Valor_Stock_Costo'].sum()
