@@ -1186,21 +1186,17 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
             df_tabla = pd.DataFrame(tabla_datos)
             
             # Mostrar tabla con HTML personalizado para colores
-            st.markdown(f"""
-            <div class="{config['clase']}">
-            {df_tabla.to_html(escape=False, index=False, classes='dataframe')}
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Botón de descarga
-            csv = df_tabla.to_csv(index=False, sep=';').encode('utf-8')
-            st.download_button(
-                label=f"📥 Descargar {nivel} (CSV)",
-                data=csv,
-                file_name=f"{nivel.lower()}_{fecha_hoy.strftime('%Y%m%d')}.csv",
-                mime="text/csv",
-                use_container_width=True
+            clase_css = config.get("clase", "")
+
+            tabla_html = df_tabla.to_html(index=False, escape=False)
+
+            html_tabla = (
+                f'<div class="{clase_css}">'
+                + tabla_html +
+                '</div>'
             )
+            
+            st.markdown(html_tabla, unsafe_allow_html=True)
 def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, productos_urgentes, total_recuperado):
     """Muestra el resumen final ejecutivo con formato visual mejorado"""
     
