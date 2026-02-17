@@ -94,16 +94,6 @@ def cargar_css():
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     
-    .metric-box {
-        background: white;
-        border-radius: 12px;
-        padding: 20px;
-        text-align: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin: 10px 0;
-        border-left: 5px solid #4CAF50;
-    }
-    
     .classification-item {
         padding: 15px;
         margin: 10px 0;
@@ -145,20 +135,6 @@ def cargar_css():
         text-align: left;
     }
     
-    .plan-summary h4 {
-        color: #2e7d32;
-        margin-top: 0;
-        font-size: 1.2rem;
-    }
-    
-    .plan-item {
-        padding: 10px;
-        margin: 8px 0;
-        background: #f1f8e9;
-        border-radius: 5px;
-        font-size: 0.95rem;
-    }
-    
     .plan-metrics {
         background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
         border-radius: 10px;
@@ -179,31 +155,6 @@ def cargar_css():
     
     .metric-label { color: #2e7d32; }
     .metric-value { color: #1565c0; font-size: 1.1rem; }
-    
-    .btn-primary {
-        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-        color: white;
-        border: none;
-        padding: 15px 40px;
-        border-radius: 30px;
-        font-weight: 700;
-        cursor: pointer;
-        margin: 10px 5px;
-        font-size: 1.1rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-    }
-    
-    .btn-secondary {
-        background: white;
-        color: #d32f2f;
-        border: 3px solid #d32f2f;
-        padding: 15px 40px;
-        border-radius: 30px;
-        font-weight: 700;
-        cursor: pointer;
-        margin: 10px 5px;
-        font-size: 1.1rem;
-    }
     
     .indicator {
         display: inline-block;
@@ -260,15 +211,14 @@ def cargar_css():
         font-size: 1.8rem;
         font-weight: 700;
     }
-    <style>
-    /* ... tu CSS existente ... */
     
-    /* TABLAS CON FORMATO MEJORADO */
+    /* TABLAS */
     .dataframe {
         border-radius: 10px;
         overflow: hidden;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         font-size: 0.9rem;
+        width: 100%;
     }
     
     .dataframe thead th {
@@ -280,67 +230,17 @@ def cargar_css():
         border: none;
     }
     
-    .dataframe tbody tr:nth-child(even) {
-        background-color: #f8f9fa;
-    }
+    .dataframe tbody tr:nth-child(even) { background-color: #f8f9fa; }
+    .dataframe tbody tr:nth-child(odd) { background-color: white; }
+    .dataframe tbody tr:hover { background-color: #e3f2fd; transition: all 0.3s; }
+    .dataframe td { padding: 12px 15px; border-bottom: 1px solid #e0e0e0; }
     
-    .dataframe tbody tr:nth-child(odd) {
-        background-color: white;
-    }
+    .tabla-vencido thead th { background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); }
+    .tabla-critico thead th { background: linear-gradient(135deg, #f57c00 0%, #e65100 100%); }
+    .tabla-urgente thead th { background: linear-gradient(135deg, #fbc02d 0%, #f9a825 100%); }
+    .tabla-preventivo thead th { background: linear-gradient(135deg, #fb8c00 0%, #f57c00 100%); }
     
-    .dataframe tbody tr:hover {
-        background-color: #e3f2fd;
-        transition: all 0.3s;
-    }
-    
-    .dataframe td {
-        padding: 12px 15px;
-        border-bottom: 1px solid #e0e0e0;
-    }
-    
-    /* TABLAS POR NIVEL CON COLORES ESPECÍFICOS */
-    .tabla-vencido thead th {
-        background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
-    }
-    
-    .tabla-critico thead th {
-        background: linear-gradient(135deg, #f57c00 0%, #e65100 100%);
-    }
-    
-    .tabla-urgente thead th {
-        background: linear-gradient(135deg, #fbc02d 0%, #f9a825 100%);
-    }
-    
-    .tabla-preventivo thead th {
-        background: linear-gradient(135deg, #fb8c00 0%, #f57c00 100%);
-    }
-    
-    /* TARJETAS DE TOTALES */
-    .total-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 15px;
-        padding: 25px;
-        color: white;
-        text-align: center;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-        margin: 10px 0;
-    }
-    
-    .total-card h3 {
-        margin: 0;
-        font-size: 0.9rem;
-        opacity: 0.9;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    .total-card .valor {
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin: 10px 0;
-    }
-    
-    /* BADGES DE ACCIÓN */
+    /* BADGES */
     .badge {
         display: inline-block;
         padding: 5px 12px;
@@ -349,25 +249,163 @@ def cargar_css():
         font-weight: 600;
     }
     
-    .badge-vencido {
-        background: #ffebee;
-        color: #c62828;
+    .badge-vencido { background: #ffebee; color: #c62828; }
+    .badge-critico { background: #fff3e0; color: #ef6c00; }
+    .badge-urgente { background: #fffde7; color: #f9a825; }
+    .badge-preventivo { background: #fbe9e7; color: #e65100; }
+    
+    /* PLAN DE ACCIÓN */
+    .plan-section {
+        border-radius: 15px;
+        padding: 25px;
+        margin: 20px 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border-left: 6px solid;
     }
     
-    .badge-critico {
-        background: #fff3e0;
-        color: #ef6c00;
+    .plan-vencido { background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%); border-color: #d32f2f; }
+    .plan-critico { background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border-color: #f57c00; }
+    .plan-urgente { background: linear-gradient(135deg, #fffde7 0%, #fff9c4 100%); border-color: #fbc02d; }
+    .plan-cierre { background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-color: #1976d2; }
+    
+    .plan-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid rgba(0,0,0,0.1);
     }
     
-    .badge-urgente {
-        background: #fffde7;
-        color: #f9a825;
+    .plan-title { font-size: 1.3rem; font-weight: 700; color: #1a237e; margin: 0; }
+    
+    .plan-badge {
+        background: rgba(255,255,255,0.9);
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
     }
     
-    .badge-preventivo {
-        background: #fbe9e7;
-        color: #e65100;
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        margin: 20px 0;
     }
+    
+    .metric-item {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .metric-label { font-size: 0.85rem; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric-value { font-size: 1.8rem; font-weight: 700; color: #1a237e; }
+    .metric-sub { font-size: 0.75rem; color: #999; margin-top: 5px; }
+    
+    .action-list { background: white; border-radius: 10px; padding: 20px; margin: 15px 0; }
+    
+    .action-item {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        margin: 8px 0;
+        background: #f5f5f5;
+        border-radius: 8px;
+        border-left: 4px solid;
+    }
+    
+    .action-icon { font-size: 1.5rem; margin-right: 15px; }
+    .action-text { flex: 1; font-size: 0.95rem; }
+    
+    .sensitivity-box {
+        background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+        border-radius: 12px;
+        padding: 20px;
+        margin: 20px 0;
+        border: 2px solid #9c27b0;
+    }
+    
+    .sensitivity-title { font-size: 1.1rem; font-weight: 700; color: #6a1b9a; margin-bottom: 15px; }
+    
+    .sensitivity-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+    
+    .sensitivity-item {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .sensitivity-label { font-size: 0.8rem; color: #666; margin-bottom: 5px; }
+    .sensitivity-value { font-size: 1.2rem; font-weight: 700; color: #6a1b9a; }
+    
+    .timeline {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 20px 0;
+        padding: 20px;
+        background: white;
+        border-radius: 12px;
+    }
+    
+    .timeline-item { text-align: center; flex: 1; position: relative; }
+    .timeline-time { font-size: 0.9rem; font-weight: 700; color: #1a237e; margin-bottom: 5px; }
+    .timeline-action { font-size: 0.8rem; color: #666; }
+    .timeline-dot { width: 12px; height: 12px; border-radius: 50%; margin: 10px auto; background: #667eea; }
+    
+    /* RESUMEN FINAL */
+    .resumen-final-box {
+        background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+        border-radius: 15px;
+        padding: 30px;
+        color: white;
+        margin: 20px 0;
+        box-shadow: 0 4px 15px rgba(26, 35, 126, 0.4);
+    }
+    
+    .resumen-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 20px 0; }
+    
+    .resumen-card {
+        background: rgba(255,255,255,0.1);
+        border-radius: 12px;
+        padding: 20px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .resumen-card h4 { margin: 0 0 15px 0; font-size: 1.1rem; opacity: 0.9; }
+    
+    .resumen-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .resumen-item:last-child { border-bottom: none; }
+    .resumen-icon { font-size: 1.5rem; margin-right: 12px; }
+    .resumen-text { flex: 1; font-size: 0.9rem; }
+    
+    .conclusion-box {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        margin: 20px 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .conclusion-item { padding: 15px; margin: 10px 0; border-radius: 10px; border-left: 5px solid; }
+    .conclusion-error { background: #ffebee; border-color: #d32f2f; color: #c62828; }
+    .conclusion-success { background: #e8f5e9; border-color: #4caf50; color: #2e7d32; }
+    .conclusion-info { background: #e3f2fd; border-color: #1976d2; color: #1565c0; }
     </style>
     """, unsafe_allow_html=True)
 
