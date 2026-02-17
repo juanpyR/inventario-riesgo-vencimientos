@@ -625,7 +625,7 @@ def mostrar_inventario_nuevo(df_riesgo, total_riesgo):  # ✅ PARÁMETRO AGREGAD
                     <div style='font-size: 1.2rem; margin-bottom: 10px;'>💵 TOTAL RECUPERADO</div>
                     <div style='font-size: 3rem; font-weight: 700;'>{clp(total_recuperado)} CLP</div>
                     <div style='font-size: 0.9rem; margin-top: 10px; opacity: 0.9;'>
-                        De {clp(total_riesgo)} CLP en riesgo  ✅ AHORA SÍ FUNCIONA
+                        De {clp(total_riesgo)} CLP en riesgo
                     </div>
                 </div>
             </div>
