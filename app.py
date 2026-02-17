@@ -722,15 +722,13 @@ def main():
             }
             
             # ✅ Botón para descargar reporte completo
+            # Botón para descargar reporte completo
             st.markdown("---")
             st.subheader("Exportar Dashboard")
             
-            col1 = st.columns(1)
-            
-            with col1:
-                # Botón Imprimir PDF (captura TODO el dashboard)
-                agregar_boton_imprimir_pdf()
-                st.caption("Usa 'Guardar como PDF' en el diálogo de impresión")
+            agregar_boton_imprimir_pdf()
+            st.caption("Usa 'Guardar como PDF' en el diálogo de impresión")
+
             
         
         except Exception as e:
