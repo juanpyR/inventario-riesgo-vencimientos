@@ -271,20 +271,23 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
     ax.set_title(f'Riesgo de Vencimiento - {fecha_hoy.date()}\n{len(df_viz)} productos | {total_riesgo:,.0f} CLP',
                 fontsize=13, pad=15)
     
-    # ✅ LEYENDA SIMPLIFICADA - Solo niveles de riesgo (sin tamaños de burbujas)
+    # ✅ LEYENDA CON BURBUJAS DE TAMAÑO - Organizadas en 2 secciones
     legend_elements = [
         Line2D([0], [0], marker='o', color='w', label='VENCIDO', markerfacecolor='#000000', markersize=10),
         Line2D([0], [0], marker='o', color='w', label='CRÍTICO', markerfacecolor='#d32f2f', markersize=10),
         Line2D([0], [0], marker='o', color='w', label='URGENTE', markerfacecolor='#f57c00', markersize=10),
-        Line2D([0], [0], marker='o', color='w', label='PREVENTIVO', markerfacecolor='#fbc02d', markersize=10)
+        Line2D([0], [0], marker='o', color='w', label='PREVENTIVO', markerfacecolor='#fbc02d', markersize=10),
+        plt.scatter([], [], s=60, c='gray', alpha=0.5, label='~100k CLP', edgecolors='none'),
+        plt.scatter([], [], s=200, c='gray', alpha=0.5, label='~500k CLP', edgecolors='none'),
+        plt.scatter([], [], s=400, c='gray', alpha=0.5, label='~1M+ CLP', edgecolors='none')
     ]
     
-    # ✅ LEYENDA COMPACTA - Esquina superior izquierda
+    # ✅ LEYENDA COMPACTA - 2 columnas, tamaños reducidos
     ax.legend(handles=legend_elements, loc='upper left',
-              title='Nivel de Riesgo', fontsize=8, title_fontsize=9,
+              title='Nivel | Tamaño = Valor', fontsize=7, title_fontsize=8,
               frameon=True, edgecolor='gray', facecolor='white',
-              borderpad=0.5, labelspacing=0.4, handletextpad=0.5,
-              columnspacing=0.8, ncol=2)  # ✅ 2 columnas para hacerla más compacta
+              borderpad=0.4, labelspacing=0.3, handletextpad=0.3,
+              columnspacing=0.6, ncol=2)
     
     ax.set_xlim(-0.7, 3.7)
     ax.set_ylim(-0.7, 3.7)
