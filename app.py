@@ -1565,7 +1565,7 @@ def main():
                     st.error(f"Faltan columnas requeridas: {faltantes}")
                     st.stop()
             
-           st.success(f"Archivo cargado: {archivo_subido.name}")
+            st.success(f"Archivo cargado: {archivo_subido.name}")
             st.info(f"Análisis para: {fecha_hoy.date()} | Productos: {len(df_hoy)}")
             
             # ✅ AGREGAR VERIFICACIÓN DE ANTIGÜEDAD DE DATOS
