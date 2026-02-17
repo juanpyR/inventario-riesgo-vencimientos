@@ -1366,7 +1366,7 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     ].copy()
     valor_urgente = productos_urgentes['Valor_Stock_Costo'].sum() if len(productos_urgentes) > 0 else 0
 
-    # 4. CÁLCULOS PARA SENSIBILIDAD Y CIERRE (ANTES DE CUALQUIER st.markdown)
+    # 4. CÁLCULOS PARA SENSIBILIDAD Y CIERRE
     valor_rescatado_descuentos = (valor_critico * 0.50) + (valor_urgente * 0.40)
     total_recuperado_base = valor_rescatado_descuentos + credito_trib
 
@@ -1452,57 +1452,21 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     """), unsafe_allow_html=True)
 
     # ============================================
-    # 5. ANÁLISIS DE SENSIBILIDAD
+    # 5. ANÁLISIS DE SENSIBILIDAD - GRID COMPACTO 2x3
     # ============================================
     
-    # Disclaimer prominente
-    st.warning("""
-    ⚠️ **Importante - Proyecciones Estimadas**
-    
-    Estos valores son **estimaciones basadas en supuestos** y pueden variar significativamente según:
-    - Tráfico real de clientes en la tienda
-    - Ubicación y visibilidad de los productos
-    - Efectividad de la cartelería promocional
-    - Competencia con otras ofertas
-    - Factores estacionales y externos
-    
-    **No constituyen garantía de resultados.**
-    """)
-    
-    # Explicación de supuestos
-    with st.expander("📋 ¿Cómo calculamos estas proyecciones?"):
-        st.markdown("""
-        ### Metodología de Proyección:
-        
-        **Supuestos del Escenario Base:**
-        - Productos Críticos (1-3 días): 50% de venta con 40% descuento
-        - Productos Urgentes (4-7 días): 40% de venta con 25% descuento
-        - Productos Vencidos: 100% donación → 27% crédito tributario
-        
-        **Fuentes de Recuperación:**
-        1. **Crédito Tributario**: Donación de productos vencidos (Ley 19.885)
-        2. **Ventas con Descuento**: Recuperación parcial mediante markdown
-        3. **Timing**: Todo debe ejecutarse en las próximas 48 horas
-        
-        **Factores de Variación:**
-        - Escenario Pesimista: -30% sobre ventas proyectadas
-        - Escenario Base: Proyección realista
-        - Escenario Optimista: +30% sobre ventas proyectadas
-        """)
-    
-    # Header de sensibilidad
     st.markdown(f"""
     <div style='background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); 
                 border-radius: 12px; padding: 20px; margin: 20px 0; 
                 border-left: 5px solid #9c27b0;'>
-        <h4 style='color: #6a1b9a; margin-top: 0;'>📊 ANÁLISIS DE SENSIBILIDAD - ¿Qué pasa si varía la venta?</h4>
-        <p style='color: #666; font-size: 0.9rem; margin-bottom: 15px;'>
-            Proyección de recuperación total según diferentes escenarios de venta
+        <h4 style='color: #6a1b9a; margin: 0 0 10px 0;'>📊 ANÁLISIS DE SENSIBILIDAD</h4>
+        <p style='color: #666; font-size: 0.9rem; margin: 0;'>
+            Proyección de recuperación según diferentes escenarios de venta
         </p>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Calcular todos los escenarios
+
+    # Escenarios para grid compacto
     escenarios = {
         'Muy Pesimista': {'factor': 0.5, 'color': '#b71c1c', 'label': '🔴 Muy Pesimista (-50%)'},
         'Pesimista': {'factor': 0.7, 'color': '#d32f2f', 'label': '🟠 Pesimista (-30%)'},
@@ -1511,109 +1475,44 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         'Optimista': {'factor': 1.3, 'color': '#8bc34a', 'label': '🟢 Optimista (+30%)'},
         'Muy Optimista': {'factor': 1.5, 'color': '#cddc39', 'label': '🔵 Muy Optimista (+50%)'}
     }
-    
-    # Crear grid de escenarios - ABRIR contenedor
-    st.markdown('<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0;">', unsafe_allow_html=True)
-    
-    for nombre, datos in escenarios.items():
+
+    # Grid 2x3 con st.columns
+    col1, col2, col3 = st.columns(3)
+    cols = [col1, col2, col3]
+
+    for i, (nombre, datos) in enumerate(escenarios.items()):
         valor_rescatado = valor_rescatado_descuentos * datos['factor']
         total_recuperado = valor_rescatado + credito_trib
         es_base = nombre == 'Base'
-        estilo_extra = 'style="background: #e8f5e9; border: 3px solid #4caf50;"' if es_base else ''
         
-        st.markdown(f"""
-        <div class="sensitivity-item" {estilo_extra} 
-             style='background: white; padding: 20px; border-radius: 12px; text-align: center; 
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
-            <div style='font-size: 0.85rem; color: #666; margin-bottom: 10px; font-weight: 600;'>
-                {datos['label']}
+        with cols[i % 3]:
+            st.markdown(f"""
+            <div style='background: {"#e8f5e9" if es_base else "white"}; 
+                        padding: 20px; border-radius: 12px; text-align: center; 
+                        margin: 10px 0; border: {"3px solid #4caf50" if es_base else "2px solid #ddd"};
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+                <div style='font-size: 0.9rem; color: #666; margin-bottom: 10px; font-weight: 600;'>
+                    {datos['label']}
+                </div>
+                <div style='font-size: 2rem; font-weight: 700; color: {datos["color"]}; margin: 10px 0;'>
+                    {clp(total_recuperado)} CLP
+                </div>
+                <div style='font-size: 0.8rem; color: #999;'>
+                    Recuperación: {clp(valor_rescatado)}<br>
+                    + Crédito: {clp(credito_trib)}
+                </div>
             </div>
-            <div style='font-size: 2rem; font-weight: 700; color: {datos["color"]}; margin: 10px 0;'>
-                {clp(total_recuperado)} CLP
-            </div>
-            <div style='font-size: 0.8rem; color: #999; margin-top: 10px;'>
-                Recuperación: {clp(valor_rescatado)}<br>
-                + Crédito: {clp(credito_trib)}
-            </div>
-            {'<div style="margin-top: 10px; padding: 5px; background: #c8e6c9; border-radius: 5px; font-size: 0.75rem; color: #2e7d32; font-weight: 600;">✅ PROYECCIÓN PRINCIPAL</div>' if es_base else ''}
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # CERRAR contenedor del grid
-    st.markdown('</div>', unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
-    # Visualización de rango
-    st.markdown(f"""
-    <div style='background: linear-gradient(90deg, #ffebee 0%, #fff3e0 50%, #e8f5e9 100%); 
-                padding: 20px; border-radius: 12px; margin: 20px 0; text-align: center;
-                border: 2px solid #ddd;'>
-        <div style='font-size: 1.1rem; font-weight: 700; color: #1a237e; margin-bottom: 15px;'>
-            📊 RANGO DE RECUPERACIÓN PROYECTADA
-        </div>
-        <div style='display: flex; justify-content: space-between; align-items: center; 
-                    padding: 15px; background: white; border-radius: 8px;'>
-            <div style='text-align: center;'>
-                <div style='font-size: 0.85rem; color: #666;'>Mínimo Esperado</div>
-                <div style='font-size: 1.5rem; font-weight: 700; color: #d32f2f;'>
-                    {clp((valor_rescatado_descuentos * 0.5) + credito_trib)} CLP
-                </div>
-                <div style='font-size: 0.75rem; color: #999;'>Escenario muy pesimista</div>
-            </div>
-            <div style='text-align: center; padding: 0 30px;'>
-                <div style='font-size: 0.85rem; color: #666;'>Escenario Base</div>
-                <div style='font-size: 2rem; font-weight: 700; color: #4caf50;'>
-                    {clp(total_recuperado_base)} CLP
-                </div>
-                <div style='font-size: 0.75rem; color: #2e7d32; font-weight: 600;'>PROYECCIÓN PRINCIPAL</div>
-            </div>
-            <div style='text-align: center;'>
-                <div style='font-size: 0.85rem; color: #666;'>Máximo Esperado</div>
-                <div style='font-size: 1.5rem; font-weight: 700; color: #388e3c;'>
-                    {clp((valor_rescatado_descuentos * 1.5) + credito_trib)} CLP
-                </div>
-                <div style='font-size: 0.75rem; color: #999;'>Escenario muy optimista</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Desglose de fuentes
-    st.markdown(f"""
-    <div style='background: white; padding: 20px; border-radius: 12px; margin: 20px 0; 
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
-        <h4 style='color: #1a237e; margin-top: 0;'>💰 Desglose de Fuentes de Recuperación</h4>
-        <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;'>
-            <div style='background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #1976d2;'>
-                <div style='font-weight: 600; color: #1565c0; margin-bottom: 10px;'>🏛️ Crédito Tributario (FIJO)</div>
-                <div style='font-size: 1.5rem; font-weight: 700; color: #0d47a1;'>{clp(credito_trib)} CLP</div>
-                <div style='font-size: 0.85rem; color: #666; margin-top: 5px;'>
-                    27% sobre donaciones<br>
-                    <em>Valor fijo - no varía</em>
-                </div>
-            </div>
-            <div style='background: #fff3e0; padding: 15px; border-radius: 8px; border-left: 4px solid #f57c00;'>
-                <div style='font-weight: 600; color: #e65100; margin-bottom: 10px;'>💵 Ventas con Descuento (VARIABLE)</div>
-                <div style='font-size: 1.5rem; font-weight: 700; color: #ef6c00;'>
-                    {clp(valor_rescatado_descuentos * 0.5)} - {clp(valor_rescatado_descuentos * 1.5)} CLP
-                </div>
-                <div style='font-size: 0.85rem; color: #666; margin-top: 5px;'>
-                    Depende de tasa de venta real<br>
-                    <em>Rango: 50% - 150% del base</em>
-                </div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ============================================
-    # 6. CIERRE OPERATIVO
-    # ============================================
-    
     # Disclaimer de proyecciones
     st.info("""
     ⚠️ **Nota:** Estas son **proyecciones estimadas**. Los resultados reales dependen del tráfico de tienda, 
     ubicación de productos y respuesta de clientes.
     """)
+
+    # ============================================
+    # 6. CIERRE OPERATIVO
+    # ============================================
     
     st.markdown(textwrap.dedent(f"""
     <div class="plan-section plan-cierre">
@@ -1641,9 +1540,6 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     </div>
     """), unsafe_allow_html=True)
 
-    # ============================================
-    # RETURN - Al final de la función
-    # ============================================
     return valor_vencido, credito_trib, valor_critico, valor_urgente, total_recuperado_base
 
 
