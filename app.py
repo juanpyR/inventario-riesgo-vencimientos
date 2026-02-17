@@ -1278,29 +1278,7 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
         </div>
     """)
     st.markdown(caja_purpura, unsafe_allow_html=True)
-
-    # Bloque de Conclusión Final
-    conclusion_html = textwrap.dedent(f"""
-        <div class="conclusion-box">
-            <div class="conclusion-item conclusion-error">
-                <strong>❌ Si no donamos:</strong> Pérdida total de <strong>{clp(valor_vencido)} CLP</strong> hoy
-            </div>
-            <div class="conclusion-item conclusion-success">
-                <strong>✅ Con donación:</strong> Recuperamos <strong>{clp(credito_trib)} CLP</strong> en crédito tributario (27%)
-            </div>
-            <div class="conclusion-item conclusion-info">
-                <strong>📈 En 48h:</strong> Rescatamos entre <strong>{clp(valor_critico*0.4 + valor_urgente*0.3)}</strong> y <strong>{clp(valor_critico*0.6 + valor_urgente*0.5)}</strong>
-            </div>
-            <div style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); padding: 25px; border-radius: 12px; text-align: center; color: white; margin-top: 20px;">
-                <div style="font-size: 1.2rem; margin-bottom: 10px;">💵 TOTAL RECUPERADO ESPERADO</div>
-                <div style="font-size: 3rem; font-weight: 700;">{clp(total_recuperado)} CLP</div>
-            </div>
-        </div>
-    """)
-    st.markdown(conclusion_html, unsafe_allow_html=True)
     
-import textwrap
-
 def mostrar_plan_accion(df_riesgo, fecha_hoy):
     """Muestra el plan de acción 48H con formato visual profesional"""
     
