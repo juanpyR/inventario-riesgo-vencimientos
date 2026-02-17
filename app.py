@@ -430,10 +430,10 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
 
 
 def mostrar_plan_accion(df_riesgo, fecha_hoy):
-    """Muestra el plan de acción 48H"""
+    """Muestra el plan de acción 48H con formatos corregidos"""
     st.header("PLAN DE ACCION 48H")
     
-    # Productos vencidos
+    # 1. PRODUCTOS VENCIDOS
     productos_vencidos = df_riesgo[
         (df_riesgo['Nivel_Riesgo'] == 'VENCIDO') &
         (df_riesgo['Días_para_Vencimiento'] >= 0)
@@ -446,19 +446,17 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     if len(productos_vencidos) > 0:
         col1, col2, col3 = st.columns(3)
         with col1:
-            # ✅ CONTEOS - Sin CLP
-            st.metric("Productos", len(productos_vencidos))
+            # Pasamos el INT directo para que Streamlit no asuma formato moneda
+            st.metric("Productos", int(len(productos_vencidos)))
         with col2:
-            # ✅ CONTEOS - Sin CLP
             st.metric("Unidades", int(productos_vencidos['Stock_Inicial'].sum()))
         with col3:
-            # ✅ MONETARIO - Con CLP
             st.metric("Valor en Riesgo", clp_full(valor_vencido))
         st.success(f"Crédito tributario 27%: +{clp_full(credito_trib)}")
     else:
         st.info("Sin productos vencidos hoy")
     
-    # Productos críticos
+    # 2. PRODUCTOS CRÍTICOS
     productos_criticos = df_riesgo[
         (df_riesgo['Nivel_Riesgo'] == 'CRITICO') &
         (df_riesgo['Días_para_Vencimiento'] >= 1) &
@@ -466,20 +464,20 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     ].copy()
     
     st.subheader("HOY 10:00 - 12:00 | ACCION CRITICA")
+    valor_critico = productos_criticos['Valor_Stock_Costo'].sum() if len(productos_criticos) > 0 else 0
     if len(productos_criticos) > 0:
-        valor_critico = productos_criticos['Valor_Stock_Costo'].sum()
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Productos", len(productos_criticos))  # ✅ Sin CLP
+            st.metric("Productos", int(len(productos_criticos))) # <--- CORRECCIÓN AQUÍ
         with col2:
-            st.metric("Unidades", int(productos_criticos['Stock_Inicial'].sum()))  # ✅ Sin CLP
+            st.metric("Unidades", int(productos_criticos['Stock_Inicial'].sum())) # <--- CORRECCIÓN AQUÍ
         with col3:
-            st.metric("Valor en Riesgo", clp_full(valor_critico))  # ✅ Con CLP
+            st.metric("Valor en Riesgo", clp_full(valor_critico))
         st.info("Aplicar 40% descuento en entrada principal")
     else:
         st.info("Sin productos críticos")
     
-    # Productos urgentes
+    # 3. PRODUCTOS URGENTES
     productos_urgentes = df_riesgo[
         (df_riesgo['Nivel_Riesgo'] == 'URGENTE') &
         (df_riesgo['Días_para_Vencimiento'] >= 4) &
@@ -487,32 +485,31 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     ].copy()
     
     st.subheader("HOY 14:00 - 16:00 | ACCION URGENTE")
+    valor_urgente = productos_urgentes['Valor_Stock_Costo'].sum() if len(productos_urgentes) > 0 else 0
     if len(productos_urgentes) > 0:
-        valor_urgente = productos_urgentes['Valor_Stock_Costo'].sum()
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Productos", len(productos_urgentes))  # ✅ Sin CLP
+            st.metric("Productos", int(len(productos_urgentes)))
         with col2:
-            st.metric("Unidades", int(productos_urgentes['Stock_Inicial'].sum()))  # ✅ Sin CLP
+            st.metric("Unidades", int(productos_urgentes['Stock_Inicial'].sum()))
         with col3:
-            st.metric("Valor en Riesgo", clp_full(valor_urgente))  # ✅ Con CLP
+            st.metric("Valor en Riesgo", clp_full(valor_urgente))
         st.info("Aplicar 25% descuento")
     else:
         st.info("Sin productos urgentes")
     
-    # Cierre operativo
+    # 4. CIERRE OPERATIVO
     st.subheader("MAÑANA 18:00 | CIERRE OPERATIVO 48H")
-    valor_rescatado = (valor_critico * 0.50 if len(productos_criticos) > 0 else 0) + \
-                     (valor_urgente * 0.40 if len(productos_urgentes) > 0 else 0)
+    valor_rescatado = (valor_critico * 0.50) + (valor_urgente * 0.40)
     total_recuperado = valor_rescatado + credito_trib
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Valor Rescatado", clp_full(valor_rescatado))  # ✅ Con CLP
+        st.metric("Valor Rescatado", clp_full(valor_rescatado))
     with col2:
-        st.metric("Crédito Tributario", clp_full(credito_trib))  # ✅ Con CLP
+        st.metric("Crédito Tributario", clp_full(credito_trib))
     with col3:
-        st.metric("Total Recuperado", clp_full(total_recuperado))  # ✅ Con CLP
+        st.metric("Total Recuperado", clp_full(total_recuperado))
     
     return valor_vencido, credito_trib, valor_critico, valor_urgente, total_recuperado
 
