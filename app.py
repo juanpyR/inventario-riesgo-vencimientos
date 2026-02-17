@@ -441,6 +441,7 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Productos", len(productos_vencidos))
+            st.write(len(productos_vencidos))
         with col2:
             st.metric("Unidades", int(productos_vencidos['Stock_Inicial'].sum()))
         with col3:
