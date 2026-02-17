@@ -510,10 +510,10 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         with col1:
             st.metric("Productos", len(productos_vencidos))
         with col2:
-            st.metric("Unidades", f"{productos_vencidos['Stock_Inicial'].sum():.0f}")
+            st.metric("Unidades", productos_vencidos['Stock_Inicial'].sum())
         with col3:
-            st.metric("Valor en Riesgo", f"{valor_vencido:,.0f} CLP")
-        st.success(f"Crédito tributario 27%: +{credito_trib:,.0f} CLP")
+            st.metric("Valor en Riesgo", valor_vencido)
+        st.success(f"Crédito tributario 27%: +{clp_full(credito_trib)}")
     else:
         st.info("Sin productos vencidos hoy")
     
@@ -531,9 +531,9 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         with col1:
             st.metric("Productos", len(productos_criticos))
         with col2:
-            st.metric("Unidades", f"{productos_criticos['Stock_Inicial'].sum():.0f}")
+            st.metric("Unidades", f"{productos_criticos['Stock_Inicial'].sum()}")
         with col3:
-            st.metric("Valor en Riesgo", f"{valor_critico:,.0f} CLP")
+            st.metric("Valor en Riesgo", f"{valor_critico}")
         st.info("Aplicar 40% descuento en entrada principal")
     else:
         st.info("Sin productos críticos")
@@ -552,10 +552,10 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
         with col1:
             st.metric("Productos", len(productos_urgentes))
         with col2:
-            st.metric("Unidades", f"{productos_urgentes['Stock_Inicial'].sum():.0f}")
+            st.metric("Unidades", f"{productos_urgentes['Stock_Inicial'].sum()}")
         with col3:
-            st.metric("Valor en Riesgo", f"{valor_urgente:,.0f} CLP")
-        st.info("Aplicar 25% descuento en góndola")
+            st.metric("Valor en Riesgo", f"{valor_urgente}")
+        st.info("Aplicar 25% descuento")
     else:
         st.info("Sin productos urgentes")
     
@@ -567,11 +567,11 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Valor Rescatado", f"{valor_rescatado:,.0f} CLP")
+        st.metric("Valor Rescatado", f"{valor_rescatado}")
     with col2:
-        st.metric("Crédito Tributario", f"{credito_trib:,.0f} CLP")
+        st.metric("Crédito Tributario", f"{credito_trib}")
     with col3:
-        st.metric("Total Recuperado", f"{total_recuperado:,.0f} CLP")
+        st.metric("Total Recuperado", f"{total_recuperado}")
     
     return valor_vencido, credito_trib, valor_critico, valor_urgente, total_recuperado
 
@@ -600,10 +600,10 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
     valor_critico = productos_criticos['Valor_Stock_Costo'].sum() if len(productos_criticos) > 0 else 0
     valor_urgente = productos_urgentes['Valor_Stock_Costo'].sum() if len(productos_urgentes) > 0 else 0
     
-    st.error(f"Si no donamos: Pérdida de {valor_vencido:,.0f} CLP hoy")
-    st.success(f"Con donación: Recuperamos {credito_trib:,.0f} CLP en crédito")
-    st.info(f"En 48h: Rescatamos entre {valor_critico*0.40 + valor_urgente*0.30:,.0f} y {valor_critico*0.60 + valor_urgente*0.50:,.0f} CLP")
-    st.metric("Total recuperado esperado", f"{total_recuperado:,.0f} CLP")
+    st.error(f"Si no donamos: Pérdida de {valor_vencido} hoy")
+    st.success(f"Con donación: Recuperamos {credito_trib} en crédito")
+    st.info(f"En 48h: Rescatamos entre {valor_critico*0.40 + valor_urgente*0.30} y {valor_critico*0.60 + valor_urgente*0.50}")
+    st.metric("Total recuperado esperado", f"{total_recuperado}")
 
 
 def generar_pdf(df_riesgo, total_riesgo):
@@ -853,8 +853,6 @@ def main():
             st.error(f"Error en el análisis: {str(e)}")
             st.exception(e)  # Muestra el traceback completo para debugging
       
-        st.metric("Test 1", 1234567)
-        st.metric("Test 2", 987654, delta="+10%")
 
 if __name__ == "__main__":
     main()
