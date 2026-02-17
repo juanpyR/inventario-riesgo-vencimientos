@@ -762,59 +762,59 @@ def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy, df_con_meses=No
         # Mostrar métricas si el plan fue aceptado
         # Mostrar métricas si el plan fue aceptado
     # Mostrar métricas si el plan fue aceptado
-if st.session_state.get('plan_aceptado', False):
-    st.success("✅ Plan de acción aceptado - Ejecución iniciada")
-    
-    # Resumen financiero (lo que ya tienes)
-    st.markdown(f"""
-    <div style='background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-                border-radius: 15px; padding: 25px; margin: 20px 0;
-                border: 3px solid #4CAF50;'>
-        <h3 style='color: #2e7d32; margin-top: 0; text-align: center;'>
-            💵 Resumen Financiero del Plan
-        </h3>
-        <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;'>
-            <div style='background: white; padding: 20px; border-radius: 10px; text-align: center;'>
-                <div style='font-size: 0.9rem; color: #666; margin-bottom: 10px;'>💰 Crédito Tributario</div>
-                <div style='font-size: 2rem; font-weight: 700; color: #1565c0;'>{clp(total_credito)} CLP</div>
-                <div style='font-size: 0.8rem; color: #666; margin-top: 5px;'>27% sobre vencidos</div>
+    if st.session_state.get('plan_aceptado', False):
+        st.success("✅ Plan de acción aceptado - Ejecución iniciada")
+        
+        # Resumen financiero (lo que ya tienes)
+        st.markdown(f"""
+        <div style='background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+                    border-radius: 15px; padding: 25px; margin: 20px 0;
+                    border: 3px solid #4CAF50;'>
+            <h3 style='color: #2e7d32; margin-top: 0; text-align: center;'>
+                💵 Resumen Financiero del Plan
+            </h3>
+            <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;'>
+                <div style='background: white; padding: 20px; border-radius: 10px; text-align: center;'>
+                    <div style='font-size: 0.9rem; color: #666; margin-bottom: 10px;'>💰 Crédito Tributario</div>
+                    <div style='font-size: 2rem; font-weight: 700; color: #1565c0;'>{clp(total_credito)} CLP</div>
+                    <div style='font-size: 0.8rem; color: #666; margin-top: 5px;'>27% sobre vencidos</div>
+                </div>
+                <div style='background: white; padding: 20px; border-radius: 10px; text-align: center;'>
+                    <div style='font-size: 0.9rem; color: #666; margin-bottom: 10px;'>📈 Recuperación Descuentos</div>
+                    <div style='font-size: 2rem; font-weight: 700; color: #f57c00;'>{clp(total_recuperacion)} CLP</div>
+                    <div style='font-size: 0.8rem; color: #666; margin-top: 5px;'>40%, 25%, 15% dto</div>
+                </div>
             </div>
-            <div style='background: white; padding: 20px; border-radius: 10px; text-align: center;'>
-                <div style='font-size: 0.9rem; color: #666; margin-bottom: 10px;'>📈 Recuperación Descuentos</div>
-                <div style='font-size: 2rem; font-weight: 700; color: #f57c00;'>{clp(total_recuperacion)} CLP</div>
-                <div style='font-size: 0.8rem; color: #666; margin-top: 5px;'>40%, 25%, 15% dto</div>
+            <div style='background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+                        padding: 25px; border-radius: 10px; text-align: center; margin-top: 15px;
+                        color: white;'>
+                <div style='font-size: 1.2rem; margin-bottom: 10px;'>💵 TOTAL RECUPERADO</div>
+                <div style='font-size: 3rem; font-weight: 700;'>{clp(total_recuperado)} CLP</div>
+                <div style='font-size: 0.9rem; margin-top: 10px; opacity: 0.9;'>
+                    De {clp(total_riesgo)} CLP en riesgo
+                </div>
             </div>
         </div>
-        <div style='background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-                    padding: 25px; border-radius: 10px; text-align: center; margin-top: 15px;
-                    color: white;'>
-            <div style='font-size: 1.2rem; margin-bottom: 10px;'>💵 TOTAL RECUPERADO</div>
-            <div style='font-size: 3rem; font-weight: 700;'>{clp(total_recuperado)} CLP</div>
-            <div style='font-size: 0.9rem; margin-top: 10px; opacity: 0.9;'>
-                De {clp(total_riesgo)} CLP en riesgo
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Solo información - Timeline visual
-    st.markdown("### ⏰ Timeline de Ejecución - Próximas 48H")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.info("**🔴 HOY 08:00-12:00**\n\n• Generar acta de donación\n• Contactar fundación\n• Imprimir etiquetas 40% dto\n• Ubicar críticos en entrada")
-    
-    with col2:
-        st.info("**🟡 MAÑANA 14:00-18:00**\n\n• Imprimir etiquetas 25% dto\n• Monitorear ventas (14:00, 18:00)\n• Fotografía de góndolas\n• Reporte final de resultados")
-    
-    # Puntos críticos - Solo información
-    st.warning("""
-    **⚠️ Puntos Críticos a Considerar:**
-    - Documentar TODAS las donaciones para crédito tributario
-    - Monitorear ventas cada 4 horas
-    - Stock no vendido en 48H → Reclasificar como Preventivo
-    - Guardar evidencia fotográfica
-    """)
+        """, unsafe_allow_html=True)
+        
+        # Solo información - Timeline visual
+        st.markdown("### ⏰ Timeline de Ejecución - Próximas 48H")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.info("**🔴 HOY 08:00-12:00**\n\n• Generar acta de donación\n• Contactar fundación\n• Imprimir etiquetas 40% dto\n• Ubicar críticos en entrada")
+        
+        with col2:
+            st.info("**🟡 MAÑANA 14:00-18:00**\n\n• Imprimir etiquetas 25% dto\n• Monitorear ventas (14:00, 18:00)\n• Fotografía de góndolas\n• Reporte final de resultados")
+        
+        # Puntos críticos - Solo información
+        st.warning("""
+        **⚠️ Puntos Críticos a Considerar:**
+        - Documentar TODAS las donaciones para crédito tributario
+        - Monitorear ventas cada 4 horas
+        - Stock no vendido en 48H → Reclasificar como Preventivo
+        - Guardar evidencia fotográfica
+        """)
 
 
 def mostrar_visualizacion_nueva(df_riesgo):
