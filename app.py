@@ -479,14 +479,17 @@ def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy, df_con_meses=No
     st.markdown('<div class="section-title-box"><h2>Inventario</h2></div>', unsafe_allow_html=True)
     st.markdown("### Clasificación")
     
-    # FILTRAR por el mes actual
+    # ✅ FILTRAR por el mes actual para ser consistente con el detalle
     if df_con_meses is not None:
         mes_actual_periodo = pd.Period(fecha_hoy, freq='M')
+        
+        # Filtrar productos del mes actual
         df_mes = df_con_meses[df_con_meses['Mes_Vencimiento'] == mes_actual_periodo].copy()
         df_mes_riesgo = df_mes[df_mes['Días_para_Vencimiento'] >= 0].copy()
         
         if len(df_mes_riesgo) > 0:
-            df_mes_riesgo['Nivel'] = df_mes_riesgo['Días_para_Vencimiento'].apply(clasificar_riesgo)
+            # ✅ APLICAR clasificación al dataframe del mes
+            df_mes_riesgo['Nivel_Riesgo'] = df_mes_riesgo['Días_para_Vencimiento'].apply(clasificar_riesgo)
             df_riesgo_consistente = df_mes_riesgo
         else:
             df_riesgo_consistente = df_riesgo
