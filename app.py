@@ -24,9 +24,17 @@ import tempfile
 
 warnings.filterwarnings('ignore')
 
-pd.options.display.float_format = lambda x: f'{x:,.0f}'.replace(',', '.')
+# =============================================================================
+# AL INICIO DE APP.PY (después de imports)
+# =============================================================================
+import pandas as pd
+import streamlit as st
 
-def formato_clp(valor):
+
+def clp(valor):
+    """Formatea número con estilo chileno: 1.234.567 CLP"""
+    if isinstance(valor, str):
+        return valor  # Ya está formateado
     if valor is None or (isinstance(valor, float) and pd.isna(valor)):
         return "0"
     try:
@@ -35,12 +43,18 @@ def formato_clp(valor):
     except:
         return str(valor)
 
+def clp_full(valor):
+    """Formatea número con estilo chileno + CLP: 1.234.567 CLP"""
+    return f"{clp(valor)} CLP"
 _metric_original = st.metric
+
 def metric_con_formato(label, value, delta=None, delta_color="normal"):
     if isinstance(value, (int, float)) and not isinstance(value, bool):
-        value = f"{formato_clp(value)} CLP"
+        value = clp_full(value)
     _metric_original(label, value, delta=delta, delta_color=delta_color)
+
 st.metric = metric_con_formato
+pd.options.display.float_format = lambda x: f'{x:,.0f}'.replace(',', '.')
 
 # =============================================================================
 # CONFIGURACIÓN DE PÁGINA STREAMLIT
