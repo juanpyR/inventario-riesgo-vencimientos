@@ -97,10 +97,10 @@ def cargar_css():
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
-    .vencido { background: #ffebee; color: #c62828; border-left: 5px solid #d32f2f; }
-    .critico { background: #fff3e0; color: #ef6c00; border-left: 5px solid #f57c00; }
-    .urgente { background: #fffde7; color: #f9a825; border-left: 5px solid #fbc02d; }
-    .preventivo { background: #fbe9e7; color: #e65100; border-left: 5px solid #fb8c00; }
+    .vencido { background: #f3e5f5; color: #7b1fa2; border-left: 5px solid #9c27b0; }
+    .critico { background: #ffebee; color: #c62828; border-left: 5px solid #d32f2f; }
+    .urgente { background: #fff3e0; color: #e65100; border-left: 5px solid #f57c00; }
+    .preventivo { background: #fffde7; color: #f9a825; border-left: 5px solid #fbc02d; }
     
     .decision-box {
         background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%);
