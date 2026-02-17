@@ -270,23 +270,21 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
     ax.set_title(f'Riesgo de Vencimiento - {fecha_hoy.date()}\n{len(df_viz)} productos | {total_riesgo:,.0f} CLP',
                 fontsize=13, pad=15)
     
-    # Leyenda con burbujas
     legend_elements = [
         Line2D([0], [0], marker='o', color='w', label='VENCIDO', markerfacecolor='#000000', markersize=14),
         Line2D([0], [0], marker='o', color='w', label='CRÍTICO', markerfacecolor='#d32f2f', markersize=14),
         Line2D([0], [0], marker='o', color='w', label='URGENTE', markerfacecolor='#f57c00', markersize=14),
         Line2D([0], [0], marker='o', color='w', label='PREVENTIVO', markerfacecolor='#fbc02d', markersize=14),
-        plt.scatter([], [], s=100, c='gray', alpha=0.6, label='~100k CLP', edgecolors='none'),
-        plt.scatter([], [], s=300, c='gray', alpha=0.6, label='~500k CLP', edgecolors='none'),
-        plt.scatter([], [], s=500, c='gray', alpha=0.6, label='~1M+ CLP', edgecolors='none')
+        plt.scatter([], [], s=80, c='gray', alpha=0.6, label='~100k CLP', edgecolors='none'),
+        plt.scatter([], [], s=250, c='gray', alpha=0.6, label='~500k CLP', edgecolors='none'),
+        plt.scatter([], [], s=450, c='gray', alpha=0.6, label='~1M+ CLP', edgecolors='none')
     ]
-    
-    # Leyenda
+
     ax.legend(handles=legend_elements, loc='upper left',
               title='Nivel | Tamaño = Valor', fontsize=10, title_fontsize=11,
               frameon=True, edgecolor='gray', facecolor='white',
-              borderpad=0.8, labelspacing=0.6, handletextpad=0.6,
-              columnspacing=1.0, ncol=2)
+              borderpad=0.8, labelspacing=0.8, handletextpad=0.6,
+              columnspacing=1.2, ncol=2)
     
     ax.set_xlim(-0.7, 3.7)
     ax.set_ylim(-0.7, 3.7)
