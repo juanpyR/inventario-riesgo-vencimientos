@@ -10,15 +10,6 @@ import io
 import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer,
-    Table, TableStyle, Image
-)
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.units import inch
-
 from io import BytesIO
 import tempfile
 
@@ -1449,45 +1440,6 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
     return valor_vencido, credito_trib, valor_critico, valor_urgente, total_recuperado_base
 
 
-def generar_pdf(df_riesgo, total_riesgo):
-    """Genera PDF básico del reporte"""
-    from reportlab.lib.pagesizes import letter
-    from reportlab.pdfgen import canvas
-    from io import BytesIO
-    
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
-    
-    # Título
-    c.setFont("Helvetica-Bold", 20)
-    c.drawString(100, height - 50, "Reporte de Riesgo de Vencimientos")
-    
-    # Fecha
-    c.setFont("Helvetica", 12)
-    c.drawString(100, height - 80, f"Total productos en riesgo: {len(df_riesgo)}")
-    c.drawString(100, height - 100, f"Valor total: {clp(total_riesgo)} CLP")
-    
-    # Detalles por nivel
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(100, height - 140, "Distribución por Nivel:")
-    
-    c.setFont("Helvetica", 11)
-    y_pos = height - 170
-    for nivel in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']:
-        df_nivel = df_riesgo[df_riesgo['Nivel_Riesgo'] == nivel]
-        if len(df_nivel) > 0:
-            valor = df_nivel['Valor_Stock_Costo'].sum()
-            c.drawString(120, y_pos, f"{nivel}: {len(df_nivel)} productos - {clp(valor)} CLP")
-            y_pos -= 25
-    
-    c.save()
-    buffer.seek(0)
-    return buffer
-
-
-
-
 # =============================================================================
 # FUNCIÓN PRINCIPAL
 # =============================================================================
@@ -1613,16 +1565,6 @@ def main():
                 'total_riesgo': total_riesgo,
                 'total_recuperado': 0
             }
-            
-            st.markdown("---")
-            pdf = generar_pdf(df_riesgo, total_riesgo)
-
-            st.download_button(
-                label="📄 Descargar Reporte Ejecutivo en PDF",
-                data=pdf,
-                file_name="reporte_riesgo_inventario.pdf",
-                mime="application/pdf"
-            )
             
         
         except Exception as e:
