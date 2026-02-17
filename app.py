@@ -473,13 +473,13 @@ def mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy):
         st.info(f"📅 {fecha_hoy.strftime('%H:%M:%S')}")
 
 
-def mostrar_inventario_nuevo(df_riesgo):
+def mostrar_inventario_nuevo(df_riesgo, total_riesgo):  # ✅ PARÁMETRO AGREGADO
     """Muestra clasificación del inventario con datos REALES y CONSISTENTES"""
     
     st.markdown('<div class="section-title-box"><h2>Inventario</h2></div>', unsafe_allow_html=True)
     st.markdown("### Clasificación")
     
-    # Calcular datos CONSISTENTES - MISMA LÓGICA QUE EL DETALLE
+    # Calcular datos CONSISTENTES
     vencidos = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO'])
     criticos = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO'])
     urgentes = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE'])
@@ -490,7 +490,7 @@ def mostrar_inventario_nuevo(df_riesgo):
     valor_urgentes = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE']['Valor_Stock_Costo'].sum()
     valor_preventivos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'PREVENTIVO']['Valor_Stock_Costo'].sum()
     
-    # Guardar en session state para usar en el plan
+    # Guardar en session state
     st.session_state['metricas_inventario'] = {
         'vencidos': vencidos,
         'criticos': criticos,
@@ -525,7 +525,7 @@ def mostrar_inventario_nuevo(df_riesgo):
         """, unsafe_allow_html=True)
     
     with col2:
-        # Generar resumen dinámico del plan con métricas REALES
+        # Generar resumen dinámico del plan
         acciones = []
         if vencidos > 0:
             credito = valor_vencidos * 0.27
@@ -625,7 +625,7 @@ def mostrar_inventario_nuevo(df_riesgo):
                     <div style='font-size: 1.2rem; margin-bottom: 10px;'>💵 TOTAL RECUPERADO</div>
                     <div style='font-size: 3rem; font-weight: 700;'>{clp(total_recuperado)} CLP</div>
                     <div style='font-size: 0.9rem; margin-top: 10px; opacity: 0.9;'>
-                        De {clp(total_riesgo)} CLP en riesgo
+                        De {clp(total_riesgo)} CLP en riesgo  ✅ AHORA SÍ FUNCIONA
                     </div>
                 </div>
             </div>
