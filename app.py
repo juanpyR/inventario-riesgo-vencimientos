@@ -825,7 +825,7 @@ def generar_pdf(df_riesgo, total_riesgo):
 
     fig, ax = plt.subplots()
 
-    df_riesgo.groupby("Nivel_Riesgo")["Valor_Stock_Costo'].sum().plot(
+    df_riesgo.groupby("Nivel_Riesgo")["Valor_Stock_Costo"].sum().plot(
         kind="bar",
         ax=ax
     )
