@@ -1184,17 +1184,17 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
                 })
             
             df_tabla = pd.DataFrame(tabla_datos)
-            
+
             # Mostrar tabla con HTML personalizado para colores
-            clase_css = config.get("clase", "")
-
+            clase_css = config.get("clase", "") if config else ""
+            
+            # Fallback si no hay clase
+            if not clase_css:
+                clase_css = "dataframe"  # Clase por defecto
+            
             tabla_html = df_tabla.to_html(index=False, escape=False)
-
-            html_tabla = (
-                f'<div class="{clase_css}">'
-                + tabla_html +
-                '</div>'
-            )
+            
+            html_tabla = f'<div class="{clase_css}">{tabla_html}</div>'
             
             st.markdown(html_tabla, unsafe_allow_html=True)
 def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, productos_urgentes, total_recuperado):
