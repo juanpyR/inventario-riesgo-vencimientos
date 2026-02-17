@@ -1099,10 +1099,10 @@ def mostrar_resumen_ejecutivo_detalle(fecha_hoy, df_riesgo, total_riesgo, total_
             
             # Configuración de estilos para los badges en la tabla
             config_tabla = {
-                'VENCIDO': {'clase': 'badge-vencido', 'emoji': '🔴'},
-                'CRITICO': {'clase': 'badge-critico', 'emoji': '🟠'},
-                'URGENTE': {'clase': 'badge-urgente', 'emoji': '🟡'},
-                'PREVENTIVO': {'clase': 'badge-preventivo', 'emoji': '🔵'}
+                'VENCIDO': {'clase': 'badge-vencido', 'emoji': '🟣'},
+                'CRITICO': {'clase': 'badge-critico', 'emoji': '🔴'},
+                'URGENTE': {'clase': 'badge-urgente', 'emoji': '🟠'},
+                'PREVENTIVO': {'clase': 'badge-preventivo', 'emoji': '🟡'}
             }
             
             items_detalle = []
