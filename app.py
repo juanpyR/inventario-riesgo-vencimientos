@@ -8,7 +8,11 @@ import warnings
 import io
 import streamlit as st
 from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, ListFlowable, ListItem
+from reportlab.lib.units import inch
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 warnings.filterwarnings('ignore')
 
@@ -559,38 +563,148 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
     st.info(f"En 48h: Rescatamos entre {valor_critico*0.40 + valor_urgente*0.30:,.0f} y {valor_critico*0.60 + valor_urgente*0.50:,.0f} CLP")
     st.metric("Total recuperado esperado", f"{total_recuperado:,.0f} CLP")
 
-def generar_pdf_simple(df_riesgo, fecha_hoy, total_riesgo, valor_vencido, credito_trib, total_recuperado):
-    """Genera PDF básico del reporte"""
+def generar_pdf_completo(df_riesgo, fecha_hoy, total_riesgo, valor_vencido, credito_trib, total_recuperado):
+    """Genera PDF completo con tablas y formato profesional"""
+    
     buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Estilos personalizados
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=18, textColor=colors.darkblue, alignment=TA_CENTER, spaceAfter=20)
+    heading_style = ParagraphStyle('Heading', parent=styles['Heading2'], fontSize=14, textColor=colors.darkblue, spaceAfter=15)
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontSize=10, spaceAfter=8)
+    small_style = ParagraphStyle('Small', parent=styles['Normal'], fontSize=9, textColor=colors.gray)
     
     # Título
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(100, height - 50, "SISTEMA DE GESTION DE VENCIMIENTOS")
+    elements.append(Paragraph("SISTEMA DE GESTION DE VENCIMIENTOS", title_style))
+    elements.append(Paragraph(f"Reporte al {fecha_hoy.strftime('%d/%m/%Y')}", ParagraphStyle('Date', parent=normal_style, alignment=TA_CENTER)))
+    elements.append(Spacer(1, 0.2*inch))
     
-    # Fecha
-    c.setFont("Helvetica", 12)
-    c.drawString(100, height - 80, f"Reporte al: {fecha_hoy.strftime('%d/%m/%Y')}")
+    # Resumen General
+    elements.append(Paragraph("RESUMEN GENERAL", heading_style))
+    resumen_data = [
+        ['Metrica', 'Valor'],
+        ['Total en riesgo', f'{total_riesgo:,.0f} CLP'],
+        ['Productos en riesgo', str(len(df_riesgo))],
+        ['Productos vencidos', str(len(df_riesgo[df_riesgo['Nivel_Riesgo']=='VENCIDO']))],
+        ['Crédito tributario (27%)', f'+{credito_trib:,.0f} CLP'],
+        ['Total recuperado (48h)', f'{total_recuperado:,.0f} CLP']
+    ]
+    table_resumen = Table(resumen_data, colWidths=[3*inch, 2*inch])
+    table_resumen.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.darkblue),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,0), 10),
+        ('BOTTOMPADDING', (0,0), (-1,0), 10),
+        ('BACKGROUND', (0,1), (-1,-1), colors.beige),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('FONTSIZE', (0,1), (-1,-1), 9)
+    ]))
+    elements.append(table_resumen)
+    elements.append(Spacer(1, 0.3*inch))
     
-    # Resumen
-    c.drawString(100, height - 110, f"Total en riesgo: {total_riesgo:,.0f} CLP")
-    c.drawString(100, height - 130, f"Productos en riesgo: {len(df_riesgo)}")
-    c.drawString(100, height - 150, f"Productos vencidos: {len(df_riesgo[df_riesgo['Nivel_Riesgo']=='VENCIDO'])}")
+    # Detalle por Nivel de Riesgo
+    elements.append(Paragraph("DETALLE POR NIVEL DE RIESGO", heading_style))
+    detalle_data = [['Nivel', 'Productos', 'Unidades', 'Valor (CLP)']]
     
-    # Financiero
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(100, height - 190, "PROYECCION FINANCIERA")
-    c.setFont("Helvetica", 12)
-    c.drawString(100, height - 210, f"Perdida sin accion: {valor_vencido:,.0f} CLP")
-    c.drawString(100, height - 230, f"Credito tributario (27%): +{credito_trib:,.0f} CLP")
-    c.drawString(100, height - 250, f"Total recuperado (48h): {total_recuperado:,.0f} CLP")
+    for nivel in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']:
+        df_nivel = df_riesgo[df_riesgo['Nivel_Riesgo'] == nivel]
+        if len(df_nivel) > 0:
+            valor = df_nivel['Valor_Stock_Costo'].sum()
+            unidades = int(df_nivel['Stock_Inicial'].sum())
+            detalle_data.append([nivel, str(len(df_nivel)), f"{unidades:,}", f"{valor:,.0f}"])
+    
+    if len(detalle_data) > 1:
+        table_detalle = Table(detalle_data, colWidths=[1.5*inch, 1*inch, 1.2*inch, 1.8*inch])
+        table_detalle.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.darkblue),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,0), 10),
+            ('BOTTOMPADDING', (0,0), (-1,0), 10),
+            ('BACKGROUND', (0,1), (-1,-1), colors.beige),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+            ('FONTSIZE', (0,1), (-1,-1), 9)
+        ]))
+        elements.append(table_detalle)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Top Productos Vencidos
+    elementos_vencidos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO'].nlargest(5, 'Valor_Stock_Costo')
+    if len(elementos_vencidos) > 0:
+        elements.append(Paragraph("TOP PRODUCTOS VENCIDOS (ACCION INMEDIATA)", heading_style))
+        top_data = [['Producto', 'Unidades', 'Valor (CLP)', 'Accion']]
+        for _, row in elementos_vencidos.iterrows():
+            nombre = str(row['Producto'])[:25] if pd.notna(row['Producto']) else 'Sin nombre'
+            top_data.append([nombre, str(int(row['Stock_Inicial'])), f"{row['Valor_Stock_Costo']:,.0f}", 'DONAR'])
+        
+        table_top = Table(top_data, colWidths=[2.5*inch, 0.8*inch, 1.2*inch, 1*inch])
+        table_top.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.black),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,0), 9),
+            ('BOTTOMPADDING', (0,0), (-1,0), 8),
+            ('BACKGROUND', (0,1), (-1,-1), colors.lightgrey),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+            ('FONTSIZE', (0,1), (-1,-1), 8)
+        ]))
+        elements.append(table_top)
+        elements.append(Spacer(1, 0.3*inch))
+    
+    # Recomendaciones
+    elements.append(Paragraph("RECOMENDACIONES", heading_style))
+    recomendaciones = [
+        "Donar productos vencidos hoy para obtener crédito tributario del 27%",
+        "Aplicar 40% de descuento en productos críticos (1-3 días) en entrada principal",
+        "Aplicar 25% de descuento en productos urgentes (4-7 días) en góndola",
+        "Monitorear ventas cada 4 horas y ajustar descuentos si rotación < 40%",
+        "Verificar que todas las facturas de donaciones estén emitidas correctamente"
+    ]
+    for i, rec in enumerate(recomendaciones, 1):
+        elements.append(Paragraph(f"{i}. {rec}", normal_style))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Proyección Financiera
+    elements.append(Paragraph("PROYECCION FINANCIERA", heading_style))
+    elementos_fin = [
+        ['Concepto', 'Monto'],
+        ['Pérdida sin acción (vencidos)', f'-{valor_vencido:,.0f} CLP'],
+        ['Crédito tributario por donación (27%)', f'+{credito_trib:,.0f} CLP'],
+        ['Ventas estimadas CRITICO (50%)', f'+{(df_riesgo[df_riesgo["Nivel_Riesgo"]=="CRITICO"]["Valor_Stock_Costo"].sum() * 0.5):,.0f} CLP'],
+        ['Ventas estimadas URGENTE (40%)', f'+{(df_riesgo[df_riesgo["Nivel_Riesgo"]=="URGENTE"]["Valor_Stock_Costo"].sum() * 0.4):,.0f} CLP'],
+        ['TOTAL RECUPERADO ESTIMADO', f'{total_recuperado:,.0f} CLP']
+    ]
+    table_fin = Table(elementos_fin, colWidths=[3*inch, 2*inch])
+    table_fin.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.darkgreen),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,0), 10),
+        ('BOTTOMPADDING', (0,0), (-1,0), 10),
+        ('BACKGROUND', (0,1), (-1,-2), colors.beige),
+        ('BACKGROUND', (-1,-1), (-1,-1), colors.lightgreen),
+        ('FONTNAME', (-1,-1), (-1,-1), 'Helvetica-Bold'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('FONTSIZE', (0,1), (-1,-1), 9)
+    ]))
+    elements.append(table_fin)
     
     # Footer
-    c.setFont("Helvetica-Oblique", 9)
-    c.drawString(100, 50, "Reporte generado automaticamente - Sistema de Gestion de Vencimientos")
+    elements.append(Spacer(1, 0.5*inch))
+    elements.append(Paragraph("-" * 60, ParagraphStyle('Line', parent=normal_style, alignment=TA_CENTER)))
+    elements.append(Paragraph("Reporte generado automáticamente | Sistema de Gestión de Vencimientos", small_style))
+    elements.append(Paragraph(f"Fecha de generación: {datetime.now().strftime('%d/%m/%Y %H:%M')}", small_style))
     
-    c.save()
+    # Construir PDF
+    doc.build(elements)
     buffer.seek(0)
     return buffer
 # =============================================================================
@@ -727,7 +841,7 @@ def main():
             
             # ✅ Botón para descargar reporte completo
             st.markdown("---")
-            pdf_buffer = generar_pdf_simple(df_riesgo, fecha_hoy, total_riesgo, valor_vencido, credito_trib, total_recuperado)
+            pdf_buffer = generar_pdf_completo(df_riesgo, fecha_hoy, total_riesgo, valor_vencido, credito_trib, total_recuperado)
             st.download_button( label="Descargar Reporte (PDF)", 
                                data=pdf_buffer, 
                                file_name=f"reporte_vencimientos_{fecha_hoy.strftime('%Y%m%d')}.pdf",
