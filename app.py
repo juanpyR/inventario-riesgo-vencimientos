@@ -24,6 +24,24 @@ import tempfile
 
 warnings.filterwarnings('ignore')
 
+pd.options.display.float_format = lambda x: f'{x:,.0f}'.replace(',', '.')
+
+def formato_clp(valor):
+    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+        return "0"
+    try:
+        valor_int = int(round(float(valor)))
+        return f"{valor_int:,}".replace(",", ".")
+    except:
+        return str(valor)
+
+_metric_original = st.metric
+def metric_con_formato(label, value, delta=None, delta_color="normal"):
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        value = f"{formato_clp(value)} CLP"
+    _metric_original(label, value, delta=delta, delta_color=delta_color)
+st.metric = metric_con_formato
+
 # =============================================================================
 # CONFIGURACIÓN DE PÁGINA STREAMLIT
 # =============================================================================
