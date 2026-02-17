@@ -1293,7 +1293,7 @@ def main():
             # VISTA RESUMEN
             mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy)
             st.markdown("---")
-            mostrar_inventario_nuevo(df_riesgo)
+            mostrar_inventario_nuevo(df_riesgo, total_riesgo)
             st.markdown("---")
             mostrar_visualizacion_nueva(df_riesgo)
             
