@@ -44,15 +44,14 @@ pd.options.display.float_format = lambda x: f'{x:,.0f}'.replace(',', '.')
 # COLORES SEMÁFORO COHERENTES
 # =============================================================================
 COLOR_MAP = {
-    'VENCIDO': '#d32f2f',      # ROJO - Peligro inmediato
-    'CRITICO': '#f57c00',      # NARANJA - Advertencia alta
-    'URGENTE': '#fbc02d',      # AMARILLO - Advertencia media
-    'PREVENTIVO': '#fb8c00',   # NARANJA CLARO - Precaución
-    'SEGURO': '#4caf50'        # VERDE - Seguro (>10 días)
+    'VENCIDO': '#d32f2f',
+    'CRITICO': '#f57c00',
+    'URGENTE': '#fbc02d',
+    'PREVENTIVO': '#fb8c00'
 }
 
 # =============================================================================
-# CSS PERSONALIZADO MEJORADO
+# CSS PERSONALIZADO
 # =============================================================================
 def cargar_css():
     st.markdown("""
@@ -95,6 +94,16 @@ def cargar_css():
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     
+    .metric-box {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin: 10px 0;
+        border-left: 5px solid #4CAF50;
+    }
+    
     .classification-item {
         padding: 15px;
         margin: 10px 0;
@@ -105,26 +114,10 @@ def cargar_css():
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
-    .vencido { 
-        background: #ffebee; 
-        color: #c62828; 
-        border-left: 5px solid #d32f2f; 
-    }
-    .critico { 
-        background: #fff3e0; 
-        color: #ef6c00; 
-        border-left: 5px solid #f57c00; 
-    }
-    .urgente { 
-        background: #fffde7; 
-        color: #f9a825; 
-        border-left: 5px solid #fbc02d; 
-    }
-    .preventivo { 
-        background: #fbe9e7; 
-        color: #e65100; 
-        border-left: 5px solid #fb8c00; 
-    }
+    .vencido { background: #ffebee; color: #c62828; border-left: 5px solid #d32f2f; }
+    .critico { background: #fff3e0; color: #ef6c00; border-left: 5px solid #f57c00; }
+    .urgente { background: #fffde7; color: #f9a825; border-left: 5px solid #fbc02d; }
+    .preventivo { background: #fbe9e7; color: #e65100; border-left: 5px solid #fb8c00; }
     
     .decision-box {
         background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%);
@@ -166,6 +159,27 @@ def cargar_css():
         font-size: 0.95rem;
     }
     
+    .plan-metrics {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+        border: 2px solid #4CAF50;
+    }
+    
+    .metric-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px;
+        margin: 5px 0;
+        background: white;
+        border-radius: 5px;
+        font-weight: 600;
+    }
+    
+    .metric-label { color: #2e7d32; }
+    .metric-value { color: #1565c0; font-size: 1.1rem; }
+    
     .btn-primary {
         background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
         color: white;
@@ -206,6 +220,45 @@ def cargar_css():
         margin: 10px 0;
         border-left: 5px solid;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .total-box {
+        background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+        margin: 20px 0;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .total-box h3 {
+        color: white;
+        margin: 0 0 15px 0;
+        font-size: 1.5rem;
+    }
+    
+    .total-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+    }
+    
+    .total-item {
+        background: rgba(255,255,255,0.2);
+        padding: 15px;
+        border-radius: 10px;
+    }
+    
+    .total-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin-bottom: 5px;
+    }
+    
+    .total-value {
+        font-size: 1.8rem;
+        font-weight: 700;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -381,6 +434,10 @@ def mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy):
     
     st.markdown('<h1 class="main-header">Resúmen</h1>', unsafe_allow_html=True)
     
+    # Calcular totales CONSISTENTES
+    total_productos = len(df_riesgo)
+    total_unidades = int(df_riesgo['Stock_Inicial'].sum())
+    
     col1, col2, col3 = st.columns([1, 2.5, 1])
     
     with col1:
@@ -397,8 +454,9 @@ def mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy):
         <div class='info-card'>
             <h2 style='color: #1565c0; margin: 0;'>Análisis al {fecha_hoy.strftime('%d/%m/%Y')}</h2>
             <p style='font-size: 1.3rem; margin: 15px 0; font-weight: 600;'>
-                <span style='color: #d32f2f;'>{len(df_riesgo)}</span> productos en riesgo | 
-                <span style='color: #1976d2;'>{clp(total_riesgo)} CLP</span> en valor
+                <span style='color: #d32f2f;'>{total_productos}</span> productos | 
+                <span style='color: #1976d2;'>{total_unidades:,}</span> unidades | 
+                <span style='color: #f57c00;'>{clp(total_riesgo)} CLP</span>
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -416,22 +474,33 @@ def mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy):
 
 
 def mostrar_inventario_nuevo(df_riesgo):
-    """Muestra clasificación del inventario con datos REALES"""
+    """Muestra clasificación del inventario con datos REALES y CONSISTENTES"""
     
     st.markdown('<div class="section-title-box"><h2>Inventario</h2></div>', unsafe_allow_html=True)
     st.markdown("### Clasificación")
     
-    # Contar por nivel
+    # Calcular datos CONSISTENTES - MISMA LÓGICA QUE EL DETALLE
     vencidos = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO'])
     criticos = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO'])
     urgentes = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE'])
     preventivos = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'PREVENTIVO'])
     
-    # Calcular valores
     valor_vencidos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO']['Valor_Stock_Costo'].sum()
     valor_criticos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO']['Valor_Stock_Costo'].sum()
     valor_urgentes = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE']['Valor_Stock_Costo'].sum()
     valor_preventivos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'PREVENTIVO']['Valor_Stock_Costo'].sum()
+    
+    # Guardar en session state para usar en el plan
+    st.session_state['metricas_inventario'] = {
+        'vencidos': vencidos,
+        'criticos': criticos,
+        'urgentes': urgentes,
+        'preventivos': preventivos,
+        'valor_vencidos': valor_vencidos,
+        'valor_criticos': valor_criticos,
+        'valor_urgentes': valor_urgentes,
+        'valor_preventivos': valor_preventivos
+    }
     
     col1, col2 = st.columns([1, 1])
     
@@ -456,18 +525,37 @@ def mostrar_inventario_nuevo(df_riesgo):
         """, unsafe_allow_html=True)
     
     with col2:
-        # Generar resumen dinámico del plan
+        # Generar resumen dinámico del plan con métricas REALES
         acciones = []
         if vencidos > 0:
-            acciones.append(f"• <strong>{vencidos} vencidos</strong>: Donación inmediata (crédito 27%)")
+            credito = valor_vencidos * 0.27
+            acciones.append(f"• <strong>{vencidos} vencidos</strong>: Donación inmediata → Crédito {clp(credito)} CLP (27%)")
         if criticos > 0:
-            acciones.append(f"• <strong>{criticos} críticos</strong>: Descuento 40% en 24-48h")
+            recuperacion = valor_criticos * 0.50
+            acciones.append(f"• <strong>{criticos} críticos</strong>: Descuento 40% → Recuperación estimada {clp(recuperacion)} CLP")
         if urgentes > 0:
-            acciones.append(f"• <strong>{urgentes} urgentes</strong>: Descuento 25% esta semana")
+            recuperacion = valor_urgentes * 0.40
+            acciones.append(f"• <strong>{urgentes} urgentes</strong>: Descuento 25% → Recuperación estimada {clp(recuperacion)} CLP")
         if preventivos > 0:
-            acciones.append(f"• <strong>{preventivos} preventivos</strong>: Monitoreo y promoción 15%")
+            recuperacion = valor_preventivos * 0.30
+            acciones.append(f"• <strong>{preventivos} preventivos</strong>: Promoción 15% → Recuperación estimada {clp(recuperacion)} CLP")
         
         plan_texto = "<br>".join(acciones) if acciones else "No se requieren acciones inmediatas"
+        
+        # Calcular totales del plan
+        total_credito = valor_vencidos * 0.27 if vencidos > 0 else 0
+        total_recuperacion = (
+            (valor_criticos * 0.50 if criticos > 0 else 0) +
+            (valor_urgentes * 0.40 if urgentes > 0 else 0) +
+            (valor_preventivos * 0.30 if preventivos > 0 else 0)
+        )
+        total_recuperado = total_credito + total_recuperacion
+        
+        st.session_state['metricas_plan'] = {
+            'credito_tributario': total_credito,
+            'recuperacion_descuentos': total_recuperacion,
+            'total_recuperado': total_recuperado
+        }
         
         st.markdown(f"""
         <div class='decision-box'>
@@ -479,6 +567,20 @@ def mostrar_inventario_nuevo(df_riesgo):
                     <h4>📋 Plan de Acción Recomendado:</h4>
                     {plan_texto}
                 </div>
+                <div class='plan-metrics'>
+                    <div class='metric-row'>
+                        <span class='metric-label'>💰 Crédito Tributario (27%):</span>
+                        <span class='metric-value'>{clp(total_credito)} CLP</span>
+                    </div>
+                    <div class='metric-row'>
+                        <span class='metric-label'>📈 Recuperación por Descuentos:</span>
+                        <span class='metric-value'>{clp(total_recuperacion)} CLP</span>
+                    </div>
+                    <div class='metric-row' style='background: #c8e6c9; font-size: 1.2rem;'>
+                        <span class='metric-label'>✅ Total Recuperado:</span>
+                        <span class='metric-value' style='color: #2e7d32;'>{clp(total_recuperado)} CLP</span>
+                    </div>
+                </div>
                 ¿Proceder con el plan de acción?
             </p>
         </div>
@@ -487,10 +589,47 @@ def mostrar_inventario_nuevo(df_riesgo):
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
             if st.button("✅ Aceptar Plan", use_container_width=True, type="primary", key="btn_aceptar"):
-                st.success("✅ Plan de acción aceptado. Se procederá con las donaciones y descuentos.")
+                st.session_state['plan_aceptado'] = True
+                st.rerun()
         with col_btn2:
             if st.button("❌ Rechazar", use_container_width=True, key="btn_rechazar"):
+                st.session_state['plan_aceptado'] = False
                 st.warning("⚠️ Plan rechazado. Se requiere revisión manual.")
+        
+        # Mostrar métricas si el plan fue aceptado
+        if st.session_state.get('plan_aceptado', False):
+            st.success("✅ Plan de acción aceptado")
+            
+            st.markdown(f"""
+            <div style='background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); 
+                        border-radius: 15px; padding: 25px; margin: 20px 0; 
+                        border: 3px solid #4CAF50;'>
+                <h3 style='color: #2e7d32; margin-top: 0; text-align: center;'>
+                    💵 Resumen Financiero del Plan
+                </h3>
+                <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;'>
+                    <div style='background: white; padding: 20px; border-radius: 10px; text-align: center;'>
+                        <div style='font-size: 0.9rem; color: #666; margin-bottom: 10px;'>💰 Crédito Tributario</div>
+                        <div style='font-size: 2rem; font-weight: 700; color: #1565c0;'>{clp(total_credito)} CLP</div>
+                        <div style='font-size: 0.8rem; color: #666; margin-top: 5px;'>27% sobre vencidos</div>
+                    </div>
+                    <div style='background: white; padding: 20px; border-radius: 10px; text-align: center;'>
+                        <div style='font-size: 0.9rem; color: #666; margin-bottom: 10px;'>📈 Recuperación Descuentos</div>
+                        <div style='font-size: 2rem; font-weight: 700; color: #f57c00;'>{clp(total_recuperacion)} CLP</div>
+                        <div style='font-size: 0.8rem; color: #666; margin-top: 5px;'>40%, 25%, 15% dto</div>
+                    </div>
+                </div>
+                <div style='background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); 
+                            padding: 25px; border-radius: 10px; text-align: center; margin-top: 15px;
+                            color: white;'>
+                    <div style='font-size: 1.2rem; margin-bottom: 10px;'>💵 TOTAL RECUPERADO</div>
+                    <div style='font-size: 3rem; font-weight: 700;'>{clp(total_recuperado)} CLP</div>
+                    <div style='font-size: 0.9rem; margin-top: 10px; opacity: 0.9;'>
+                        De {clp(total_riesgo)} CLP en riesgo
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
 
 def mostrar_visualizacion_nueva(df_riesgo):
@@ -573,12 +712,11 @@ def mostrar_visualizacion_nueva(df_riesgo):
         margin=dict(t=80, b=20, l=20, r=20)
     )
     
-    # Actualizar títulos de subplot para que sean negros y destacados
     fig.update_annotations(font=dict(size=14, color='black', weight='bold'))
     
     st.plotly_chart(fig, use_container_width=True)
     
-    # Leyenda simplificada - SOLO para el primer gráfico
+    # Leyenda simplificada
     st.markdown("### Leyenda - Distribución por Nivel")
     col1, col2, col3, col4 = st.columns(4)
     
@@ -643,7 +781,6 @@ def crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy):
     df_viz['x_jitter'] = df_viz['x_pos']
     df_viz['y_jitter'] = df_viz['y_pos']
     
-    # Usar colores de semáforo coherentes
     ax.scatter(df_viz['x_jitter'], df_viz['y_jitter'],
               s=sizes, c=df_viz['Nivel_Riesgo'].map(COLOR_MAP),
               alpha=0.85, edgecolors='black', linewidth=0.9, zorder=3)
@@ -720,9 +857,13 @@ def mostrar_detalle_completo(fecha_hoy, df_riesgo, total_riesgo, total_riesgo_me
 
 
 def mostrar_resumen_ejecutivo_detalle(fecha_hoy, df_riesgo, total_riesgo, total_riesgo_mes, resumen_por_mes, df_con_meses):
-    """Muestra el resumen ejecutivo detallado"""
+    """Muestra el resumen ejecutivo detallado con TOTALES"""
     st.header("RESUMEN EJECUTIVO")
     st.subheader(f"Riesgo al {fecha_hoy.strftime('%d/%m/%Y')}")
+    
+    # Calcular totales CONSISTENTES
+    total_productos = len(df_riesgo)
+    total_unidades = int(df_riesgo['Stock_Inicial'].sum())
     
     meses_a_mostrar = determinar_meses_a_mostrar(resumen_por_mes, fecha_hoy)
     
@@ -761,6 +902,27 @@ def mostrar_resumen_ejecutivo_detalle(fecha_hoy, df_riesgo, total_riesgo, total_
             st.info("Mes en curso. Los 'perdidos' incluyen vencimientos anteriores a hoy.")
         else:
             st.info("Mes completo. Los 'perdidos' representan mercadería no recuperada.")
+        
+        # Mostrar totales de productos y unidades
+        st.markdown(f"""
+        <div class='total-box'>
+            <h3>📊 Total en Riesgo</h3>
+            <div class='total-grid'>
+                <div class='total-item'>
+                    <div class='total-label'>Productos</div>
+                    <div class='total-value'>{total_productos}</div>
+                </div>
+                <div class='total-item'>
+                    <div class='total-label'>Unidades</div>
+                    <div class='total-value'>{total_unidades:,}</div>
+                </div>
+                <div class='total-item'>
+                    <div class='total-label'>Valor Total</div>
+                    <div class='total-value'>{clp(total_riesgo)}</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
         
         df_mes = df_con_meses[df_con_meses['Mes_Vencimiento'] == mes_periodo].copy()
         df_mes_riesgo = df_mes[df_mes['Días_para_Vencimiento'] >= 0].copy()
@@ -1044,6 +1206,14 @@ def main():
     
     st.set_page_config(page_title="Sistema de Inventario", layout="wide")
     cargar_css()
+    
+    # Inicializar session state
+    if 'plan_aceptado' not in st.session_state:
+        st.session_state['plan_aceptado'] = False
+    if 'metricas_inventario' not in st.session_state:
+        st.session_state['metricas_inventario'] = {}
+    if 'metricas_plan' not in st.session_state:
+        st.session_state['metricas_plan'] = {}
     
     st.title("📦 SISTEMA DE GESTION DE VENCIMIENTOS")
     st.markdown("---")
