@@ -557,38 +557,37 @@ def mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, produ
     st.info(f"En 48h: Rescatamos entre {valor_critico*0.40 + valor_urgente*0.30:,.0f} y {valor_critico*0.60 + valor_urgente*0.50:,.0f} CLP")
     st.metric("Total recuperado esperado", f"{total_recuperado:,.0f} CLP")
 
+
 def agregar_boton_imprimir_pdf():
-    """Agrega botón para imprimir página completa como PDF"""
-    
-    html_imprimir = """
-    <style>
-    @media print {
-        .stApp > header {display: none !important;}
-        .stApp > footer {display: none !important;}
-        #MainMenu {visibility: hidden;}
-        .stSidebar {display: none;}
-    }
-    </style>
-    
-    <script>
-    function imprimirPDF() {
-        window.print();
-    }
-    </script>
-    
-    <button onclick="imprimirPDF()" style="
-        background-color: #FF4B4B;
-        color: white;
-        padding: 10px 20px;
-        border: none;
-        border-radius: 5px;
-        font-size: 14px;
-        cursor: pointer;
-        margin: 10px 0;
-    ">📄 Guardar Dashboard como PDF</button>
-    """
-    
-    components.html(html_imprimir, height=70)
+    """Botón para imprimir el dashboard completo como PDF"""
+
+    st.markdown("""
+        <style>
+        @media print {
+            header, footer, #MainMenu {
+                display: none !important;
+            }
+            section[data-testid="stSidebar"] {
+                display: none !important;
+            }
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+        <button onclick="window.print()" style="
+            background-color: #FF4B4B;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 10px 0;
+        ">
+        📄 Guardar Dashboard como PDF
+        </button>
+    """, unsafe_allow_html=True)
 # =============================================================================
 # FUNCIÓN PRINCIPAL - STREAMLIT APP
 # =============================================================================
