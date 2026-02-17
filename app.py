@@ -1020,11 +1020,12 @@ def mostrar_detalle_completo(fecha_hoy, df_riesgo, total_riesgo, total_riesgo_me
 
 
 def mostrar_resumen_ejecutivo_detalle(fecha_hoy, df_riesgo, total_riesgo, total_riesgo_mes, resumen_por_mes, df_con_meses):
-    """Muestra el resumen ejecutivo detallado con TOTALES"""
-    st.header("RESUMEN EJECUTIVO")
-    st.subheader(f"Riesgo al {fecha_hoy.strftime('%d/%m/%Y')}")
+    """Muestra el resumen ejecutivo detallado con formato de tarjetas coherente y elegante"""
     
-    # Calcular totales CONSISTENTES
+    st.markdown('<div class="section-title-box"><h2>📊 Resumen Ejecutivo Detallado</h2></div>', unsafe_allow_html=True)
+    st.caption(f"Análisis de riesgo profundo al {fecha_hoy.strftime('%d/%m/%Y')}")
+    
+    # Calcular totales CONSISTENTES para las tarjetas superiores
     total_productos = len(df_riesgo)
     total_unidades = int(df_riesgo['Stock_Inicial'].sum())
     
@@ -1038,89 +1039,105 @@ def mostrar_resumen_ejecutivo_detalle(fecha_hoy, df_riesgo, total_riesgo, total_
         
         fila = resumen_por_mes.loc[mes_periodo]
         es_mes_parcial = (mes_periodo.year == fecha_hoy.year and mes_periodo.month == fecha_hoy.month)
+        rango_texto = f"del 01/{mes_periodo.month:02d} al {fecha_hoy.strftime('%d/%m')}" if es_mes_parcial else mes_nombre
+
+        st.markdown(f"### 📅 Mes: {mes_nombre} ({rango_texto})")
         
+        # Tarjetas de Salud Financiera del Mes
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.markdown(f"""<div class="info-card">
+                <div class="metric-label-sub">Masa Crítica</div>
+                <div class="metric-value-large">{clp(fila['Valor_Stock_Costo'])}</div>
+                <div style="color: #1a237e; font-weight: bold;">Valor Total</div>
+            </div>""", unsafe_allow_html=True)
+        with c2:
+            st.markdown(f"""<div class="info-card" style="border-left: 5px solid #d32f2f;">
+                <div class="metric-label-sub">Pérdida</div>
+                <div class="metric-value-large" style="color: #d32f2f;">{clp(fila['Valor_Perdido'])}</div>
+                <div style="color: #d32f2f; font-weight: bold;">-{fila['% Perdido']}% del total</div>
+            </div>""", unsafe_allow_html=True)
+        with c3:
+            st.markdown(f"""<div class="info-card" style="border-left: 5px solid #2e7d32;">
+                <div class="metric-label-sub">Oportunidad</div>
+                <div class="metric-value-large" style="color: #2e7d32;">{clp(fila['Valor_Recuperable'])}</div>
+                <div style="color: #2e7d32; font-weight: bold;">{fila['% Recuperable']}% recuperable</div>
+            </div>""", unsafe_allow_html=True)
+
         if es_mes_parcial:
-            primer_dia_mes_actual = pd.Timestamp(year=fecha_hoy.year, month=fecha_hoy.month, day=1)
-            rango_fecha_mes = f"del {primer_dia_mes_actual.strftime('%d/%m')} al {fecha_hoy.strftime('%d/%m')}"
-        else:
-            rango_fecha_mes = f"{obtener_nombre_mes(mes_periodo)}"
-        
-        st.markdown(f"#### MES: {mes_nombre} ({rango_fecha_mes})")
-        
-        total_valor = fila['Valor_Stock_Costo']
-        valor_perdido = fila['Valor_Perdido']
-        valor_recuperable = fila['Valor_Recuperable']
-        pct_perdido = fila['% Perdido']
-        pct_recuperable = fila['% Recuperable']
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Mercadería", f"{clp(total_valor)} CLP")
-        with col2:
-            st.metric("Ya Perdida", f"{clp(valor_perdido)} CLP", delta=f"-{pct_perdido:.1f}%")
-        with col3:
-            st.metric("Recuperable", f"{clp(valor_recuperable)} CLP", delta=f"{pct_recuperable:.1f}%")
-        
-        if es_mes_parcial:
-            st.info("Mes en curso. Los 'perdidos' incluyen vencimientos anteriores a hoy.")
-        else:
-            st.info("Mes completo. Los 'perdidos' representan mercadería no recuperada.")
-        
-        # Mostrar totales de productos y unidades
-        st.markdown(f"""
-        <div class='total-box'>
-            <h3>📊 Total en Riesgo</h3>
-            <div class='total-grid'>
-                <div class='total-item'>
-                    <div class='total-label'>Productos</div>
-                    <div class='total-value'>{total_productos}</div>
-                </div>
-                <div class='total-item'>
-                    <div class='total-label'>Unidades</div>
-                    <div class='total-value'>{total_unidades:,}</div>
-                </div>
-                <div class='total-item'>
-                    <div class='total-label'>Valor Total</div>
-                    <div class='total-value'>{clp(total_riesgo)}</div>
+            st.info("💡 Mes en curso: Los valores perdidos incluyen vencimientos anteriores a la fecha actual.")
+
+        # Caja Azul de Totales de Inventario (Dedent para evitar cuadros grises)
+        st.markdown(textwrap.dedent(f"""
+            <div class="total-box">
+                <h3>📦 Distribución de Carga en Riesgo</h3>
+                <div class="total-grid">
+                    <div class="total-item">
+                        <div class="total-label">SKUs Comprometidos</div>
+                        <div class="total-value">{total_productos}</div>
+                    </div>
+                    <div class="total-item">
+                        <div class="total-label">Unidades Totales</div>
+                        <div class="total-value">{total_unidades:,}</div>
+                    </div>
+                    <div class="total-item">
+                        <div class="total-label">Exposición Financiera</div>
+                        <div class="total-value">{clp(total_riesgo)}</div>
+                    </div>
                 </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+        """), unsafe_allow_html=True)
         
+        # Detalle por nivel de riesgo en tabla estilizada
         df_mes = df_con_meses[df_con_meses['Mes_Vencimiento'] == mes_periodo].copy()
         df_mes_riesgo = df_mes[df_mes['Días_para_Vencimiento'] >= 0].copy()
         
         if len(df_mes_riesgo) > 0:
             df_mes_riesgo['Nivel'] = df_mes_riesgo['Días_para_Vencimiento'].apply(clasificar_riesgo)
             
-            st.markdown("##### Detalle de riesgo (mercadería recuperable)")
+            st.markdown("#### 🔍 Desglose por Nivel de Urgencia")
             
-            tabla_detalle = []
+            items_detalle = []
             for nivel in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']:
                 df_nivel = df_mes_riesgo[df_mes_riesgo['Nivel'] == nivel]
                 if len(df_nivel) > 0:
                     valor_nivel = df_nivel['Valor_Stock_Costo'].sum()
-                    pct_nivel = (valor_nivel / total_valor * 100) if total_valor > 0 else 0
-                    tabla_detalle.append({
+                    items_detalle.append({
                         'Nivel': nivel,
                         'Productos': len(df_nivel),
                         'Unidades': int(df_nivel['Stock_Inicial'].sum()),
-                        'Valor': clp(valor_nivel),
-                        '% del Mes': f"{pct_nivel:.1f}%"
+                        'Valor Riesgo': clp(valor_nivel),
+                        '% del Mes': f"{(valor_nivel / fila['Valor_Stock_Costo'] * 100):.1f}%"
                     })
             
-            if tabla_detalle:
-                st.dataframe(pd.DataFrame(tabla_detalle), use_container_width=True, hide_index=True)
+            if items_detalle:
+                st.dataframe(pd.DataFrame(items_detalle), use_container_width=True, hide_index=True)
+
+    # Alerta Operativa Final con Formato de Tarjeta
+    st.markdown("---")
+    st.markdown("### 🚨 ALERTA OPERATIVA INMEDIATA")
     
-    st.markdown("### ALERTA OPERATIVA")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.error(f"Total en riesgo (10 días): {clp(total_riesgo)} CLP")
-        vencidos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO']
-        st.warning(f"VENCIDOS hoy: {len(vencidos)} productos | {clp(vencidos['Valor_Stock_Costo'].sum())} CLP")
-    with col2:
-        criticos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO']
-        st.info(f"CRITICOS (1-3 días): {len(criticos)} productos | {clp(criticos['Valor_Stock_Costo'].sum())} CLP")
+    col_v, col_c = st.columns(2)
+    vencidos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO']
+    criticos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO']
+    
+    with col_v:
+        st.markdown(f"""<div class="classification-item vencido">
+            <span class="indicator" style="background-color: #d32f2f;"></span>
+            <div>
+                <strong>VENCIDOS HOY:</strong> {len(vencidos)} productos | {clp(vencidos['Valor_Stock_Costo'].sum())} CLP<br>
+                <small>Acción: Retirar de sala y procesar donación para ahorro fiscal 27%.</small>
+            </div>
+        </div>""", unsafe_allow_html=True)
+        
+    with col_c:
+        st.markdown(f"""<div class="classification-item critico">
+            <span class="indicator" style="background-color: #f57c00;"></span>
+            <div>
+                <strong>CRÍTICOS (1-3 DÍAS):</strong> {len(criticos)} productos | {clp(criticos['Valor_Stock_Costo'].sum())} CLP<br>
+                <small>Acción: Implementar Markdown del 40% en entrada principal.</small>
+            </div>
+        </div>""", unsafe_allow_html=True)
 
 
 def mostrar_top_productos(df_riesgo, fecha_hoy):
