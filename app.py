@@ -567,25 +567,69 @@ def main():
     # Sidebar para configuración
     with st.sidebar:
         st.header("Configuración")
-        ruta_csv = st.text_input("Ruta del CSV", "/kaggle/input/datasets/juancas/inventario-real/dataset_elasticidad_ampliado.csv")
+        
+        # ✅ CORRECCIÓN: Subida de archivo en lugar de ruta
+        archivo_subido = st.file_uploader(
+            "Subir archivo CSV",
+            type=['csv'],
+            help="Seleccione el archivo CSV con el inventario"
+        )
+        
         mostrar_grafico = st.checkbox("Mostrar Matriz de Riesgo", value=True)
         
-        if st.button("Ejecutar Análisis"):
-            st.session_state['ejecutar'] = True
+        # Botón de ejecución
+        boton_ejecutar = st.button("Ejecutar Análisis", type="primary")
     
+    # Inicializar session state
     if 'ejecutar' not in st.session_state:
         st.session_state['ejecutar'] = False
+    if 'datos_procesados' not in st.session_state:
+        st.session_state['datos_procesados'] = None
     
-    if st.session_state['ejecutar'] or True:  # Ejecutar por defecto
+    # Ejecutar cuando se presiona el botón o hay datos en session state
+    if boton_ejecutar or st.session_state['ejecutar']:
+        
+        # ✅ Verificar que se haya subido un archivo
+        if archivo_subido is None:
+            st.warning("⚠️  Por favor suba un archivo CSV para continuar")
+            st.stop()
+        
         try:
-            # Carga y preparación de datos
+            # ✅ Cargar datos desde el archivo subido (no desde ruta)
             with st.spinner("Cargando datos..."):
-                df = cargar_datos(ruta_csv)
-                fecha_hoy = obtener_fecha_hoy(df)
-                df_hoy = filtrar_por_fecha(df, fecha_hoy)
-                df_hoy = mapear_columnas(df_hoy)
-                verificar_columnas(df_hoy)
+                df = pd.read_csv(archivo_subido)
+                df.columns = df.columns.str.strip()
+                
+                # Convertir columna Fecha a datetime
+                for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y']:
+                    try:
+                        df['Fecha'] = pd.to_datetime(df['Fecha'], format=fmt, errors='coerce')
+                        if df['Fecha'].notna().sum() > 0:
+                            break
+                    except:
+                        continue
+                
+                if df['Fecha'].isna().all():
+                    df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce', dayfirst=True)
+                
+                fecha_hoy = df['Fecha'].max()
+                df_hoy = df[df['Fecha'] == fecha_hoy].copy().reset_index(drop=True)
+                
+                # Mapear columnas
+                for col_destino, col_posibles in COLUMNAS_ESPERADAS.items():
+                    for col_posible in col_posibles:
+                        if col_posible in df_hoy.columns:
+                            df_hoy.rename(columns={col_posible: col_destino}, inplace=True)
+                            break
+                
+                # Verificar columnas requeridas
+                faltantes = [c for c in COLUMNAS_REQUERIDAS if c not in df_hoy.columns]
+                if faltantes:
+                    st.error(f"Faltan columnas requeridas: {faltantes}")
+                    st.stop()
             
+            # ✅ Mostrar información del archivo
+            st.success(f"Archivo cargado: {archivo_subido.name}")
             st.info(f"Análisis para: {fecha_hoy.date()} | Productos: {len(df_hoy)}")
             
             # Filtrado y clasificación
@@ -605,9 +649,20 @@ def main():
             
             # Mostrar matriz de riesgo
             if mostrar_grafico:
-                st.subheader("MATRIZ DE RIESGO")
-                fig = crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy)
-                st.pyplot(fig)
+                with st.expander("MATRIZ DE RIESGO", expanded=True):
+                    fig = crear_matriz_riesgo(df_riesgo, total_riesgo, fecha_hoy)
+                    st.pyplot(fig)
+                    
+                    # ✅ Botón para descargar la imagen
+                    buf = io.BytesIO()
+                    fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+                    buf.seek(0)
+                    st.download_button(
+                        label="Descargar Matriz (PNG)",
+                        data=buf,
+                        file_name="matriz_riesgo.png",
+                        mime="image/png"
+                    )
             
             # Mostrar resúmenes
             mostrar_resumen_ejecutivo(fecha_hoy, df_riesgo, total_riesgo, total_riesgo_mes, resumen_por_mes, df_con_meses)
@@ -623,9 +678,26 @@ def main():
             productos_urgentes = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE']
             mostrar_resumen_final(valor_vencido, credito_trib, productos_criticos, productos_urgentes, total_recuperado)
             
+            # ✅ Marcar como ejecutado
+            st.session_state['ejecutar'] = True
+            st.session_state['datos_procesados'] = {
+                'fecha': fecha_hoy,
+                'total_riesgo': total_riesgo,
+                'total_recuperado': total_recuperado
+            }
+            
+            # ✅ Botón para descargar reporte completo
+            st.markdown("---")
+            st.download_button(
+                label="Descargar Reporte Completo (CSV)",
+                data=df_riesgo.to_csv(index=False).encode('utf-8'),
+                file_name=f"reporte_vencimientos_{fecha_hoy.strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
+            
         except Exception as e:
             st.error(f"Error en el análisis: {str(e)}")
-
+            st.exception(e)  # Muestra el traceback completo para debugging
 
 if __name__ == "__main__":
     main()
