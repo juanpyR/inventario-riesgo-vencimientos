@@ -973,45 +973,116 @@ def mostrar_resumen_ejecutivo_detalle(fecha_hoy, df_riesgo, total_riesgo, total_
 
 
 def mostrar_top_productos(df_riesgo, fecha_hoy):
-    """Muestra el top 5 de productos por nivel de riesgo"""
-    st.header("TOP 5 PRODUCTOS POR NIVEL")
+    """Muestra TODOS los productos por nivel de riesgo con expander"""
+    st.header("📦 PRODUCTOS POR NIVEL DE RIESGO")
     
     df_filtrado = df_riesgo[df_riesgo['Días_para_Vencimiento'] >= 0].copy()
     
+    # Calcular totales por nivel
+    totales = {}
     for nivel in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']:
-        df_nivel = df_filtrado[df_filtrado['Nivel_Riesgo'] == nivel].nlargest(5, 'Valor_Stock_Costo')
+        df_nivel = df_filtrado[df_filtrado['Nivel_Riesgo'] == nivel]
+        if len(df_nivel) > 0:
+            totales[nivel] = {
+                'productos': len(df_nivel),
+                'unidades': int(df_nivel['Stock_Inicial'].sum()),
+                'valor': df_nivel['Valor_Stock_Costo'].sum()
+            }
+    
+    for nivel in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']:
+        df_nivel = df_filtrado[df_filtrado['Nivel_Riesgo'] == nivel].sort_values('Valor_Stock_Costo', ascending=False)
         
         if len(df_nivel) == 0:
             continue
         
-        st.subheader(f"{nivel} - Top 5 productos por valor en riesgo")
+        # Determinar si usar expander (más de 10 productos)
+        usar_expander = len(df_nivel) > 10
         
-        tabla_datos = []
-        for _, row in df_nivel.iterrows():
-            dias = int(row['Días_para_Vencimiento'])
-            unidades = int(row['Stock_Inicial'])
-            valor = row['Valor_Stock_Costo']
-            fecha_venc = fecha_hoy + timedelta(days=dias)
-            
-            if nivel == 'VENCIDO':
-                accion = "DONAR HOY"
-            elif nivel == 'CRITICO':
-                accion = "40% dto"
-            elif nivel == 'URGENTE':
-                accion = "25% dto"
-            else:
-                accion = "15% dto"
-            
-            tabla_datos.append({
-                'Producto': str(row['Producto'])[:33] if pd.notna(row['Producto']) else 'Sin nombre',
-                'Días': dias,
-                'Unidades': unidades,
-                'Valor Riesgo': clp(valor),
-                'Fecha Venc.': fecha_venc.strftime('%d/%m/%Y'),
-                'Acción': accion
-            })
+        # Colores por nivel
+        colores = {
+            'VENCIDO': '🔴',
+            'CRITICO': '🟠',
+            'URGENTE': '🟡',
+            'PREVENTIVO': '🔵'
+        }
         
-        st.dataframe(pd.DataFrame(tabla_datos), use_container_width=True, hide_index=True)
+        # Título con resumen
+        total_valor = totales[nivel]['valor']
+        total_unidades = totales[nivel]['unidades']
+        total_productos = totales[nivel]['productos']
+        
+        titulo = f"{colores[nivel]} {nivel} ({total_productos} productos | {total_unidades:,} unidades | {clp(total_valor)} CLP)"
+        
+        if usar_expander:
+            with st.expander(titulo, expanded=False):
+                st.markdown(f"**Mostrando {total_productos} productos** - Ordenados por valor en riesgo (mayor a menor)")
+                
+                # Mostrar tabla completa
+                tabla_datos = []
+                for _, row in df_nivel.iterrows():
+                    dias = int(row['Días_para_Vencimiento'])
+                    unidades = int(row['Stock_Inicial'])
+                    valor = row['Valor_Stock_Costo']
+                    fecha_venc = fecha_hoy + timedelta(days=dias)
+                    
+                    if nivel == 'VENCIDO':
+                        accion = "DONAR HOY"
+                    elif nivel == 'CRITICO':
+                        accion = "40% dto"
+                    elif nivel == 'URGENTE':
+                        accion = "25% dto"
+                    else:
+                        accion = "15% dto"
+                    
+                    tabla_datos.append({
+                        'Producto': str(row['Producto'])[:40] if pd.notna(row['Producto']) else 'Sin nombre',
+                        'Días': dias,
+                        'Unidades': unidades,
+                        'Valor Riesgo': clp(valor),
+                        'Fecha Venc.': fecha_venc.strftime('%d/%m/%Y'),
+                        'Acción': accion
+                    })
+                
+                st.dataframe(pd.DataFrame(tabla_datos), use_container_width=True, hide_index=True)
+                
+                # Botón de descarga
+                csv = pd.DataFrame(tabla_datos).to_csv(index=False, sep=';').encode('utf-8')
+                st.download_button(
+                    label=f"📥 Descargar {nivel} (CSV)",
+                    data=csv,
+                    file_name=f"{nivel.lower()}_{fecha_hoy.strftime('%Y%m%d')}.csv",
+                    mime="text/csv"
+                )
+        else:
+            # Mostrar directamente sin expander (pocos productos)
+            st.subheader(titulo)
+            
+            tabla_datos = []
+            for _, row in df_nivel.iterrows():
+                dias = int(row['Días_para_Vencimiento'])
+                unidades = int(row['Stock_Inicial'])
+                valor = row['Valor_Stock_Costo']
+                fecha_venc = fecha_hoy + timedelta(days=dias)
+                
+                if nivel == 'VENCIDO':
+                    accion = "DONAR HOY"
+                elif nivel == 'CRITICO':
+                    accion = "40% dto"
+                elif nivel == 'URGENTE':
+                    accion = "25% dto"
+                else:
+                    accion = "15% dto"
+                
+                tabla_datos.append({
+                    'Producto': str(row['Producto'])[:40] if pd.notna(row['Producto']) else 'Sin nombre',
+                    'Días': dias,
+                    'Unidades': unidades,
+                    'Valor Riesgo': clp(valor),
+                    'Fecha Venc.': fecha_venc.strftime('%d/%m/%Y'),
+                    'Acción': accion
+                })
+            
+            st.dataframe(pd.DataFrame(tabla_datos), use_container_width=True, hide_index=True)
 
 
 def mostrar_plan_accion(df_riesgo, fecha_hoy):
