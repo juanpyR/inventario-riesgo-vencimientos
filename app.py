@@ -973,7 +973,7 @@ def mostrar_resumen_ejecutivo_detalle(fecha_hoy, df_riesgo, total_riesgo, total_
 
 
 def mostrar_top_productos(df_riesgo, fecha_hoy):
-    """Muestra TODOS los productos por nivel de riesgo con expander"""
+    """Muestra TODOS los productos por nivel de riesgo con expander en TODOS los niveles"""
     st.header("📦 PRODUCTOS POR NIVEL DE RIESGO")
     
     df_filtrado = df_riesgo[df_riesgo['Días_para_Vencimiento'] >= 0].copy()
@@ -995,9 +995,6 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
         if len(df_nivel) == 0:
             continue
         
-        # Determinar si usar expander (más de 10 productos)
-        usar_expander = len(df_nivel) > 10
-        
         # Colores por nivel
         colores = {
             'VENCIDO': '🔴',
@@ -1013,50 +1010,11 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
         
         titulo = f"{colores[nivel]} {nivel} ({total_productos} productos | {total_unidades:,} unidades | {clp(total_valor)} CLP)"
         
-        if usar_expander:
-            with st.expander(titulo, expanded=False):
-                st.markdown(f"**Mostrando {total_productos} productos** - Ordenados por valor en riesgo (mayor a menor)")
-                
-                # Mostrar tabla completa
-                tabla_datos = []
-                for _, row in df_nivel.iterrows():
-                    dias = int(row['Días_para_Vencimiento'])
-                    unidades = int(row['Stock_Inicial'])
-                    valor = row['Valor_Stock_Costo']
-                    fecha_venc = fecha_hoy + timedelta(days=dias)
-                    
-                    if nivel == 'VENCIDO':
-                        accion = "DONAR HOY"
-                    elif nivel == 'CRITICO':
-                        accion = "40% dto"
-                    elif nivel == 'URGENTE':
-                        accion = "25% dto"
-                    else:
-                        accion = "15% dto"
-                    
-                    tabla_datos.append({
-                        'Producto': str(row['Producto'])[:40] if pd.notna(row['Producto']) else 'Sin nombre',
-                        'Días': dias,
-                        'Unidades': unidades,
-                        'Valor Riesgo': clp(valor),
-                        'Fecha Venc.': fecha_venc.strftime('%d/%m/%Y'),
-                        'Acción': accion
-                    })
-                
-                st.dataframe(pd.DataFrame(tabla_datos), use_container_width=True, hide_index=True)
-                
-                # Botón de descarga
-                csv = pd.DataFrame(tabla_datos).to_csv(index=False, sep=';').encode('utf-8')
-                st.download_button(
-                    label=f"📥 Descargar {nivel} (CSV)",
-                    data=csv,
-                    file_name=f"{nivel.lower()}_{fecha_hoy.strftime('%Y%m%d')}.csv",
-                    mime="text/csv"
-                )
-        else:
-            # Mostrar directamente sin expander (pocos productos)
-            st.subheader(titulo)
+        # ✅ TODOS LOS NIVELES CON EXPANDER (siempre colapsado al inicio)
+        with st.expander(titulo, expanded=False):
+            st.markdown(f"**Mostrando {total_productos} productos** - Ordenados por valor en riesgo (mayor a menor)")
             
+            # Mostrar tabla completa
             tabla_datos = []
             for _, row in df_nivel.iterrows():
                 dias = int(row['Días_para_Vencimiento'])
@@ -1083,6 +1041,28 @@ def mostrar_top_productos(df_riesgo, fecha_hoy):
                 })
             
             st.dataframe(pd.DataFrame(tabla_datos), use_container_width=True, hide_index=True)
+            
+            # Botón de descarga
+            csv = pd.DataFrame(tabla_datos).to_csv(index=False, sep=';').encode('utf-8')
+            st.download_button(
+                label=f"📥 Descargar {nivel} (CSV)",
+                data=csv,
+                file_name=f"{nivel.lower()}_{fecha_hoy.strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+    
+    # Botón para expandir/colapsar todos
+    st.markdown("---")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📂 Expandir Todos", use_container_width=True):
+            st.session_state['expandir_todos'] = True
+            st.rerun()
+    with col2:
+        if st.button("📁 Colapsar Todos", use_container_width=True):
+            st.session_state['expandir_todos'] = False
+            st.rerun()
 
 
 def mostrar_plan_accion(df_riesgo, fecha_hoy):
