@@ -1073,7 +1073,7 @@ def mostrar_resumen_ejecutivo_detalle(fecha_hoy, df_riesgo, total_riesgo, total_
                 <h3>📦 Distribución de Carga en Riesgo</h3>
                 <div class="total-grid">
                     <div class="total-item">
-                        <div class="total-label">SKUs Comprometidos</div>
+                        <div class="total-label">Productos Comprometidos</div>
                         <div class="total-value">{total_productos}</div>
                     </div>
                     <div class="total-item">
@@ -1358,7 +1358,7 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
                     <span class="plan-badge" style="color: #f57c00;">⚡ ALTA URGENCIA</span>
                 </div>
                 <div class="metric-grid">
-                    <div class="metric-item"><div class="metric-label">📦 SKUs</div><div class="metric-value">{len(productos_criticos)}</div></div>
+                    <div class="metric-item"><div class="metric-label">📦 Productos</div><div class="metric-value">{len(productos_criticos)}</div></div>
                     <div class="metric-item"><div class="metric-label">📊 Unidades</div><div class="metric-value">{int(productos_criticos['Stock_Inicial'].sum()):,}</div></div>
                     <div class="metric-item"><div class="metric-label">💰 Valor</div><div class="metric-value">{clp(valor_critico)}</div></div>
                 </div>
@@ -1380,7 +1380,7 @@ def mostrar_plan_accion(df_riesgo, fecha_hoy):
                     <span class="plan-badge" style="color: #f9a825;">⏰ URGENCIA MEDIA</span>
                 </div>
                 <div class="metric-grid">
-                    <div class="metric-item"><div class="metric-label">📦 SKUs</div><div class="metric-value">{len(productos_urgentes)}</div></div>
+                    <div class="metric-item"><div class="metric-label">📦 Productos</div><div class="metric-value">{len(productos_urgentes)}</div></div>
                     <div class="metric-item"><div class="metric-label">📊 Unidades</div><div class="metric-value">{int(productos_urgentes['Stock_Inicial'].sum()):,}</div></div>
                     <div class="metric-item"><div class="metric-label">💰 Valor</div><div class="metric-value">{clp(valor_urgente)}</div></div>
                 </div>
