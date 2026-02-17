@@ -1577,7 +1577,6 @@ def main():
             help="Seleccione el archivo CSV con el inventario"
         )
         
-        mostrar_grafico = st.checkbox("Mostrar Matriz de Riesgo", value=True)
         
         boton_ejecutar = st.button("Ejecutar Análisis", type="primary")
     
