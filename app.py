@@ -400,11 +400,11 @@ def mostrar_resumen_ejecutivo(fecha_hoy, df_riesgo, total_riesgo, total_riesgo_m
         
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Total Mercadería", f"{total_valor:,.0f} CLP")
+            st.metric("Total Mercadería", total_valor)
         with col2:
-            st.metric("Ya Perdida", f"{valor_perdido:,.0f} CLP", delta=f"-{pct_perdido:.1f}%")
+            st.metric("Ya Perdida", valor_perdido, delta=f"-{pct_perdido:.1f}%")
         with col3:
-            st.metric("Recuperable", f"{valor_recuperable:,.0f} CLP", delta=f"{pct_recuperable:.1f}%")
+            st.metric("Recuperable", valor_recuperable, delta=f"{pct_recuperable:.1f}%")
         
         if es_mes_parcial:
             st.info("Mes en curso. Los 'perdidos' incluyen vencimientos anteriores a hoy.")
