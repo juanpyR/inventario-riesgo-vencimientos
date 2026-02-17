@@ -728,8 +728,8 @@ def main():
             st.markdown("---")
             pdf_buffer = generar_pdf_simple(df_riesgo, fecha_hoy, total_riesgo, valor_vencido, credito_trib, total_recuperado)
             st.download_button( label="Descargar Reporte (PDF)", 
-                               data=pdf_buffer, f
-                               ile_name=f"reporte_vencimientos_{fecha_hoy.strftime('%Y%m%d')}.pdf",
+                               data=pdf_buffer, 
+                               file_name=f"reporte_vencimientos_{fecha_hoy.strftime('%Y%m%d')}.pdf",
                                 mime="application/pdf"
                               )
             
