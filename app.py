@@ -617,8 +617,8 @@ if uploaded_files:
                         
                         df_display = df_riesgo[cols_show].sort_values('Dias_Efectivos' if 'Dias_Efectivos' in cols_show else cols_show[0])
                         
+                       
                         st.dataframe(
-                            st.dataframe(
     df_display.style.set_properties(
         **{'background-color': '#f3e5f5', 'color': '#7b1fa2'},
         subset=df_display['Nivel_Riesgo'] == 'VENCIDO'
