@@ -37,78 +37,157 @@ def cargar_datos_etl(archivos_subidos):
     Realiza el proceso ETL: Extrae, Transforma y Carga los datos desde los archivos subidos.
     
     Args:
-        archivos_subidos: Diccionario con los nombres de archivo como claves y los objetos de archivo como valores.
+        archivos_subidos: Lista de archivos subidos por el usuario.
     
     Returns:
         DataFrame con los datos integrados y limpios.
     """
     try:
-        # Identificar cada archivo por su nombre
+        # Identificar cada archivo por su nombre (más flexible)
         archivos_dict = {}
+        archivos_no_identificados = []
+        
         for archivo in archivos_subidos:
             nombre = archivo.name.lower()
+            
+            # Depuración: mostrar qué archivo se está procesando
+            print(f"Procesando archivo: {archivo.name}")
+            
             if 'sucursal' in nombre:
                 archivos_dict['sucursales'] = archivo
+                print(f"  -> Identificado como: SUCURSALES")
             elif 'producto' in nombre:
                 archivos_dict['productos'] = archivo
+                print(f"  -> Identificado como: PRODUCTOS")
             elif 'lote' in nombre:
                 archivos_dict['lotes'] = archivo
+                print(f"  -> Identificado como: LOTES")
             elif 'inventario' in nombre:
                 archivos_dict['inventario'] = archivo
+                print(f"  -> Identificado como: INVENTARIO")
             elif 'stock' in nombre or 'geo' in nombre:
                 archivos_dict['stock_geo'] = archivo
+                print(f"  -> Identificado como: STOCK_GEO")
+            else:
+                archivos_no_identificados.append(archivo.name)
+                print(f"  -> NO IDENTIFICADO")
+        
+        # Verificar que se identificaron todos los archivos necesarios
+        archivos_requeridos = ['sucursales', 'productos', 'lotes', 'inventario', 'stock_geo']
+        archivos_faltantes = [a for a in archivos_requeridos if a not in archivos_dict]
+        
+        if archivos_faltantes:
+            st.error(f"❌ Archivos faltantes o no identificados: {archivos_faltantes}")
+            st.error(f"❌ Archivos subidos pero no identificados: {archivos_no_identificados}")
+            st.info("📋 Nombres de archivos esperados:")
+            for a in archivos_subidos:
+                st.info(f"   - {a.name}")
+            return None
         
         # Cargar cada archivo
+        print("Cargando archivos CSV...")
         df_sucursales = pd.read_csv(archivos_dict['sucursales'])
+        print(f"  SUCURSALES: {len(df_sucursales)} registros")
+        
         df_productos = pd.read_csv(archivos_dict['productos'])
+        print(f"  PRODUCTOS: {len(df_productos)} registros")
+        
         df_lotes = pd.read_csv(archivos_dict['lotes'])
+        print(f"  LOTES: {len(df_lotes)} registros")
+        
         df_inventario = pd.read_csv(archivos_dict['inventario'])
+        print(f"  INVENTARIO: {len(df_inventario)} registros")
+        
         df_stock_geo = pd.read_csv(archivos_dict['stock_geo'])
+        print(f"  STOCK_GEO: {len(df_stock_geo)} registros")
         
         # Mostrar información de las columnas para depuración
-        with st.expander("Debug: Columnas de cada archivo"):
-            st.write("SUCURSALES:", df_sucursales.columns.tolist())
-            st.write("PRODUCTOS:", df_productos.columns.tolist())
-            st.write("LOTES:", df_lotes.columns.tolist())
-            st.write("INVENTARIO:", df_inventario.columns.tolist())
-            st.write("STOCK_GEO:", df_stock_geo.columns.tolist())
+        st.write("### Debug: Columnas de cada archivo")
+        col1, col2, col3, col4, col5 = st.columns(5)
+        with col1:
+            st.write("**SUCURSALES:**", df_sucursales.columns.tolist())
+        with col2:
+            st.write("**PRODUCTOS:**", df_productos.columns.tolist())
+        with col3:
+            st.write("**LOTES:**", df_lotes.columns.tolist())
+        with col4:
+            st.write("**INVENTARIO:**", df_inventario.columns.tolist())
+        with col5:
+            st.write("**STOCK_GEO:**", df_stock_geo.columns.tolist())
+        
+        # Identificar columnas clave para los merge
+        print("\n=== INICIANDO PROCESO DE INTEGRACIÓN ===")
+        
+        # Detectar columnas de ID en cada DataFrame
+        def get_id_columns(df, nombre):
+            cols = [c for c in df.columns if 'ID' in c.upper()]
+            print(f"  {nombre} - Columnas de ID: {cols}")
+            return cols
+        
+        id_sucursales = get_id_columns(df_sucursales, "SUCURSALES")
+        id_productos = get_id_columns(df_productos, "PRODUCTOS")
+        id_lotes = get_id_columns(df_lotes, "LOTES")
+        id_inventario = get_id_columns(df_inventario, "INVENTARIO")
+        id_stock_geo = get_id_columns(df_stock_geo, "STOCK_GEO")
         
         # Realizar los merge para integrar los datos
-        # Primero unimos inventario con lotes
-        df_inventario = df_inventario.merge(
-            df_lotes, 
-            left_on=['ID_PRODUCTO', 'ID_SUCURSAL'], 
-            right_on=['ID_PRODUCTO', 'ID_SUCURSAL'],
-            how='left',
-            suffixes=('', '_lote')
-        )
+        # Usar 'left' join para mantener todos los registros de inventario
         
-        # Luego unimos con productos
-        df_inventario = df_inventario.merge(
-            df_productos, 
-            on='ID_PRODUCTO', 
-            how='left'
-        )
+        # 1. Unimos inventario con lotes (si hay columnas comunes)
+        cols_merge_lotes = [c for c in id_lotes if c in df_inventario.columns]
+        if cols_merge_lotes:
+            print(f"\nMerge 1: INVENTARIO + LOTES usando {cols_merge_lotes}")
+            df_inventario = df_inventario.merge(
+                df_lotes, 
+                on=cols_merge_lotes,
+                how='left',
+                suffixes=('', '_lote')
+            )
+            print(f"  Resultado: {len(df_inventario)} registros")
         
-        # Después unimos con sucursales
-        df_inventario = df_inventario.merge(
-            df_sucursales, 
-            on='ID_SUCURSAL', 
-            how='left',
-            suffixes=('', '_suc')
-        )
+        # 2. Unimos con productos
+        cols_merge_productos = [c for c in id_productos if c in df_inventario.columns]
+        if cols_merge_productos:
+            print(f"\nMerge 2: INVENTARIO + PRODUCTOS usando {cols_merge_productos}")
+            df_inventario = df_inventario.merge(
+                df_productos, 
+                on=cols_merge_productos,
+                how='left',
+                suffixes=('', '_prod')
+            )
+            print(f"  Resultado: {len(df_inventario)} registros")
         
-        # Finalmente unimos con stock_geo
-        df_inventario = df_inventario.merge(
-            df_stock_geo, 
-            on=['ID_PRODUCTO', 'ID_SUCURSAL'], 
-            how='left',
-            suffixes=('', '_geo')
-        )
+        # 3. Unimos con sucursales
+        cols_merge_sucursales = [c for c in id_sucursales if c in df_inventario.columns]
+        if cols_merge_sucursales:
+            print(f"\nMerge 3: INVENTARIO + SUCURSALES usando {cols_merge_sucursales}")
+            df_inventario = df_inventario.merge(
+                df_sucursales, 
+                on=cols_merge_sucursales,
+                how='left',
+                suffixes=('', '_suc')
+            )
+            print(f"  Resultado: {len(df_inventario)} registros")
+        
+        # 4. Unimos con stock_geo
+        cols_merge_stock = [c for c in id_stock_geo if c in df_inventario.columns]
+        if cols_merge_stock:
+            print(f"\nMerge 4: INVENTARIO + STOCK_GEO usando {cols_merge_stock}")
+            df_inventario = df_inventario.merge(
+                df_stock_geo, 
+                on=cols_merge_stock,
+                how='left',
+                suffixes=('', '_geo')
+            )
+            print(f"  Resultado: {len(df_inventario)} registros")
         
         # Limpiar datos: eliminar duplicados y manejar valores nulos
         df_inventario = df_inventario.drop_duplicates()
         df_inventario = df_inventario.fillna(0)
+        
+        print(f"\n=== ETL COMPLETADO ===")
+        print(f"Total registros finales: {len(df_inventario)}")
+        print(f"Total columnas: {len(df_inventario.columns)}")
         
         return df_inventario
         
