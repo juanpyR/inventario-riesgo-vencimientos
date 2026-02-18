@@ -12,7 +12,6 @@ Este script realiza:
 - Análisis de sensibilidad
 - Plan de acción 48h
 - Matriz de riesgo visual
-
 """
 
 import pandas as pd
@@ -506,6 +505,10 @@ def crear_mapa_stock(df_stock):
         'Longitud': 'first'
     }).reset_index()
     
+    # Calcular centro dinámico del mapa (promedio de coordenadas)
+    centro_lat = df_sucursal['Latitud'].mean()
+    centro_lon = df_sucursal['Longitud'].mean()
+    
     fig = px.scatter_mapbox(
         df_sucursal,
         lat="Latitud",
@@ -516,18 +519,23 @@ def crear_mapa_stock(df_stock):
         hover_data={"Stock_Teorico_Unidades": True, "Valor_Stock": ":,.0f"},
         color_continuous_scale="Viridis",
         size_max=50,
-        zoom=10,
-        center={"lat": -33.45, "lon": -70.65},
+        zoom=9,  # Zoom inicial más amplio para permitir scroll
+        center={"lat": centro_lat, "lon": centro_lon},  # Centro dinámico
         mapbox_style="open-street-map",
         title="<b>Mapa de Stock por Sucursal</b>"
     )
     
     fig.update_layout(
-        height=400,
-        width=600,
+        height=600,  # Altura aumentada para mejor visualización
+        width=600,  # Ancho automático (responsive)
         margin={"r": 0, "t": 50, "l": 0, "b": 0},
         title_font_size=20,
-        title_font_color='#1a237e'
+        title_font_color='#1a237e',
+        mapbox=dict(
+            bearing=0,
+            pitch=0,
+            zoom=9  # Zoom que permite ver todas las sucursales y hacer scroll
+        )
     )
     
     return fig
