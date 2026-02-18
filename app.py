@@ -604,8 +604,7 @@ def crear_mapa_stock(df_stock):
         mapbox=dict(
             bearing=0,
             pitch=0,
-            zoom=9,
-            scrollZoom=True
+            zoom=9
         )
     )
 
