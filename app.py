@@ -865,40 +865,73 @@ def mostrar_plan_48h(stats, df_riesgo):
     # FUNCIÓN AUXILIAR PARA MOSTRAR DESGLOSE POR SUCURSAL
     # =========================================================================
     def mostrar_desglose_sucursal(df_nivel, titulo_color):
-        """Muestra tabla de productos agrupados por sucursal"""
+        """Muestra cards por sucursal en formato GRID horizontal"""
+    
         if len(df_nivel) == 0:
             return
-        
-        # Agrupar por sucursal
-        resumen_sucursal = df_nivel.groupby('Sucursal').agg({
-            'Producto': lambda x: list(x.unique()),
-            'Stock_Teorico_Unidades': 'sum',
-            'Valor_Stock': 'sum'
-        }).reset_index()
-        
-        resumen_sucursal = resumen_sucursal.sort_values('Valor_Stock', ascending=False)
-        
-        st.markdown(f"**📍 Desglose por Sucursal:**")
-        
+    
+        resumen_sucursal = (
+            df_nivel.groupby('Sucursal')
+            .agg({
+                'Producto': lambda x: list(x.unique()),
+                'Stock_Teorico_Unidades': 'sum',
+                'Valor_Stock': 'sum'
+            })
+            .reset_index()
+            .sort_values('Valor_Stock', ascending=False)
+        )
+    
+        st.markdown("**📍 Desglose por Sucursal:**")
+    
+        # 🔥 INICIO GRID
+        st.markdown(f"""
+        <div style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        ">
+        """, unsafe_allow_html=True)
+    
         for _, row in resumen_sucursal.iterrows():
             sucursal = row['Sucursal']
             productos = row['Producto']
             unidades = int(row['Stock_Teorico_Unidades'])
             valor = row['Valor_Stock']
-            
-            productos_str = ", ".join(productos[:5])  # Mostrar máx 5 productos
-            if len(productos) > 5:
-                productos_str += f" (+{len(productos)-5} más)"
-            
+    
+            productos_str = ", ".join(productos[:4])
+            if len(productos) > 4:
+                productos_str += f" (+{len(productos)-4} más)"
+    
             st.markdown(f"""
-            <div style='background: white; padding: 12px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {titulo_color};'>
-                <strong>🏪 {sucursal}</strong><br>
-                <span style='color: #666; font-size: 0.9rem;'>
-                    📦 {unidades:,} unidades | 💰 {clp(valor)} CLP<br>
-                    📋 Productos: {productos_str}
-                </span>
+            <div style="
+                background: white;
+                padding: 16px;
+                border-radius: 12px;
+                border-left: 5px solid {titulo_color};
+                box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            ">
+                <div style="font-weight: 700; font-size: 1rem; margin-bottom: 6px;">
+                    🏪 {sucursal}
+                </div>
+    
+                <div style="font-size: 0.85rem; color: #666; margin-bottom: 8px;">
+                    📦 {unidades:,} unidades
+                </div>
+    
+                <div style="font-weight: 600; margin-bottom: 8px;">
+                    💰 {clp(valor)} CLP
+                </div>
+    
+                <div style="font-size: 0.8rem; color: #888;">
+                    📋 {productos_str}
+                </div>
             </div>
             """, unsafe_allow_html=True)
+    
+        # 🔥 CIERRE GRID
+        st.markdown("</div>", unsafe_allow_html=True)
+
     
     # =========================================================================
     # SECCIÓN VENCIDOS CON DESGLOSE
@@ -999,7 +1032,7 @@ def mostrar_plan_48h(stats, df_riesgo):
             </div>
         </div>
         """, unsafe_allow_html=True)
-        
+         
         # Desglose por sucursal para URGENTES
         mostrar_desglose_sucursal(df_urgentes, '#f57c00')
         
