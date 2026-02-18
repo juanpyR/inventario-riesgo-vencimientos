@@ -401,7 +401,46 @@ def cargar_css():
         background: #fffde7;
     }
 
+
+    /* TABLAS FORMATO EXPANSIBLE*/
     
+    .streamlit-expanderHeader {
+        font-weight: 700 !important;
+        font-size: 1rem !important;
+        border-radius: 10px !important;
+    }
+    
+    .expander-vencido .streamlit-expanderHeader {
+        background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%) !important;
+        color: #6a1b9a !important;
+        border-left: 6px solid #9c27b0 !important;
+    }
+    
+    .expander-critico .streamlit-expanderHeader {
+        background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%) !important;
+        color: #b71c1c !important;
+        border-left: 6px solid #d32f2f !important;
+    }
+    
+    .expander-urgente .streamlit-expanderHeader {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%) !important;
+        color: #e65100 !important;
+        border-left: 6px solid #f57c00 !important;
+    }
+    
+    .expander-preventivo .streamlit-expanderHeader {
+        background: linear-gradient(135deg, #fffde7 0%, #fff9c4 100%) !important;
+        color: #f9a825 !important;
+        border-left: 6px solid #fbc02d !important;
+    }
+    
+    /* Cuerpo interno del expander */
+    .streamlit-expanderContent {
+        background: #fafafa !important;
+        padding: 20px !important;
+        border-radius: 0 0 12px 12px !important;
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -1251,17 +1290,26 @@ def mostrar_productos_por_riesgo(df_riesgo, stats):
         ('URGENTE', '🟠', '#f57c00', '4-7 días'),
         ('PREVENTIVO', '🟡', '#fbc02d', '8-10 días')
     ]
-
+    clase_css = {
+            "VENCIDO": "expander-vencido",
+            "CRITICO": "expander-critico",
+            "URGENTE": "expander-urgente",
+            "PREVENTIVO": "expander-preventivo"
+        }
     for nivel, emoji, color, dias in niveles_config:
         df_nivel = df_riesgo[df_riesgo['Nivel_Riesgo'] == nivel].copy()
-        
+
         if len(df_nivel) > 0:
-            # Header del expander
+    
             n_productos = stats[nivel]['productos']
             n_unidades = stats[nivel]['unidades']
             valor = stats[nivel]['valor']
-            
-            with st.expander(f"{emoji} {nivel} ({n_productos} productos | {clp(n_unidades)} unidades | {clp(valor)} CLP)"):
+    
+            st.markdown(f"<div class='{clase_css[nivel]}'>", unsafe_allow_html=True)
+
+            with st.expander(
+                f"{emoji} {nivel} ({n_productos} productos | {clp(n_unidades)} unidades | {clp(valor)} CLP)"
+            ):
                 # Ordenar por valor descendente
                 df_display = df_nivel.sort_values('Valor_Stock', ascending=False)
                 
@@ -1294,7 +1342,7 @@ def mostrar_productos_por_riesgo(df_riesgo, stats):
                     {df_display.to_html(index=False, escape=False)}
                 </div>
                 """
-
+                st.markdown("</div>", unsafe_allow_html=True)
                 st.markdown(tabla_html, unsafe_allow_html=True)
 
         else:
