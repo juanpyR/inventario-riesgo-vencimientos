@@ -523,7 +523,7 @@ def crear_mapa_stock(df_stock):
     )
     
     fig.update_layout(
-        height=500,
+        height=400,
         margin={"r": 0, "t": 50, "l": 0, "b": 0},
         title_font_size=20,
         title_font_color='#1a237e'
