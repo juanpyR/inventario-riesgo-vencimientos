@@ -1189,33 +1189,36 @@ def mostrar_productos_por_riesgo(df_riesgo, stats):
             valor = stats[nivel]['valor']
             
             with st.expander(f"{emoji} {nivel} ({n_productos} productos | {clp(n_unidades)} unidades | {clp(valor)} CLP)"):
-                    
-                df_display = df_nivel.sort_values('Valor_Stock', ascending=False).copy()
-            
+                # Ordenar por valor descendente
+                df_display = df_nivel.sort_values('Valor_Stock', ascending=False)
+                
+                # Seleccionar columnas relevantes
                 columnas = ['Producto', 'Sucursal', 'Stock_Teorico_Unidades', 'Dias_Para_Vencer', 'Valor_Stock']
+                
+                # Verificar que las columnas existen
                 columnas_existentes = [c for c in columnas if c in df_display.columns]
-                df_display = df_display[columnas_existentes]
-            
-                df_display = df_display.rename(columns={
-                    'Stock_Teorico_Unidades': 'Stock',
-                    'Dias_Para_Vencer': 'Días',
-                    'Valor_Stock': 'Valor'
-                })
-            
-                # KPIs rápidos arriba
-                col1, col2, col3 = st.columns(3)
-                col1.metric("Producto más crítico", df_display.iloc[0]['Producto'])
-                col2.metric("Sucursal con mayor valor", df_display.groupby("Sucursal")['Valor'].sum().idxmax())
-                col3.metric("Valor promedio por producto", clp(df_display['Valor'].mean()))
-            
-                st.markdown("#### 📊 Detalle Completo")
-            
-                # Tabla optimizada
+                df_display = df_display[columnas_existentes].copy()
+                
+                # Renombrar columnas
+                rename_map = {
+                    'Producto': 'Producto',
+                    'Sucursal': 'Sucursal',
+                    'Stock_Teorico_Unidades': 'Stock (uds)',
+                    'Dias_Para_Vencer': 'Días Vencer',
+                    'Valor_Stock': 'Valor (CLP)'
+                }
+                df_display = df_display.rename(columns={k: v for k, v in rename_map.items() if k in df_display.columns})
+                
+                # Formatear valor
+                if 'Valor (CLP)' in df_display.columns:
+                    df_display['Valor (CLP)'] = df_display['Valor (CLP)'].apply(lambda x: clp(x))
+                
+                # Mostrar tabla
                 st.dataframe(
                     df_display,
                     use_container_width=True,
                     hide_index=True,
-                    height=400  # Scroll interno fijo
+                    height=min(400, len(df_display) * 35 + 38)
                 )
 
         else:
