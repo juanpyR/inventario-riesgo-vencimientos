@@ -1,12 +1,12 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import io
 from datetime import datetime
 import pytz
-import io
 
 # =============================================================================
-# CONFIG
+# CONFIGURACIÓN
 # =============================================================================
 
 st.set_page_config(
@@ -23,19 +23,31 @@ def clp(x):
         return "$0"
     return f"${int(x):,}".replace(",", ".")
 
-def safe_numeric(df, col):
-    if col in df.columns:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-    else:
-        df[col] = 0
+def asegurar_columna(df, col, default=0):
+    if col not in df.columns:
+        df[col] = default
     return df
+
+def convertir_numerico_seguro(df, columnas):
+    for col in columnas:
+        df = asegurar_columna(df, col)
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    return df
+
+def score_vencimiento(dias):
+    if pd.isna(dias): return 1
+    if dias <= 0: return 5
+    elif dias <= 3: return 4
+    elif dias <= 7: return 3
+    elif dias <= 15: return 2
+    else: return 1
 
 # =============================================================================
 # CARGA
 # =============================================================================
 
 @st.cache_data
-def cargar(archivo):
+def cargar_archivo(archivo):
     df = pd.read_csv(io.BytesIO(archivo.getvalue()))
     df.columns = df.columns.str.strip()
     return df
@@ -46,32 +58,31 @@ def cargar(archivo):
 
 with st.sidebar:
     st.title("⚙️ Configuración")
-    file = st.file_uploader("Sube inventario", type="csv")
+    archivo = st.file_uploader("Sube archivo CSV de inventario", type="csv")
 
 # =============================================================================
 # MAIN
 # =============================================================================
 
-if file:
+if archivo:
 
-    df = cargar(file)
+    df = cargar_archivo(archivo)
 
     # --------------------------------------------------
     # NORMALIZACIÓN
     # --------------------------------------------------
 
-    columnas_clave = [
+    columnas_numericas = [
         "Stock_Teorico_Unidades",
         "Valor_Unitario_CLP",
-        "Dias_Para_Vencer",
+        "Dias_Efectivos",
         "Venta_Promedio_Diaria"
     ]
 
-    for col in columnas_clave:
-        df = safe_numeric(df, col)
+    df = convertir_numerico_seguro(df, columnas_numericas)
 
     # --------------------------------------------------
-    # CÁLCULOS CORE
+    # CÁLCULOS PRINCIPALES
     # --------------------------------------------------
 
     df["Capital_Inmovilizado"] = (
@@ -85,72 +96,114 @@ if file:
         999
     )
 
-    df["Riesgo_Vencimiento"] = np.where(
-        df["Dias_Para_Vencer"] <= 0, 5,
-        np.where(df["Dias_Para_Vencer"] <= 3, 4,
-        np.where(df["Dias_Para_Vencer"] <= 7, 3,
-        np.where(df["Dias_Para_Vencer"] <= 15, 2, 1)))
-    )
+    df["Score_Vencimiento"] = df["Dias_Efectivos"].apply(score_vencimiento)
 
-    df["Riesgo_Sobrestock"] = np.where(
+    df["Score_Sobrestock"] = np.where(
         df["Cobertura_Dias"] > 60, 4,
         np.where(df["Cobertura_Dias"] > 30, 3,
         np.where(df["Cobertura_Dias"] > 15, 2, 1))
     )
 
-    # Score ejecutivo ponderado
-    df["Score_Riesgo_Total"] = (
-        df["Riesgo_Vencimiento"] * 0.6 +
-        df["Riesgo_Sobrestock"] * 0.4
+    df["Score_Total"] = (
+        df["Score_Vencimiento"] * 0.6 +
+        df["Score_Sobrestock"] * 0.4
     )
 
-    # Pérdida proyectada
-    df["Perdida_Proyectada"] = np.where(
-        df["Dias_Para_Vencer"] <= df["Cobertura_Dias"],
-        df["Capital_Inmovilizado"] * 0.6,
-        df["Capital_Inmovilizado"] * 0.2
-    )
+    # --------------------------------------------------
+    # ÍNDICE SALUD
+    # --------------------------------------------------
+
+    score_promedio = df["Score_Total"].mean()
+    indice_salud = 100 - ((score_promedio - 1) / 4 * 100)
+    indice_salud = max(0, min(100, indice_salud))
 
     # --------------------------------------------------
     # KPIs EJECUTIVOS
     # --------------------------------------------------
 
     capital_total = df["Capital_Inmovilizado"].sum()
-    capital_riesgo = df[df["Score_Riesgo_Total"] >= 3]["Capital_Inmovilizado"].sum()
-    perdida_estimada = df["Perdida_Proyectada"].sum()
-    productos_criticos = len(df[df["Score_Riesgo_Total"] >= 4])
+
+    capital_riesgo = df[
+        df["Score_Total"] >= 3
+    ]["Capital_Inmovilizado"].sum()
+
+    perdida_proyectada = df[
+        df["Score_Total"] >= 3
+    ]["Capital_Inmovilizado"].sum() * 0.5
+
+    productos_criticos = len(df[df["Score_Total"] >= 4])
+
+    pct_riesgo = 0
+    if capital_total > 0:
+        pct_riesgo = capital_riesgo / capital_total * 100
+
+    # --------------------------------------------------
+    # DASHBOARD
+    # --------------------------------------------------
 
     st.title("🛡️ Centro Analítico de Inventario")
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
 
     c1.metric("Capital Total", clp(capital_total))
-    c2.metric("Capital en Riesgo Alto", clp(capital_riesgo))
-    c3.metric("Pérdida Proyectada", clp(perdida_estimada))
-    c4.metric("Productos Críticos", productos_criticos)
+    c2.metric("Capital en Riesgo", clp(capital_riesgo))
+    c3.metric("% Capital Riesgo", f"{pct_riesgo:.1f}%")
+    c4.metric("Pérdida Proyectada", clp(perdida_proyectada))
+    c5.metric("Índice Salud", f"{indice_salud:.1f}/100")
+
+    st.divider()
 
     # --------------------------------------------------
-    # RANKING INTELIGENTE
+    # RANKING ESTRATÉGICO
     # --------------------------------------------------
 
     st.subheader("🔥 Top 20 Productos Más Riesgosos")
 
     df_top = df.sort_values(
-        by="Score_Riesgo_Total",
+        by="Score_Total",
         ascending=False
     ).head(20)
 
-    st.dataframe(
-        df_top[[
-            "Score_Riesgo_Total",
+    columnas_mostrar = [
+        col for col in [
+            "Score_Total",
             "Capital_Inmovilizado",
-            "Perdida_Proyectada",
             "Cobertura_Dias",
-            "Dias_Para_Vencer"
-        ]],
+            "Dias_Efectivos",
+            "Stock_Teorico_Unidades",
+            "Valor_Unitario_CLP"
+        ] if col in df_top.columns
+    ]
+
+    st.dataframe(
+        df_top[columnas_mostrar],
         use_container_width=True,
         hide_index=True
     )
+
+    st.divider()
+
+    # --------------------------------------------------
+    # MAPA PONDERADO (SI EXISTE GEO)
+    # --------------------------------------------------
+
+    if {"Latitud", "Longitud"}.issubset(df.columns):
+
+        st.subheader("📍 Concentración de Capital en Riesgo por Ubicación")
+
+        df_geo = df.groupby(
+            ["Latitud", "Longitud"],
+            as_index=False
+        ).agg({
+            "Capital_Inmovilizado": "sum"
+        })
+
+        df_geo = df_geo.rename(columns={
+            "Latitud": "lat",
+            "Longitud": "lon"
+        })
+
+        st.map(df_geo)
 
     # --------------------------------------------------
     # DESCARGA
@@ -159,9 +212,9 @@ if file:
     csv = df.to_csv(index=False, encoding="utf-8-sig")
 
     st.download_button(
-        "Descargar análisis completo",
+        "⬇ Descargar análisis completo",
         data=csv,
-        file_name="inventario_analizado.csv",
+        file_name="inventario_analizado_full.csv",
         mime="text/csv"
     )
 
