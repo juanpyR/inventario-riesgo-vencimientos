@@ -1210,11 +1210,7 @@ def main():
             <div style='background: #e3f2fd; padding: 20px; border-radius: 10px; margin-top: 30px;'>
                 <h4>📋 Archivos requeridos:</h4>
                 <ul style='text-align: left; display: inline-block;'>
-                    <li>1_SUCURSALES_MASTER.csv</li>
-                    <li>2_PRODUCTOS_MASTER.csv</li>
-                    <li>3_LOTES_PRODUCTOS.csv</li>
-                    <li>4_INVENTARIO_COMPLETO_LOTES.csv</li>
-                    <li>5_STOCK_ACTUAL_GEO_POWERBI.csv</li>
+                    <li>Sube los archivos para el análisis</li>
                 </ul>
             </div>
         </div>
