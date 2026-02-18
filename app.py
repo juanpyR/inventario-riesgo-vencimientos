@@ -591,7 +591,7 @@ def crear_mapa_stock(df_stock):
         size_max=50,
         zoom=9,
         center={"lat": centro_lat, "lon": centro_lon},
-        mapbox_style="open-street-map",
+        mapbox_style='carto-positron',
         title="<b>Stock Total por Sucursal</b>"
     )
 
@@ -711,7 +711,7 @@ def crear_mapa_inventario_riesgo(df_riesgo):
 
     fig.update_layout(
         mapbox=dict(
-            style="open-street-map",
+            style='carto-positron',
             center={"lat": centro_lat, "lon": centro_lon},
             zoom=9
         ),
