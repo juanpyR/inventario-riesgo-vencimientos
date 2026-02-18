@@ -12,6 +12,8 @@ Mejoras:
 - Mapa más pequeño y arriba con pestañas
 - Riesgo por sucursal
 
+Autor: MiniMax Agent
+Fecha: 2026-02-18
 """
 
 import pandas as pd
