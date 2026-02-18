@@ -327,13 +327,14 @@ def cargar_css():
         margin-top: 30px;
         font-size: 0.95rem;
     }
-
+    /* TABLA NIVEL RIESGO */
     .tabla-profesional {
-    background: white;
-    padding: 15px;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-    overflow-x: auto;
+        background: white;
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        overflow-x: auto;
+        margin-top: 15px;
     }
     
     .tabla-profesional table {
@@ -342,15 +343,12 @@ def cargar_css():
         font-size: 0.9rem;
     }
     
-    .tabla-profesional thead {
-        background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
-        color: white;
-    }
-    
+    /* HEADERS GENERALES */
     .tabla-profesional th {
         padding: 12px;
         text-align: left;
         font-weight: 600;
+        color: white;
     }
     
     .tabla-profesional td {
@@ -359,14 +357,51 @@ def cargar_css():
     }
     
     .tabla-profesional tr:hover {
-        background: #f5f7ff;
         transition: 0.2s;
     }
     
-    .tabla-profesional tbody tr:nth-child(even) {
-        background: #fafafa;
+    /* 🟣 VENCIDO */
+    .tabla-vencido thead {
+        background: #9c27b0;
+    }
+    
+    .tabla-vencido tr:hover {
+        background: #f3e5f5;
+    }
+    
+    /* 🔴 CRÍTICO */
+    .tabla-critico thead {
+        background: #d32f2f;
+    }
+    
+    .tabla-critico tr:hover {
+        background: #ffebee;
+    }
+    
+    /* 🟠 URGENTE */
+    .tabla-urgente thead {
+        background: #f57c00;
+    }
+    
+    .tabla-urgente tr:hover {
+        background: #fff3e0;
+    }
+    
+    /* 🟡 PREVENTIVO */
+    .tabla-preventivo thead {
+        background: #fbc02d;
+        color: #333 !important;
+    }
+    
+    .tabla-preventivo th {
+        color: #333 !important;
+    }
+    
+    .tabla-preventivo tr:hover {
+        background: #fffde7;
     }
 
+    
     </style>
     """, unsafe_allow_html=True)
 
@@ -1252,11 +1287,13 @@ def mostrar_productos_por_riesgo(df_riesgo, stats):
                     df_display['Valor (CLP)'] = df_display['Valor (CLP)'].apply(lambda x: clp(x))
                 
                 # Mostrar tabla
+                clase_tabla = f"tabla-{nivel.lower()}"
+
                 tabla_html = f"""
-                    <div class="tabla-profesional">
-                        {df_display.to_html(index=False, escape=False)}
-                    </div>
-                    """
+                <div class="tabla-profesional {clase_tabla}">
+                    {df_display.to_html(index=False, escape=False)}
+                </div>
+                """
 
                 st.markdown(tabla_html, unsafe_allow_html=True)
 
