@@ -605,7 +605,7 @@ def crear_mapa_stock(df_stock):
             bearing=0,
             pitch=0,
             zoom=9
-        ), dragmode='zoom'
+        )
     )
 
     return fig
@@ -728,7 +728,7 @@ def crear_mapa_inventario_riesgo(df_riesgo):
             xanchor="left",
             x=0.01,
             bgcolor="rgba(255,255,255,0.8)"
-        ), dragmode='zoom'
+        )
     )
 
     return fig
@@ -1286,7 +1286,7 @@ def main():
         st.markdown("*Muestra el stock total de todas las sucursales*")
         fig_mapa = crear_mapa_stock(df_stock)
         if fig_mapa:
-            st.plotly_chart(fig_mapa, use_container_width=True)
+            st.plotly_chart(fig_mapa, use_container_width=True,config={'scrollZoom': True})
         else:
             st.warning("No hay datos geográficos disponibles para mostrar el mapa.")
 
@@ -1306,7 +1306,7 @@ def main():
 
         fig_mapa_riesgo = crear_mapa_inventario_riesgo(df_riesgo)
         if fig_mapa_riesgo:
-            st.plotly_chart(fig_mapa_riesgo, use_container_width=True)
+            st.plotly_chart(fig_mapa_riesgo, use_container_width=True, config={'scrollZoom': True})
         else:
             st.warning("No hay datos de inventario en riesgo con coordenadas geográficas.")
 
