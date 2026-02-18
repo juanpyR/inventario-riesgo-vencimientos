@@ -618,17 +618,27 @@ if uploaded_files:
                         df_display = df_riesgo[cols_show].sort_values('Dias_Efectivos' if 'Dias_Efectivos' in cols_show else cols_show[0])
                         
                        
+                        estilos_riesgo = {
+                            'VENCIDO': {'background-color': '#f3e5f5', 'color': '#7b1fa2', 'font-weight': '600'},
+                            'CRITICO': {'background-color': '#ffebee', 'color': '#c62828', 'font-weight': '600'},
+                            'URGENTE': {'background-color': '#fff3e0', 'color': '#e65100', 'font-weight': '600'},
+                            'PREVENTIVO': {'background-color': '#fffde7', 'color': '#f9a825', 'font-weight': '600'}
+                        }
+                        
+                        # Aplicar estilos dinámicamente
+                        styled_df = df_display.copy()
+                        for nivel, estilo in estilos_riesgo.items():
+                            mask = df_display['Nivel_Riesgo'] == nivel
+                            for col in df_display.columns:
+                                styled_df.loc[mask, col] = styled_df.loc[mask, col].apply(
+                                    lambda x: f'<span style="{"; ".join(f"{k}: {v}" for k, v in estilo.items())}">{x}</span>' if pd.notna(x) else x
+                                )
+                        
                         st.dataframe(
-    df_display.style.set_properties(
-        **{'background-color': '#f3e5f5', 'color': '#7b1fa2'},
-        subset=df_display['Nivel_Riesgo'] == 'VENCIDO'
-    ).set_properties(
-        **{'background-color': '#ffebee', 'color': '#c62828'},
-        subset=df_display['Nivel_Riesgo'] == 'CRITICO'
-    ),
-    use_container_width=True,
-    hide_index=True
-)
+                            styled_df,
+                            use_container_width=True,
+                            hide_index=True
+                        )
                         
                         csv = df_display.to_csv(index=False, encoding='utf-8-sig')
                         st.download_button(
