@@ -684,22 +684,63 @@ def mostrar_plan_48h(stats, df_riesgo):
         """, unsafe_allow_html=True)
     
     # Resumen total
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #1a237e 0%, #283593 100%); 
+                border-radius: 15px; padding: 30px; margin: 20px 0;">
+        <h2 style="color: white; text-align: center; margin-bottom: 30px;">
+            ✅ RESUMEN PLAN 48H
+        </h2>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+    """, unsafe_allow_html=True)
+    
+    # Tarjeta 1 - Crédito Tributario (fondo azul claro)
     st.markdown(f"""
-    <div class="total-box">
-        <h3>✅ RESUMEN PLAN 48H</h3>
-        <div class="metric-grid" style='margin-top: 15px;'>
-            <div class="metric-item">
-                <div class="metric-label" style='color: white;'>🏛️ Crédito Tributario</div>
-                <div class="metric-value" style='color: white;'>{clp(credito_trib)}</div>
-            </div>
-            <div class="metric-item">
-                <div class="metric-label" style='color: white;'>📈 Recuperación Descuentos</div>
-                <div class="metric-value" style='color: white;'>{clp(recuperacion_total)}</div>
-            </div>
-            <div class="metric-item" style='background: #4caf50;'>
-                <div class="metric-label" style='color: white;'>✅ TOTAL RECUPERADO</div>
-                <div class="metric-value" style='color: white;'>{clp(total_recuperado)}</div>
-            </div>
+    <div style="background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%);
+                border-radius: 12px; padding: 25px; text-align: center;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+        <div style="font-size: 2rem; margin-bottom: 10px;">💰</div>
+        <div style="color: #0d47a1; font-weight: 600; font-size: 0.9rem; 
+                    margin-bottom: 10px;">CRÉDITO TRIBUTARIO</div>
+        <div style="color: #0d47a1; font-size: 1.8rem; font-weight: 700;">
+            {clp(credito_trib)}
+        </div>
+        <div style="color: #1565c0; font-size: 0.85rem; margin-top: 5px;">
+            27% s/donaciones
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Tarjeta 2 - Recuperación Descuentos (fondo naranja claro)
+    recuperacion_descuentos = total_recuperado - credito_trib
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, #ffb74d 0%, #ffa726 100%);
+                border-radius: 12px; padding: 25px; text-align: center;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+        <div style="font-size: 2rem; margin-bottom: 10px;">🏷️</div>
+        <div style="color: #e65100; font-weight: 600; font-size: 0.9rem; 
+                    margin-bottom: 10px;">RECUPERACIÓN DESCUENTOS</div>
+        <div style="color: #e65100; font-size: 1.8rem; font-weight: 700;">
+            {clp(recuperacion_descuentos)}
+        </div>
+        <div style="color: #ef6c00; font-size: 0.85rem; margin-top: 5px;">
+            40%, 25%, 15% dto
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Tarjeta 3 - Total Recuperado (fondo verde)
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
+                border-radius: 12px; padding: 25px; text-align: center;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+        <div style="font-size: 2rem; margin-bottom: 10px;">✅</div>
+        <div style="color: #1b5e20; font-weight: 600; font-size: 0.9rem; 
+                    margin-bottom: 10px;">TOTAL RECUPERADO</div>
+        <div style="color: #1b5e20; font-size: 2.2rem; font-weight: 700;">
+            {clp(total_recuperado)}
+        </div>
+        <div style="color: #2e7d32; font-size: 0.85rem; margin-top: 5px;">
+            Inyección de liquidez
         </div>
     </div>
     """, unsafe_allow_html=True)
