@@ -17,8 +17,6 @@ Archivos requeridos en la carpeta data/:
 - 4_INVENTARIO_COMPLETO_LOTES.csv
 - 5_STOCK_ACTUAL_GEO_POWERBI.csv
 
-Autor: MiniMax Agent
-Fecha: 2026-02-18
 """
 
 import pandas as pd
@@ -350,6 +348,14 @@ def analizar_por_sucursal(df_stock):
     # Contar productos por nivel de riesgo por sucursal
     riesgo_por_sucursal = df_stock.groupby(['Sucursal', 'Nivel_Riesgo']).size().unstack(fill_value=0)
     
+    # Asegurar que todas las columnas de riesgo existan
+    for nivel in ['CRITICO', 'NORMAL', 'PREVENTIVO', 'URGENTE', 'VENCIDO']:
+        if nivel not in riesgo_por_sucursal.columns:
+            riesgo_por_sucursal[nivel] = 0
+    
+    # Reordenar columnas de riesgo en el orden correcto
+    riesgo_por_sucursal = riesgo_por_sucursal[['CRITICO', 'NORMAL', 'PREVENTIVO', 'URGENTE', 'VENCIDO']]
+    
     # Unir datos
     sucursal_stats = sucursal_stats.merge(
         riesgo_por_sucursal.reset_index(),
@@ -357,7 +363,7 @@ def analizar_por_sucursal(df_stock):
         how='left'
     )
     
-    # Agregar coordenadas
+    # Agregar coordenadas al final
     if 'Latitud' in df_stock.columns and 'Longitud' in df_stock.columns:
         coords = df_stock.groupby('Sucursal').agg({
             'Latitud': 'first',
@@ -571,15 +577,39 @@ def crear_tabla_sucursales(sucursal_stats):
     # Preparar datos
     df_display = sucursal_stats.copy()
     
-    # Renombrar columnas
-    df_display.columns = [
-        'Sucursal', 'Unidades Totales', 'Valor Total (CLP)', 
-        'Latitud', 'Longitud', 
-        'CRITICO', 'NORMAL', 'PREVENTIVO', 'URGENTE', 'VENCIDO'
-    ]
+    # Ordenar columnas explícitamente para evitar problemas de orden
+    # Primero,确保我们有 todas las columnas necesarias
+    cols_ordenadas = ['Sucursal', 'Stock_Teorico_Unidades', 'Valor_Stock']
+    
+    # Agregar columnas de coordenadas si existen
+    if 'Latitud' in df_display.columns:
+        cols_ordenadas.append('Latitud')
+    if 'Longitud' in df_display.columns:
+        cols_ordenadas.append('Longitud')
+    
+    # Agregar columnas de riesgo en orden específico
+    niveles = ['CRITICO', 'NORMAL', 'PREVENTIVO', 'URGENTE', 'VENCIDO']
+    for nivel in niveles:
+        if nivel in df_display.columns:
+            cols_ordenadas.append(nivel)
+    
+    # Seleccionar solo las columnas que existen
+    cols_existentes = [c for c in cols_ordenadas if c in df_display.columns]
+    df_display = df_display[cols_existentes].copy()
+    
+    # Renombrar columnas para mostrar
+    nombres_nuevos = {
+        'Sucursal': 'Sucursal',
+        'Stock_Teorico_Unidades': 'Unidades Totales',
+        'Valor_Stock': 'Valor Total (CLP)',
+        'Latitud': 'Latitud',
+        'Longitud': 'Longitud'
+    }
+    df_display = df_display.rename(columns=nombres_nuevos)
     
     # Formatear valores
-    df_display['Valor Total (CLP)'] = df_display['Valor Total (CLP)'].apply(lambda x: clp(x))
+    if 'Valor Total (CLP)' in df_display.columns:
+        df_display['Valor Total (CLP)'] = df_display['Valor Total (CLP)'].apply(lambda x: clp(x))
     
     return df_display
 
