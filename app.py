@@ -1,131 +1,833 @@
-import streamlit as st
 import pandas as pd
-import plotly.express as px
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from datetime import datetime, timedelta
+import calendar
+import textwrap
+import warnings
+import io
+import streamlit as st
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import pytz
+warnings.filterwarnings('ignore')
 
-# Configuración de la página
-st.set_page_config(page_title="Mapa de Inventario", layout="wide")
+# =============================================================================
+# FORMATO CHILENO
+# =============================================================================
+def clp(valor):
+    """Formatea número con estilo chileno: 1.234.567"""
+    if isinstance(valor, str):
+        return valor
+    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+        return "0"
+    try:
+        valor_int = int(round(float(valor)))
+        return f"{valor_int:,}".replace(",", ".")
+    except:
+        return str(valor)
 
-st.title("📍 Mapa de Inventario por Sucursales")
+pd.options.display.float_format = lambda x: f'{x:,.0f}'.replace(',', '.')
 
-# Cargar datos
+# =============================================================================
+# COLORES SEMÁFORO COHERENTES
+# =============================================================================
+COLOR_MAP = {
+    'VENCIDO': '#9c27b0',      # 🟣 Violeta
+    'CRITICO': '#d32f2f',      # 🔴 Rojo
+    'URGENTE': '#f57c00',      # 🟠 Naranja
+    'PREVENTIVO': '#fbc02d'    # 🟡 Amarillo
+}
+
+# =============================================================================
+# CSS PERSONALIZADO
+# =============================================================================
+def cargar_css():
+    st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    .main-header {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1a237e;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .section-title-box {
+        background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+        color: white;
+        padding: 15px 25px;
+        border-radius: 10px;
+        display: inline-block;
+        margin: 2rem 0 1rem 0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+    .section-title-box h2 {
+        color: white !important;
+        margin: 0;
+        font-size: 1.8rem;
+        font-weight: 600;
+    }
+    .info-card {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border-radius: 15px;
+        padding: 25px;
+        text-align: center;
+        margin: 10px 0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .classification-item {
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .vencido { background: #f3e5f5; color: #7b1fa2; border-left: 5px solid #9c27b0; }
+    .critico { background: #ffebee; color: #c62828; border-left: 5px solid #d32f2f; }
+    .urgente { background: #fff3e0; color: #e65100; border-left: 5px solid #f57c00; }
+    .preventivo { background: #fffde7; color: #f9a825; border-left: 5px solid #fbc02d; }
+    .decision-box {
+        background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%);
+        border-radius: 15px;
+        padding: 30px;
+        text-align: center;
+        border: 3px solid #1a237e;
+        margin: 20px 0;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    .decision-box h3 {
+        color: #1a237e;
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 20px;
+    }
+    .plan-summary {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+        border-left: 5px solid #4CAF50;
+        text-align: left;
+    }
+    .plan-metrics {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+        border: 2px solid #4CAF50;
+    }
+    .metric-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px;
+        margin: 5px 0;
+        background: white;
+        border-radius: 5px;
+        font-weight: 600;
+    }
+    .metric-label { color: #2e7d32; }
+    .metric-value { color: #1565c0; font-size: 1.1rem; }
+    .indicator {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        margin-right: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .legend-box {
+        padding: 20px;
+        border-radius: 10px;
+        margin: 10px 0;
+        border-left: 5px solid;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .total-box {
+        background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+        margin: 20px 0;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .total-box h3 {
+        color: white;
+        margin: 0 0 15px 0;
+        font-size: 1.5rem;
+    }
+    .total-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+    }
+    .total-item {
+        background: rgba(255,255,255,0.2);
+        padding: 15px;
+        border-radius: 10px;
+    }
+    .total-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin-bottom: 5px;
+    }
+    .total-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+    }
+    /* TABLAS */
+    .dataframe {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        font-size: 0.9rem;
+        width: 100%;
+    }
+    .dataframe thead th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 700;
+        padding: 15px;
+        text-align: left;
+        border: none;
+    }
+    .dataframe tbody tr:nth-child(even) { background-color: #f8f9fa; }
+    .dataframe tbody tr:nth-child(odd) { background-color: white; }
+    .dataframe tbody tr:hover { background-color: #e3f2fd; transition: all 0.3s; }
+    .dataframe td { padding: 12px 15px; border-bottom: 1px solid #e0e0e0; }
+    .tabla-vencido thead th { background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); }
+    .tabla-critico thead th { background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); }
+    .tabla-urgente thead th { background: linear-gradient(135deg, #f57c00 0%, #e65100 100%); }
+    .tabla-preventivo thead th { background: linear-gradient(135deg, #fbc02d 0%, #f9a825 100%); }
+    /* BADGES */
+    .badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    .badge-vencido { background: #f3e5f5; color: #7b1fa2; }
+    .badge-critico { background: #ffebee; color: #c62828; }
+    .badge-urgente { background: #fff3e0; color: #e65100; }
+    .badge-preventivo { background: #fffde7; color: #f9a825; }
+    /* PLAN DE ACCIÓN */
+    .plan-section {
+        border-radius: 15px;
+        padding: 25px;
+        margin: 20px 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border-left: 6px solid;
+    }
+    .plan-vencido { background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); border-color: #9c27b0; }
+    .plan-critico { background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%); border-color: #d32f2f; }
+    .plan-urgente { background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border-color: #f57c00; }
+    .plan-cierre { background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-color: #1976d2; }
+    .plan-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid rgba(0,0,0,0.1);
+    }
+    .plan-title { font-size: 1.3rem; font-weight: 700; color: #1a237e; margin: 0; }
+    .plan-badge {
+        background: rgba(255,255,255,0.9);
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        margin: 20px 0;
+    }
+    .metric-item {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .metric-label { font-size: 0.85rem; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric-value { font-size: 1.8rem; font-weight: 700; color: #1a237e; }
+    .metric-sub { font-size: 0.75rem; color: #999; margin-top: 5px; }
+    .action-list { background: white; border-radius: 10px; padding: 20px; margin: 15px 0; }
+    .action-item {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        margin: 8px 0;
+        background: #f5f5f5;
+        border-radius: 8px;
+        border-left: 4px solid;
+    }
+    .action-icon { font-size: 1.5rem; margin-right: 15px; }
+    .action-text { flex: 1; font-size: 0.95rem; }
+    .sensitivity-box {
+        background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+        border-radius: 12px;
+        padding: 20px;
+        margin: 20px 0;
+        border: 2px solid #9c27b0;
+    }
+    .sensitivity-title { font-size: 1.1rem; font-weight: 700; color: #6a1b9a; margin-bottom: 15px; }
+    .sensitivity-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+    .sensitivity-item {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    .sensitivity-label { font-size: 0.8rem; color: #666; margin-bottom: 5px; }
+    .sensitivity-value { font-size: 1.2rem; font-weight: 700; color: #6a1b9a; }
+    .timeline {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 20px 0;
+        padding: 20px;
+        background: white;
+        border-radius: 12px;
+    }
+    .timeline-item { text-align: center; flex: 1; position: relative; }
+    .timeline-time { font-size: 0.9rem; font-weight: 700; color: #1a237e; margin-bottom: 5px; }
+    .timeline-action { font-size: 0.8rem; color: #666; }
+    .timeline-dot { width: 12px; height: 12px; border-radius: 50%; margin: 10px auto; background: #667eea; }
+    /* RESUMEN FINAL */
+    .resumen-final-box {
+        background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+        border-radius: 15px;
+        padding: 30px;
+        color: white;
+        margin: 20px 0;
+        box-shadow: 0 4px 15px rgba(26, 35, 126, 0.4);
+    }
+    .resumen-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 20px 0; }
+    .resumen-card {
+        background: rgba(255,255,255,0.1);
+        border-radius: 12px;
+        padding: 20px;
+        backdrop-filter: blur(10px);
+    }
+    .resumen-card h4 { margin: 0 0 15px 0; font-size: 1.1rem; opacity: 0.9; }
+    .resumen-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+    .resumen-item:last-child { border-bottom: none; }
+    .resumen-icon { font-size: 1.5rem; margin-right: 12px; }
+    .resumen-text { flex: 1; font-size: 0.9rem; }
+    .conclusion-box {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        margin: 20px 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .conclusion-item { padding: 15px; margin: 10px 0; border-radius: 10px; border-left: 5px solid; }
+    .conclusion-error { background: #ffebee; border-color: #d32f2f; color: #c62828; }
+    .conclusion-success { background: #e8f5e9; border-color: #4caf50; color: #2e7d32; }
+    .conclusion-info { background: #e3f2fd; border-color: #1976d2; color: #1565c0; }
+    /* MAPA */
+    .map-container {
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin: 20px 0;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# =============================================================================
+# CONSTANTES
+# =============================================================================
+MESES_ESP = {
+    1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril', 5: 'Mayo', 6: 'Junio',
+    7: 'Julio', 8: 'Agosto', 9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+}
+
+COLUMNAS_ESPERADAS = {
+    'Días_para_Vencimiento': ['Días_para_Vencimiento', 'Días para Vencimiento', 'Días_para_Vencer', 'Días Vencimiento'],
+    'Stock_Inicial': ['Stock_Inicial', 'Stock Sala', 'Stock_Sala', 'stock_sala', 'Stock'],
+    'Costo_Unitario_Neto': ['Costo_Unitario_Neto', 'Costo Unitario Neto', 'costo_unitario_neto', 'Costo'],
+    'Producto': ['Producto', 'producto', 'SKU_Descripcion'],
+    'Sucursal': ['Sucursal', 'sucursal', 'Tienda', 'Store'],
+    'Latitud': ['Latitud', 'lat', 'Latitude'],
+    'Longitud': ['Longitud', 'lon', 'Longitude', 'Lng']
+}
+
+COLUMNAS_REQUERIDAS = ['Días_para_Vencimiento', 'Stock_Inicial', 'Costo_Unitario_Neto', 'Producto']
+
+# =============================================================================
+# FUNCIONES DE CARGA DE ARCHIVOS
+# =============================================================================
 @st.cache_data
-def cargar_datos():
-    sucursales = pd.read_csv("1_SUCURSALES_MASTER.csv")
-    stock = pd.read_csv("5_STOCK_ACTUAL_GEO_POWERBI.csv")
-    productos = pd.read_csv("2_PRODUCTOS_MASTER.csv")
-    lotes = pd.read_csv("3_LOTES_PRODUCTOS.csv")
-    inventario = pd.read_csv("4_INVENTARIO_COMPLETO_LOTES.csv")
-    return sucursales, stock, productos, lotes, inventario
+def cargar_archivo(archivo):
+    """Carga un archivo CSV"""
+    try:
+        df = pd.read_csv(archivo)
+        df.columns = df.columns.str.strip()
+        return df
+    except Exception as e:
+        st.error(f"Error al cargar {archivo.name}: {str(e)}")
+        return None
 
-sucursales, stock, productos, lotes, inventario = cargar_datos()
+def mapear_columnas(df):
+    """Mapea columnas con nombres alternativos"""
+    for col_destino, col_posibles in COLUMNAS_ESPERADAS.items():
+        for col_posible in col_posibles:
+            if col_posible in df.columns:
+                df.rename(columns={col_posible: col_destino}, inplace=True)
+                break
+    return df
 
-# Sidebar para filtros
-st.sidebar.header("Filtros")
+# =============================================================================
+# FUNCIONES DE CLASIFICACIÓN
+# =============================================================================
+def clasificar_riesgo(dias):
+    """Clasifica el nivel de riesgo según días para vencimiento"""
+    if dias < 0:
+        return 'VENCIDO'
+    elif dias <= 3:
+        return 'CRITICO'
+    elif dias <= 7:
+        return 'URGENTE'
+    else:
+        return 'PREVENTIVO'
 
-# Filtro por estado de inventario
-estados_disponibles = stock['Estado_Inventario'].unique().tolist()
-estado_seleccionado = st.sidebar.multiselect(
-    "Estado del Inventario:",
-    options=estados_disponibles,
-    default=estados_disponibles
-)
+def aplicar_clasificacion(df):
+    """Aplica clasificación de riesgo al dataframe"""
+    df['Nivel_Riesgo'] = df['Días_para_Vencimiento'].apply(clasificar_riesgo)
+    return df
 
-# Filtro por sucursal
-sucursales_disponibles = stock['Sucursal'].unique().tolist()
-sucursal_seleccionada = st.sidebar.multiselect(
-    "Sucursales:",
-    options=sucursales_disponibles,
-    default=sucursales_disponibles
-)
+def calcular_valor_stock(df):
+    """Calcula el valor del stock"""
+    df['Valor_Stock_Costo'] = df['Stock_Inicial'] * df['Costo_Unitario_Neto']
+    return df
 
-# Filtrar datos
-stock_filtrado = stock[
-    (stock['Estado_Inventario'].isin(estado_seleccionado)) &
-    (stock['Sucursal'].isin(sucursal_seleccionada))
-]
-
-# Agrupar por sucursal para el mapa
-stock_por_sucursal = stock_filtrado.groupby(['Sucursal', 'Latitud', 'Longitud', 'ID_Ciudad']).agg({
-    'Stock_Teorico_Unidades': 'sum',
-    'Precio_Venta_CLP': 'mean'
-}).reset_index()
-
-# Crear mapa
-st.subheader("🗺️ Distribución Geográfica del Inventario")
-
-fig = px.scatter_mapbox(
-    stock_por_sucursal,
-    lat="Latitud",
-    lon="Longitud",
-    size="Stock_Teorico_Unidades",
-    color="Stock_Teorico_Unidades",
-    hover_name="Sucursal",
-    hover_data={
-        "Stock_Teorico_Unidades": ":,.0f",
-        "Precio_Venta_CLP": ":,.0f",
-        "Latitud": False,
-        "Longitud": False
-    },
-    color_continuous_scale=px.colors.sequential.Reds,
-    size_max=50,
-    zoom=9,
-    center={"lat": -33.45, "lon": -70.65},
-    mapbox_style="open-street-map"
-)
-
-fig.update_layout(
-    height=600,
-    margin={"r":0,"t":30,"l":0,"b":0},
-    coloraxis_colorbar_title="Stock Total"
-)
-
-st.plotly_chart(fig, use_container_width=True)
-
-# Mostrar métricas por sucursal
-st.subheader("📊 Resumen por Sucursal")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    total_stock = stock_filtrado['Stock_Teorico_Unidades'].sum()
-    st.metric("Total Unidades en Stock", f"{total_stock:,.0f}")
-
-with col2:
-    total_sucursales = stock_filtrado['Sucursal'].nunique()
-    st.metric("Sucursales Activas", total_sucursales)
-
-with col3:
-    valor_total = (stock_filtrado['Stock_Teorico_Unidades'] * stock_filtrado['Precio_Venta_CLP']).sum()
-    st.metric("Valor Total del Inventario", f"${valor_total:,.0f}")
-
-# Tabla detallada
-st.subheader("📋 Detalle por Sucursal")
-st.dataframe(
-    stock_por_sucursal[[
-        'Sucursal', 
-        'Stock_Teorico_Unidades', 
-        'Precio_Venta_CLP'
-    ]].sort_values('Stock_Teorico_Unidades', ascending=False),
-    use_container_width=True,
-    hide_index=True
-)
-
-# Alertas de inventario crítico
-st.subheader("⚠️ Alertas de Inventario")
-
-stock_critico = stock_filtrado[stock_filtrado['Estado_Inventario'].isin(['Vencido', 'Crítico (4 días)'])]
-
-if len(stock_critico) > 0:
-    alertas_por_sucursal = stock_critico.groupby('Sucursal').agg({
-        'Lote_ID': 'count',
-        'Stock_Teorico_Unidades': 'sum'
-    }).reset_index()
-    alertas_por_sucursal.columns = ['Sucursal', 'Lotes Críticos', 'Unidades Críticas']
+# =============================================================================
+# FUNCIONES DE MAPA
+# =============================================================================
+def crear_mapa_inventario(df_stock, df_sucursales=None):
+    """Crea un mapa interactivo con Plotly"""
     
-    st.dataframe(
-        alertas_por_sucursal.sort_values('Lotes Críticos', ascending=False),
-        use_container_width=True,
-        hide_index=True
+    # Agrupar por sucursal
+    if 'Sucursal' in df_stock.columns:
+        stock_por_sucursal = df_stock.groupby('Sucursal').agg({
+            'Stock_Inicial': 'sum',
+            'Valor_Stock_Costo': 'sum',
+            'Días_para_Vencimiento': 'mean'
+        }).reset_index()
+        
+        # Merge con coordenadas si hay dataframe de sucursales
+        if df_sucursales is not None and 'Latitud' in df_sucursales.columns and 'Longitud' in df_sucursales.columns:
+            stock_por_sucursal = stock_por_sucursal.merge(
+                df_sucursales[['Sucursal', 'Latitud', 'Longitud', 'Direccion_Aprox']],
+                on='Sucursal',
+                how='left'
+            )
+        else:
+            # Coordenadas hardcoded de Santiago si no hay archivo
+            coordenadas_santiago = {
+                'Maipú Centro': [-33.5105, -70.7558],
+                'Las Condes': [-33.4028, -70.5652],
+                'Providencia': [-33.4251, -70.595],
+                'Ñuñoa': [-33.454, -70.5885],
+                'Pudahuel': [-33.44, -70.753],
+                'Lo Valledor': [-33.475, -70.68],
+                'San Bernardo': [-33.59, -70.71],
+                'La Florida': [-33.52, -70.56]
+            }
+            
+            stock_por_sucursal['Latitud'] = stock_por_sucursal['Sucursal'].map(
+                lambda x: coordenadas_santiago.get(x, [-33.45])[0]
+            )
+            stock_por_sucursal['Longitud'] = stock_por_sucursal['Sucursal'].map(
+                lambda x: coordenadas_santiago.get(x, [-70.65])[1]
+            )
+            stock_por_sucursal['Direccion_Aprox'] = stock_por_sucursal['Sucursal']
+        
+        # Filtrar sucursales sin coordenadas
+        stock_por_sucursal = stock_por_sucursal.dropna(subset=['Latitud', 'Longitud'])
+        
+        # Crear mapa
+        fig = go.Figure()
+        
+        # Colores según nivel de riesgo promedio
+        def color_por_dias(dias):
+            if dias < 0:
+                return '#9c27b0'  # Violeta - Vencido
+            elif dias <= 3:
+                return '#d32f2f'  # Rojo - Crítico
+            elif dias <= 7:
+                return '#f57c00'  # Naranja - Urgente
+            else:
+                return '#fbc02d'  # Amarillo - Preventivo
+        
+        stock_por_sucursal['Color'] = stock_por_sucursal['Días_para_Vencimiento'].apply(color_por_dias)
+        
+        fig.add_trace(go.Scattermapbox(
+            lat=stock_por_sucursal['Latitud'],
+            lon=stock_por_sucursal['Longitud'],
+            mode='markers',
+            marker=dict(
+                size=stock_por_sucursal['Stock_Inicial'] / 100,
+                sizemode='area',
+                sizeref=2,
+                color=stock_por_sucursal['Color'],
+                opacity=0.8,
+                line=dict(width=2, color='white')
+            ),
+            text=stock_por_sucursal.apply(
+                lambda row: f"<b>{row['Sucursal']}</b><br>"
+                           f"📦 Stock: {int(row['Stock_Inicial']):,} unidades<br>"
+                           f"💰 Valor: {clp(row['Valor_Stock_Costo'])} CLP<br>"
+                           f"⏰ Días prom: {row['Días_para_Vencimiento']:.1f}<br>"
+                           f"📍 {row['Direccion_Aprox']}",
+                axis=1
+            ),
+            hoverinfo='text',
+            name='Sucursales'
+        ))
+        
+        # Configurar layout
+        fig.update_layout(
+            height=600,
+            margin=dict(l=0, r=0, t=30, b=0),
+            mapbox=dict(
+                style='open-street-map',
+                center=dict(lat=-33.45, lon=-70.65),
+                zoom=9
+            ),
+            showlegend=False,
+            title=dict(
+                text='🗺️ Distribución de Inventario por Sucursal',
+                x=0.5,
+                font=dict(size=18, color='#1a237e')
+            )
+        )
+        
+        return fig, stock_por_sucursal
+    
+    return None, None
+
+# =============================================================================
+# FUNCIONES DE VISUALIZACIÓN
+# =============================================================================
+def mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy):
+    """Muestra el resumen ejecutivo"""
+    st.markdown('<h1 class="main-header">Resúmen</h1>', unsafe_allow_html=True)
+    
+    total_productos = len(df_riesgo)
+    total_unidades = int(df_riesgo['Stock_Inicial'].sum())
+    
+    col1, col2, col3 = st.columns([1, 2.5, 1])
+    
+    with col1:
+        st.markdown("### Acciones Rápidas")
+        if st.button("🔄 Actualizar", use_container_width=True, key="btn_actualizar"):
+            st.rerun()
+        if st.button("📊 Ver Detalle Completo", use_container_width=True, key="btn_detalle"):
+            st.session_state['ver_detalle'] = True
+    
+    with col2:
+        st.markdown(f"""
+        <div class='info-card'>
+            <h2 style='color: #1565c0; margin: 0;'>Análisis al {fecha_hoy.strftime('%d/%m/%Y')}</h2>
+            <p style='font-size: 1.3rem; margin: 15px 0; font-weight: 600;'>
+                <span style='color: #9c27b0;'>{total_productos}</span> productos | 
+                <span style='color: #1976d2;'>{total_unidades:,}</span> unidades | 
+                <span style='color: #f57c00;'>{clp(total_riesgo)} CLP</span>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.button("📋 Ver Reporte Detallado", use_container_width=True, type="primary", key="btn_reporte")
+    
+    with col3:
+        st.markdown("### Estado")
+        st.success("✅ Activo")
+        hora_chile = datetime.now(pytz.timezone('America/Santiago'))
+        st.info(f"🕒 {hora_chile.strftime('%H:%M:%S')}")
+
+def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy):
+    """Muestra clasificación del inventario"""
+    st.markdown('<div class="section-title-box"><h2>Inventario</h2></div>', unsafe_allow_html=True)
+    st.markdown("### Clasificación")
+    
+    vencidos = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO'])
+    criticos = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO'])
+    urgentes = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE'])
+    preventivos = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'PREVENTIVO'])
+    
+    valor_vencidos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO']['Valor_Stock_Costo'].sum()
+    valor_criticos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO']['Valor_Stock_Costo'].sum()
+    valor_urgentes = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE']['Valor_Stock_Costo'].sum()
+    valor_preventivos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'PREVENTIVO']['Valor_Stock_Costo'].sum()
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown(f"""
+        <div class='classification-item vencido'>
+            <span class='indicator' style='background-color: #9c27b0;'></span>
+            <strong>Vencido:</strong> {vencidos} productos | {clp(valor_vencidos)} CLP
+        </div>
+        <div class='classification-item critico'>
+            <span class='indicator' style='background-color: #d32f2f;'></span>
+            <strong>Crítico:</strong> {criticos} productos | {clp(valor_criticos)} CLP
+        </div>
+        <div class='classification-item urgente'>
+            <span class='indicator' style='background-color: #f57c00;'></span>
+            <strong>Urgente:</strong> {urgentes} productos | {clp(valor_urgentes)} CLP
+        </div>
+        <div class='classification-item preventivo'>
+            <span class='indicator' style='background-color: #fbc02d;'></span>
+            <strong>Preventivo:</strong> {preventivos} productos | {clp(valor_preventivos)} CLP
+        </div>
+        """, unsafe_allow_html=True)
+
+# =============================================================================
+# FUNCIÓN PRINCIPAL
+# =============================================================================
+def main():
+    st.set_page_config(
+        page_title="Sistema de Gestión de Vencimientos",
+        page_icon="📦",
+        layout="wide"
     )
-else:
-    st.success("✅ No hay inventario crítico en las sucursales seleccionadas")
+    
+    cargar_css()
+    
+    st.title("📦 SISTEMA DE GESTIÓN DE VENCIMIENTOS")
+    st.markdown("---")
+    
+    # =============================================================================
+    # SIDEBAR - CARGA DE ARCHIVOS
+    # =============================================================================
+    with st.sidebar:
+        st.header("📁 Carga de Archivos")
+        st.markdown("---")
+        
+        st.markdown("**Archivos Requeridos:**")
+        
+        archivo_sucursales = st.file_uploader(
+            "1️⃣ Sucursales (1_SUCURSALES_MASTER.csv)",
+            type=['csv'],
+            help="Ubicaciones de tiendas con coordenadas GPS"
+        )
+        
+        archivo_productos = st.file_uploader(
+            "2️⃣ Productos Master (2_PRODUCTOS_MASTER.csv)",
+            type=['csv'],
+            help="Catálogo maestro de productos"
+        )
+        
+        archivo_lotes = st.file_uploader(
+            "3️⃣ Lotes (3_LOTES_PRODUCTOS.csv)",
+            type=['csv'],
+            help="Información de lotes y caducidad"
+        )
+        
+        archivo_inventario = st.file_uploader(
+            "4️⃣ Inventario Completo (4_INVENTARIO_COMPLETO_LOTES.csv)",
+            type=['csv'],
+            help="Inventario completo con lotes"
+        )
+        
+        archivo_stock = st.file_uploader(
+            "5️⃣ Stock Actual Geo (5_STOCK_ACTUAL_GEO_POWERBI.csv)",
+            type=['csv'],
+            help="Stock actual con ubicación geográfica"
+        )
+        
+        st.markdown("---")
+        
+        # Contador de archivos cargados
+        archivos_cargados = sum([
+            bool(archivo_sucursales),
+            bool(archivo_productos),
+            bool(archivo_lotes),
+            bool(archivo_inventario),
+            bool(archivo_stock)
+        ])
+        
+        st.progress(archivos_cargados / 5)
+        st.caption(f"{archivos_cargados}/5 archivos cargados")
+        
+        mostrar_mapa = st.checkbox("🗺️ Mostrar Mapa de Sucursales", value=True)
+        
+        todos_archivos = archivos_cargados >= 1  # Al menos 1 archivo para funcionar
+        
+        if todos_archivos:
+            boton_ejecutar = st.button("✅ Ejecutar Análisis", type="primary", use_container_width=True)
+        else:
+            st.warning(f"⚠️ Faltan {5 - archivos_cargados} archivos por cargar")
+            boton_ejecutar = False
+    
+    # =============================================================================
+    # SESSION STATE
+    # =============================================================================
+    if 'ejecutar' not in st.session_state:
+        st.session_state['ejecutar'] = False
+    if 'datos_procesados' not in st.session_state:
+        st.session_state['datos_procesados'] = None
+    if 'ver_detalle' not in st.session_state:
+        st.session_state['ver_detalle'] = False
+    if 'plan_aceptado' not in st.session_state:
+        st.session_state['plan_aceptado'] = False
+    
+    # =============================================================================
+    # EJECUCIÓN DEL ANÁLISIS
+    # =============================================================================
+    if boton_ejecutar or st.session_state['ejecutar']:
+        
+        if archivo_stock is None and archivo_inventario is None:
+            st.warning("⚠️ Por favor suba al menos el archivo de Stock o Inventario")
+            st.stop()
+        
+        try:
+            with st.spinner("🔄 Cargando y procesando datos..."):
+                
+                # Cargar archivo principal (stock o inventario)
+                if archivo_stock:
+                    df = cargar_archivo(archivo_stock)
+                else:
+                    df = cargar_archivo(archivo_inventario)
+                
+                if df is None:
+                    st.error("Error al cargar el archivo principal")
+                    st.stop()
+                
+                # Mapear columnas
+                df = mapear_columnas(df)
+                
+                # Parsear fecha
+                if 'Fecha_Movimiento' in df.columns:
+                    df['Fecha'] = pd.to_datetime(df['Fecha_Movimiento'], errors='coerce')
+                elif 'Fecha' in df.columns:
+                    df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+                else:
+                    df['Fecha'] = datetime.now()
+                
+                # Fecha de referencia
+                fecha_hoy = df['Fecha'].max() if df['Fecha'].notna().any() else datetime.now()
+                
+                # Calcular valor de stock si no existe
+                if 'Valor_Stock_Costo' not in df.columns and 'Stock_Inicial' in df.columns and 'Costo_Unitario_Neto' in df.columns:
+                    df = calcular_valor_stock(df)
+                elif 'Valor_Stock_Costo' not in df.columns and 'Stock_Teorico_Unidades' in df.columns:
+                    df['Stock_Inicial'] = df['Stock_Teorico_Unidades']
+                    if 'Precio_Venta_CLP' in df.columns:
+                        df['Costo_Unitario_Neto'] = df['Precio_Venta_CLP'] * 0.7  # Estimado 70% del precio
+                        df = calcular_valor_stock(df)
+                
+                # Aplicar clasificación
+                if 'Días_para_Vencimiento' in df.columns:
+                    df = aplicar_clasificacion(df)
+                    df_riesgo = df[df['Stock_Inicial'] > 0].copy()
+                else:
+                    df_riesgo = df[df['Stock_Inicial'] > 0].copy()
+                    df_riesgo['Nivel_Riesgo'] = 'PREVENTIVO'
+                
+                # Calcular total riesgo
+                if 'Valor_Stock_Costo' in df_riesgo.columns:
+                    total_riesgo = df_riesgo['Valor_Stock_Costo'].sum()
+                else:
+                    total_riesgo = 0
+                
+                # Cargar sucursales si existe
+                df_sucursales = None
+                if archivo_sucursales:
+                    df_sucursales = cargar_archivo(archivo_sucursales)
+                    if df_sucursales is not None:
+                        df_sucursales = mapear_columnas(df_sucursales)
+                
+                st.success(f"✅ Archivos cargados correctamente!")
+                st.info(f"📅 Análisis para: {fecha_hoy.strftime('%d/%m/%Y')} | Productos: {len(df_riesgo)}")
+                
+                # Verificar antigüedad de datos
+                dias_sin_actualizar = (datetime.now() - fecha_hoy).days
+                if dias_sin_actualizar > 0:
+                    st.warning(f"""
+                    ⚠️ **Datos con {dias_sin_actualizar} día(s) de antigüedad**
+                    
+                    Última actualización: {fecha_hoy.strftime('%d/%m/%Y')}
+                    
+                    Para un plan efectivo, se recomienda actualizar **diariamente**.
+                    """)
+            
+            # =============================================================================
+            # MOSTRAR RESULTADOS
+            # =============================================================================
+            
+            # Resumen ejecutivo
+            mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy)
+            st.markdown("---")
+            
+            # Inventario
+            mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy)
+            st.markdown("---")
+            
+            # MAPA DE SUCURSALES
+            if mostrar_mapa and archivo_stock:
+                st.markdown('<div class="section-title-box"><h2>🗺️ Mapa de Sucursales</h2></div>', unsafe_allow_html=True)
+                
+                fig, stock_por_sucursal = crear_mapa_inventario(df_riesgo, df_sucursales)
+                
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Resumen por sucursal
+                    st.markdown("### 📊 Resumen por Sucursal")
+                    if stock_por_sucursal is not None:
+                        st.dataframe(
+                            stock_por_sucursal[[
+                                'Sucursal', 'Stock_Inicial', 'Valor_Stock_Costo', 
+                                'Días_para_Vencimiento'
+                            ]].sort_values('Stock_Inicial', ascending=False),
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                
+                st.markdown("---")
+            
+            # Vista detalle
+            if st.session_state['ver_detalle']:
+                st.markdown("### 📋 Detalle Completo")
+                st.dataframe(df_riesgo, use_container_width=True)
+                
+                if st.button("⬅️ Volver al Resumen", type="primary"):
+                    st.session_state['ver_detalle'] = False
+                    st.rerun()
+            
+            st.session_state['ejecutar'] = True
+            st.session_state['datos_procesados'] = {
+                'fecha': fecha_hoy,
+                'total_riesgo': total_riesgo,
+                'total_recuperado': 0
+            }
+            
+        except Exception as e:
+            st.error(f"❌ Error en el análisis: {str(e)}")
+            st.exception(e)
+
+if __name__ == "__main__":
+    main()
