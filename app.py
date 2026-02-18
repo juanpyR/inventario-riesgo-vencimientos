@@ -829,6 +829,87 @@ def mostrar_visualizacion_nueva(df_riesgo):
         </div>
         """, unsafe_allow_html=True)
 
+
+def mostrar_top_productos(df_riesgo, fecha_hoy):
+    """Muestra TODOS los productos por nivel con tablas formateadas"""
+    st.header("📦 PRODUCTOS POR NIVEL DE RIESGO")
+    
+    df_filtrado = df_riesgo[df_riesgo['Días_para_Vencimiento'] >= 0].copy()
+    
+    # Calcular totales
+    totales = {}
+    for nivel in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']:
+        df_nivel = df_filtrado[df_filtrado['Nivel_Riesgo'] == nivel]
+        if len(df_nivel) > 0:
+            totales[nivel] = {
+                'productos': len(df_nivel),
+                'unidades': int(df_nivel['Stock_Inicial'].sum()),
+                'valor': df_nivel['Valor_Stock_Costo'].sum()
+            }
+    
+    # Colores y badges
+    config_niveles = {
+        'VENCIDO': {'color': '🟣', 'badge': 'badge-vencido', 'clase': 'tabla-vencido'},
+        'CRITICO': {'color': '🔴', 'badge': 'badge-critico', 'clase': 'tabla-critico'},
+        'URGENTE': {'color': '🟠', 'badge': 'badge-urgente', 'clase': 'tabla-urgente'},
+        'PREVENTIVO': {'color': '🟡', 'badge': 'badge-preventivo', 'clase': 'tabla-preventivo'}
+    }
+    
+    for nivel in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']:
+        df_nivel = df_filtrado[df_filtrado['Nivel_Riesgo'] == nivel].sort_values('Valor_Stock_Costo', ascending=False)
+        
+        if len(df_nivel) == 0:
+            continue
+        
+        config = config_niveles[nivel]
+        total_valor = totales[nivel]['valor']
+        total_unidades = totales[nivel]['unidades']
+        total_productos = totales[nivel]['productos']
+        
+        titulo = f"{config['color']} {nivel} ({total_productos} productos | {total_unidades:,} unidades | {clp(total_valor)} CLP)"
+        
+        with st.expander(titulo, expanded=False):
+            # Preparar datos con badges
+            tabla_datos = []
+            for _, row in df_nivel.iterrows():
+                dias = int(row['Días_para_Vencimiento'])
+                unidades = int(row['Stock_Inicial'])
+                valor = row['Valor_Stock_Costo']
+                fecha_venc = fecha_hoy + timedelta(days=dias)
+                
+                if nivel == 'VENCIDO':
+                    accion = '<span class="badge badge-vencido">DONAR HOY</span>'
+                elif nivel == 'CRITICO':
+                    accion = '<span class="badge badge-critico">40% dto</span>'
+                elif nivel == 'URGENTE':
+                    accion = '<span class="badge badge-urgente">25% dto</span>'
+                else:
+                    accion = '<span class="badge badge-preventivo">15% dto</span>'
+                
+                tabla_datos.append({
+                    '📦 Producto': str(row['Producto'])[:35] if pd.notna(row['Producto']) else 'Sin nombre',
+                    '⏰ Días': dias,
+                    '📦 Unidades': f"{unidades:,}",
+                    '💰 Valor Riesgo': clp(valor),
+                    '📅 Fecha Venc.': fecha_venc.strftime('%d/%m/%Y'),
+                    '⚡ Acción': accion
+                })
+            
+            df_tabla = pd.DataFrame(tabla_datos)
+            
+            # Mostrar tabla con HTML personalizado para colores
+            clase_css = config.get("clase", "") if config else ""
+            
+            # Fallback si no hay clase
+            if not clase_css:
+                clase_css = "dataframe"  # Clase por defecto
+            
+            tabla_html = df_tabla.to_html(index=False, escape=False)
+            
+            html_tabla = f'<div class="{clase_css}">{tabla_html}</div>'
+            
+            st.markdown(html_tabla, unsafe_allow_html=True)
+            
 # =============================================================================
 # MATRIZ DE RIESGO
 # =============================================================================
