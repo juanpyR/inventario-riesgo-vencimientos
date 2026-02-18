@@ -1275,10 +1275,12 @@ def mostrar_clasificacion(stats):
             """, unsafe_allow_html=True)
 
 def mostrar_productos_por_riesgo(df_riesgo, stats):
-    """Muestra los productos agrupados por nivel de riesgo en secciones expandibles"""
 
     st.markdown("---")
-    st.markdown('<div class="section-title-box"><h2>📦 PRODUCTOS POR NIVEL DE RIESGO</h2></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-title-box"><h2>📦 PRODUCTOS POR NIVEL DE RIESGO</h2></div>',
+        unsafe_allow_html=True
+    )
 
     if df_riesgo is None or len(df_riesgo) == 0:
         st.success("No hay productos en riesgo")
@@ -1290,37 +1292,46 @@ def mostrar_productos_por_riesgo(df_riesgo, stats):
         ('URGENTE', '🟠', '#f57c00', '4-7 días'),
         ('PREVENTIVO', '🟡', '#fbc02d', '8-10 días')
     ]
+
     clase_css = {
-            "VENCIDO": "expander-vencido",
-            "CRITICO": "expander-critico",
-            "URGENTE": "expander-urgente",
-            "PREVENTIVO": "expander-preventivo"
-        }
+        "VENCIDO": "expander-vencido",
+        "CRITICO": "expander-critico",
+        "URGENTE": "expander-urgente",
+        "PREVENTIVO": "expander-preventivo"
+    }
+
     for nivel, emoji, color, dias in niveles_config:
+
         df_nivel = df_riesgo[df_riesgo['Nivel_Riesgo'] == nivel].copy()
 
         if len(df_nivel) > 0:
-    
+
             n_productos = stats[nivel]['productos']
             n_unidades = stats[nivel]['unidades']
             valor = stats[nivel]['valor']
-    
-            st.markdown(f"<div class='{clase_css[nivel]}'>", unsafe_allow_html=True)
+
+            st.markdown(
+                f"<div class='{clase_css[nivel]}'>",
+                unsafe_allow_html=True
+            )
 
             with st.expander(
                 f"{emoji} {nivel} ({n_productos} productos | {clp(n_unidades)} unidades | {clp(valor)} CLP)"
             ):
-                # Ordenar por valor descendente
+
                 df_display = df_nivel.sort_values('Valor_Stock', ascending=False)
-                
-                # Seleccionar columnas relevantes
-                columnas = ['Producto', 'Sucursal', 'Stock_Teorico_Unidades', 'Dias_Para_Vencer', 'Valor_Stock']
-                
-                # Verificar que las columnas existen
+
+                columnas = [
+                    'Producto',
+                    'Sucursal',
+                    'Stock_Teorico_Unidades',
+                    'Dias_Para_Vencer',
+                    'Valor_Stock'
+                ]
+
                 columnas_existentes = [c for c in columnas if c in df_display.columns]
                 df_display = df_display[columnas_existentes].copy()
-                
-                # Renombrar columnas
+
                 rename_map = {
                     'Producto': 'Producto',
                     'Sucursal': 'Sucursal',
@@ -1328,13 +1339,14 @@ def mostrar_productos_por_riesgo(df_riesgo, stats):
                     'Dias_Para_Vencer': 'Días Vencer',
                     'Valor_Stock': 'Valor (CLP)'
                 }
-                df_display = df_display.rename(columns={k: v for k, v in rename_map.items() if k in df_display.columns})
-                
-                # Formatear valor
+
+                df_display = df_display.rename(
+                    columns={k: v for k, v in rename_map.items() if k in df_display.columns}
+                )
+
                 if 'Valor (CLP)' in df_display.columns:
                     df_display['Valor (CLP)'] = df_display['Valor (CLP)'].apply(lambda x: clp(x))
-                
-                # Mostrar tabla
+
                 clase_tabla = f"tabla-{nivel.lower()}"
 
                 tabla_html = f"""
@@ -1342,8 +1354,10 @@ def mostrar_productos_por_riesgo(df_riesgo, stats):
                     {df_display.to_html(index=False, escape=False)}
                 </div>
                 """
-                st.markdown("</div>", unsafe_allow_html=True)
+
                 st.markdown(tabla_html, unsafe_allow_html=True)
+
+            st.markdown("</div>", unsafe_allow_html=True)
 
         else:
             st.markdown(f"""
@@ -1351,6 +1365,7 @@ def mostrar_productos_por_riesgo(df_riesgo, stats):
                 <span style='color: #999;'>{emoji} {nivel} - Sin productos en esta categoría</span>
             </div>
             """, unsafe_allow_html=True)
+
 
 # =============================================================================
 # FUNCIÓN PRINCIPAL
