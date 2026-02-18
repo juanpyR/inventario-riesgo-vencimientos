@@ -807,7 +807,7 @@ def main():
     configurar_pagina()
     cargar_css()
     
-    st.title("📦 Sistema de Gestión de Inventario BI")
+    st.title("📦 Sistema de Gestión de Inventario")
     st.markdown("---")
     
     # =====================================================================
