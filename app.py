@@ -1177,64 +1177,51 @@ def mostrar_productos_por_riesgo(df_riesgo, stats):
 # =============================================================================
 
 def main():
-    """Función principal del Sistema de Gestión de Inventario"""
-    
-    # =====================================================================
-    # 1. CONFIGURACIÓN INICIAL
-    # =====================================================================
     configurar_pagina()
     cargar_css()
-    
-    # Inicializar session state para persistencia entre interacciones
-    if 'ejecutar' not in st.session_state:
-        st.session_state.ejecutar = False
-    if 'datos_procesados' not in st.session_state:
-        st.session_state.datos_procesados = None
-    if 'metricas_cache' not in st.session_state:
-        st.session_state.metricas_cache = {}
 
-    # Header principal
     st.title("📦 Sistema de Gestión de Inventario")
     st.markdown("---")
 
     # =====================================================================
-    # 2. SIDEBAR - CARGA Y CONFIGURACIÓN
+    # SIDEBAR - Carga de archivos
     # =====================================================================
-    with st.sidebar:
-        st.header("📁 Carga de Datos")
-        st.markdown("Sube los 5 archivos CSV requeridos:")
-        
-        # File uploader con múltiples archivos
-        archivos_subidos = st.file_uploader(
-            "Seleccionar archivos CSV",
-            type=['csv'],
-            accept_multiple_files=True,
-            help="• 1_SUCURSALES_MASTER.csv\n• 2_PRODUCTOS_MASTER.csv\n• 3_LOTES_PRODUCTOS.csv\n• 4_INVENTARIO_COMPLETO_LOTES.csv\n• 5_STOCK_ACTUAL_GEO_POWERBI.csv"
-        )
-        
-        # Barra de progreso de carga
-        if archivos_subidos:
-            progreso = min(len(archivos_subidos) / 5, 1.0)
-            st.progress(progreso)
-            st.caption(f"✅ {len(archivos_subidos)}/5 archivos cargados")
-        
-        st.markdown("---")
-        
-        # Botón de ejecución
-        boton_ejecutar = st.button("🚀 Ejecutar Análisis", type="primary", use_container_width=True)
-        
-        # Validaciones en sidebar
-        if not archivos_subidos:
-            st.info("👆 Sube los 5 archivos para comenzar")
-            st.stop()
-        
-        if len(archivos_subidos) < 5:
-            st.warning(f"⚠️ Faltan {5 - len(archivos_subidos)} archivo(s)")
-            st.stop()
 
-    # =====================================================================
-    # 3. VALIDACIÓN Y MAPEO DE ARCHIVOS
-    # =====================================================================
+    st.sidebar.header("📁 Carga de Datos")
+    st.sidebar.markdown("Sube los 5 archivos CSV:")
+
+    archivos_subidos = st.sidebar.file_uploader(
+        "Seleccionar archivos CSV",
+        type=['csv'],
+        accept_multiple_files=True,
+        help="Sube: Sucursales, Productos, Lotes, Inventario, Stock Geo"
+    )
+
+    boton_ejecutar = st.sidebar.button("🚀 Ejecutar Análisis", type="primary")
+
+    # Verificar archivos
+    if not archivos_subidos:
+        st.markdown("""
+        <div style='text-align: center; padding: 50px;'>
+            <h2>📦 Sistema de Gestión de Inventario</h2>
+            <p style='color: #666; font-size: 1.2rem;'>
+                Por favor sube los 5 archivos CSV en el panel lateral.
+            </p>
+            <div style='background: #e3f2fd; padding: 20px; border-radius: 10px; margin-top: 30px;'>
+                <h4>📋 Archivos requeridos:</h4>
+                <ul style='text-align: left; display: inline-block;'>
+                    <li>Sube los archivos para el análisis</li>
+                </ul>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        return
+
+    if len(archivos_subidos) < 5:
+        st.sidebar.error(f"⚠️ Falta subir archivos. Has subido {len(archivos_subidos)} de 5.")
+        return
+
+    # Procesar archivos
     archivos_dict = {}
     for archivo in archivos_subidos:
         nombre = archivo.name.lower()
@@ -1251,165 +1238,111 @@ def main():
 
     archivos_requeridos = ['sucursales', 'productos', 'lotes', 'inventario', 'stock_geo']
     if not all(k in archivos_dict for k in archivos_requeridos):
-        st.sidebar.error("❌ No se reconocieron todos los archivos. Verifica los nombres.")
-        st.stop()
-
-    if not boton_ejecutar and not st.session_state.ejecutar:
-        st.info("💡 Haz clic en '🚀 Ejecutar Análisis' para procesar los datos")
+        st.sidebar.error("⚠️ No se reconocieron todos los archivos.")
         return
 
-    # =====================================================================
-    # 4. PROCESAMIENTO ETL (con caché y manejo de errores)
-    # =====================================================================
-    try:
-        with st.spinner("🔄 Procesando datos..."):
-            # Cargar datos con función cacheada para rendimiento
-            datos = cargar_datos_etl(archivos_dict)
-            
-            if datos is None:
-                raise ValueError("Error en la carga de datos ETL")
-            
-            df_stock = datos['stock_geo']
-            
-            # Preparar datos para análisis
-            df_riesgo, fecha_actual = preparar_datos_analisis(df_stock)
-            
-            # Calcular estadísticas y métricas
-            stats = calcular_estadisticas(df_riesgo)
-            proporcion_mes = calcular_proporcion_mes(df_stock)
-            
-            # Guardar en session state para evitar recálculos
-            st.session_state.datos_procesados = {
-                'df_riesgo': df_riesgo,
-                'df_stock': df_stock,
-                'stats': stats,
-                'proporcion_mes': proporcion_mes,
-                'fecha_actual': fecha_actual
-            }
-            st.session_state.ejecutar = True
-            
-        st.success("✅ Análisis completado exitosamente")
-        
-    except FileNotFoundError as e:
-        st.error(f"❌ Archivo no encontrado: {e}")
-        return
-    except pd.errors.EmptyDataError:
-        st.error("❌ Uno de los archivos CSV está vacío o corrupto")
-        return
-    except KeyError as e:
-        st.error(f"❌ Columna requerida no encontrada: {e}")
-        with st.expander("🔍 Ver columnas disponibles"):
-            st.write(df_stock.columns.tolist() if 'df_stock' in locals() else "Datos no cargados")
-        return
-    except Exception as e:
-        st.error(f"❌ Error inesperado: {type(e).__name__}: {str(e)}")
-        with st.expander("🔍 Detalles técnicos"):
-            st.exception(e)
+    if not boton_ejecutar:
+        st.sidebar.info("👆 Sube los archivos y haz clic en 'Ejecutar Análisis'")
         return
 
     # =====================================================================
-    # 5. VISUALIZACIÓN DE RESULTADOS
+    # ETL y Análisis
     # =====================================================================
-    
-    # 5.1 Resumen Ejecutivo
+
+    with st.spinner("🔄 Ejecutando análisis..."):
+        datos = cargar_datos_etl(archivos_dict)
+
+    if datos is None:
+        st.error("❌ Error en el proceso ETL.")
+        return
+
+    df_stock = datos['stock_geo']
+
+    st.success("✅ Análisis completado")
+
+    # Preparar datos
+    df_riesgo, fecha_actual = preparar_datos_analisis(df_stock)
+    stats = calcular_estadisticas(df_riesgo)
+    proporcion_mes = calcular_proporcion_mes(df_stock)
+
+    # =====================================================================
+    # MOSTRAR RESULTADOS
+    # =====================================================================
+
     mostrar_resumen_ejecutivo(stats, proporcion_mes, fecha_actual)
     st.markdown("---")
-    
-    # 5.2 Clasificación por Nivel de Riesgo
+
     mostrar_clasificacion(stats)
     st.markdown("---")
-    
-    # 5.3 Gráficos de Distribución
+
+    # Gráficos de distribución (ahora con 3 gráficos)
     st.markdown('<div class="section-title-box"><h2>📈 Distribución del Inventario en Riesgo</h2></div>', unsafe_allow_html=True)
     fig_dist = crear_graficos_distribucion(stats)
     if fig_dist:
-        st.plotly_chart(fig_dist, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_dist, use_container_width=True)
+
     st.markdown("---")
-    
-    # 5.4 Matriz de Riesgo Visual
+
+    # Matriz de riesgo
     st.markdown('<div class="section-title-box"><h2>🎯 Matriz de Riesgo</h2></div>', unsafe_allow_html=True)
     fig_matriz = crear_matriz_riesgo(df_riesgo, fecha_actual)
     if fig_matriz:
-        st.pyplot(fig_matriz, bbox_inches='tight')
-        # Botón de descarga
-        buf = io.BytesIO()
-        fig_matriz.savefig(buf, format='png', dpi=150, bbox_inches='tight')
-        buf.seek(0)
-        st.download_button(
-            label="📥 Descargar Matriz (PNG)",
-            data=buf,
-            file_name=f"matriz_riesgo_{fecha_actual.strftime('%Y%m%d')}.png",
-            mime="image/png"
-        )
+        st.pyplot(fig_matriz)
+
     st.markdown("---")
-    
-    # 5.5 Mapas Geográficos con Tabs
+
+    # Mapa con pestañas
     st.markdown('<div class="section-title-box"><h2>🗺️ Mapa Geográfico</h2></div>', unsafe_allow_html=True)
-    
+
+    # Crear pestañas para el mapa
     tab_stock, tab_riesgo = st.tabs(["📦 Stock Total", "⚠️ Inventario en Riesgo"])
-    
+
     with tab_stock:
         st.markdown("### Stock Total por Sucursal")
-        st.markdown("*Visualización del inventario completo en todas las ubicaciones*")
+        st.markdown("*Muestra el stock total de todas las sucursales*")
         fig_mapa = crear_mapa_stock(df_stock)
         if fig_mapa:
-            st.plotly_chart(fig_mapa, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': False})
+            st.plotly_chart(fig_mapa, use_container_width=True,config={'scrollZoom': True})
         else:
-            st.warning("⚠️ No hay datos geográficos disponibles para el mapa de stock.")
-    
+            st.warning("No hay datos geográficos disponibles para mostrar el mapa.")
+
     with tab_riesgo:
         st.markdown("### Inventario en Riesgo por Sucursal")
-        st.markdown("*Solo productos clasificados: **Vencido** (0 días), **Crítico** (1-3 días), **Urgente** (4-7 días), **Preventivo** (8-10 días)*")
-        
-        # Leyenda interactiva
+        st.markdown("*Muestra solo el inventario clasificado como: **Vencido** (hoy), **Crítico** (1-3 días), **Urgente** (4-7 días) y **Preventivo** (8-10 días)*")
+
+        # Mostrar leyenda de colores
         st.markdown("""
-        <div style='display: flex; gap: 15px; margin: 15px 0; flex-wrap: wrap; justify-content: center;'>
-            <span style='display: flex; align-items: center; padding: 5px 12px; background: #f3e5f5; border-radius: 20px; font-size: 0.85rem;'>
-                <span style='width: 12px; height: 12px; background: #9c27b0; border-radius: 50%; margin-right: 6px;'></span>
-                Vencido (Hoy)
-            </span>
-            <span style='display: flex; align-items: center; padding: 5px 12px; background: #ffebee; border-radius: 20px; font-size: 0.85rem;'>
-                <span style='width: 12px; height: 12px; background: #d32f2f; border-radius: 50%; margin-right: 6px;'></span>
-                Crítico (1-3 días)
-            </span>
-            <span style='display: flex; align-items: center; padding: 5px 12px; background: #fff3e0; border-radius: 20px; font-size: 0.85rem;'>
-                <span style='width: 12px; height: 12px; background: #f57c00; border-radius: 50%; margin-right: 6px;'></span>
-                Urgente (4-7 días)
-            </span>
-            <span style='display: flex; align-items: center; padding: 5px 12px; background: #fffde7; border-radius: 20px; font-size: 0.85rem;'>
-                <span style='width: 12px; height: 12px; background: #fbc02d; border-radius: 50%; margin-right: 6px;'></span>
-                Preventivo (8-10 días)
-            </span>
+        <div style='display: flex; gap: 20px; margin: 10px 0; flex-wrap: wrap;'>
+            <span style='display: flex; align-items: center;'><span style='width: 15px; height: 15px; background: #9c27b0; border-radius: 50%; margin-right: 5px;'></span> Vencido (Día 0 - Hoy)</span>
+            <span style='display: flex; align-items: center;'><span style='width: 15px; height: 15px; background: #d32f2f; border-radius: 50%; margin-right: 5px;'></span> Crítico (1-3 días)</span>
+            <span style='display: flex; align-items: center;'><span style='width: 15px; height: 15px; background: #f57c00; border-radius: 50%; margin-right: 5px;'></span> Urgente (4-7 días)</span>
+            <span style='display: flex; align-items: center;'><span style='width: 15px; height: 15px; background: #fbc02d; border-radius: 50%; margin-right: 5px;'></span> Preventivo (8-10 días)</span>
         </div>
         """, unsafe_allow_html=True)
-        
+
         fig_mapa_riesgo = crear_mapa_inventario_riesgo(df_riesgo)
         if fig_mapa_riesgo:
-            st.plotly_chart(fig_mapa_riesgo, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': False})
+            st.plotly_chart(fig_mapa_riesgo, use_container_width=True, config={'scrollZoom': True})
         else:
-            st.warning("⚠️ No hay datos de inventario en riesgo con coordenadas válidas.")
-    
+            st.warning("No hay datos de inventario en riesgo con coordenadas geográficas.")
+
     st.markdown("---")
-    
-    # 5.6 Productos por Nivel de Riesgo (Expanders)
+    # Productos por nivel de riesgo (accordions)
     mostrar_productos_por_riesgo(df_riesgo, stats)
     
-    # 5.7 Análisis de Sensibilidad
-    st.markdown("---")
+    # Análisis de sensibilidad (6 escenarios)
     mostrar_analisis_sensibilidad(stats)
-    
-    # 5.8 Plan de Acción 48H
-    st.markdown("---")
+
+    # Plan 48h
     mostrar_plan_48h(stats, df_riesgo)
+
 
     st.markdown("---")
     st.markdown("""
-    <div style='text-align: center; color: #666; padding: 20px; font-size: 0.9rem;'>
-        <p>📊 <strong>Sistema de Gestión de Inventario</strong> • v2.0</p>
-        <p style='margin: 5px 0;'>Desarrollado con Streamlit • Datos actualizados: {fecha}</p>
+    <div style='text-align: center; color: #666; padding: 20px;'>
+        <p>📊 <strong>Sistema de Gestión de Inventario</strong></p>
     </div>
-    """.format(fecha=fecha_actual.strftime('%d/%m/%Y %H:%M') if fecha_actual else 'N/A'), 
-    unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
