@@ -2,118 +2,99 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.set_page_config(page_title="Control de Inventario Pro", layout="wide")
+st.set_page_config(page_title="Inventario Geo-Estratégico", layout="wide")
 
-st.title("📊 Dashboard de Inventario Geo-Inteligente")
-st.markdown("Sube tus 5 archivos para consolidar y visualizar la red de distribución.")
+# Estilo CSS para que se vea más limpio
+st.markdown("""
+    <style>
+    .main { background-color: #f5f7f9; }
+    stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    </style>
+    """, unsafe_allow_html=True)
 
-# 1. Carga múltiple de archivos
-uploaded_files = st.sidebar.file_uploader("Carga tus archivos CSV aquí", type="csv", accept_multiple_files=True)
+st.title("📊 Control de Distribución")
 
-data = {"sucursales": None, "inventario": None, "productos": None, "lotes": None}
+uploaded_files = st.sidebar.file_uploader("Carga tus 5 archivos", type="csv", accept_multiple_files=True)
+
+data = {"sucursales": None, "inventario": None, "productos": None}
 
 if uploaded_files:
     for file in uploaded_files:
         df_temp = pd.read_csv(file)
-        # Limpieza de columnas: eliminar espacios en blanco y convertir a nombres estándar
         df_temp.columns = df_temp.columns.str.strip()
         cols = df_temp.columns
         
-        # Identificación robusta
-        if "Latitud" in cols and "ID_Ciudad" in cols and "Tipo_Movimiento" not in cols and "Stock_Teorico_Unidades" not in cols:
+        if "Latitud" in cols and "ID_Ciudad" in cols and "Stock_Teorico_Unidades" not in cols:
             data["sucursales"] = df_temp
-            st.sidebar.success(f"✅ Sucursales: {file.name}")
         elif "Tipo_Movimiento" in cols:
             data["inventario"] = df_temp
-            st.sidebar.success(f"✅ Movimientos: {file.name}")
-        elif "Categoria" in cols and "Producto_ID" in cols and "Lote_ID" not in cols:
+        elif "Categoria" in cols and "Producto_ID" in cols:
             data["productos"] = df_temp
-            st.sidebar.success(f"✅ Productos: {file.name}")
-        elif "Fecha_Creacion_Lote" in cols:
-            data["lotes"] = df_temp
-            st.sidebar.success(f"✅ Lotes: {file.name}")
 
-    # Verificar requisitos mínimos para el análisis
-    if data["inventario"] is not None and data["sucursales"] is not None and data["productos"] is not None:
-        
-        # --- PROCESO DE CONSOLIDACIÓN ---
-        # 1. Unir movimientos con sucursales
+    if data["inventario"] is not None and data["sucursales"] is not None:
+        # Consolidación
         df_central = data["inventario"].merge(data["sucursales"], on='Sucursal', how='left')
-        
-        # 2. Unir con productos
-        df_central = df_central.merge(
-            data["productos"][['Producto_ID', 'Categoria', 'Categoria_Rotacion']], 
-            on='Producto_ID', 
-            how='left'
-        )
-        
-        # --- CÁLCULO DE STOCK ACTUAL Y VALORIZACIÓN ---
-        # Filtramos para obtener el último estado de cada lote en cada sucursal
+        if data["productos"] is not None:
+            df_central = df_central.merge(data["productos"][['Producto_ID', 'Categoria']], on='Producto_ID', how='left')
+
+        # Procesamiento de Stock Actual
         df_actual = df_central.sort_values('Fecha_Movimiento').groupby(['Lote_ID', 'Sucursal']).tail(1).copy()
-        df_actual['Valor_Inventario_CLP'] = df_actual['Stock_Teorico_Unidades'] * df_actual['Precio_Venta_CLP']
+        df_actual['Valor_Inventario'] = df_actual['Stock_Teorico_Unidades'] * df_actual['Precio_Venta_CLP']
 
-        # --- PANEL DE CONTROL ---
-        st.sidebar.markdown("---")
-        st.sidebar.header("🕹️ Controles del Mapa")
+        # Filtros Sidebar estilo Power BI
+        st.sidebar.header("Filtros de Informe")
+        color_theme = st.sidebar.selectbox("Tema del Mapa", ["Claro Minimalista", "Oscuro Elegante"])
+        map_style = "carto-positron" if color_theme == "Claro Minimalista" else "carto-darkmatter"
         
-        view_option = st.sidebar.radio(
-            "Selecciona la Métrica del Mapa:",
-            ["Stock (Unidades)", "Valorización ($)", "Días para Vencer (Promedio)"]
-        )
-        
-        cat_filter = st.sidebar.multiselect(
-            "Filtrar por Categoría:",
-            options=df_actual['Categoria'].unique(),
-            default=df_actual['Categoria'].unique()
-        )
-        
-        # Aplicar filtros
-        mask = df_actual['Categoria'].isin(cat_filter)
-        df_filtered = df_actual[mask]
+        view_mode = st.sidebar.radio("Métrica Principal", ["Stock Unidades", "Valorización ($)", "Días Vencimiento"])
 
-        # Configuración dinámica del mapa
-        map_map = {
-            "Stock (Unidades)": {"col": "Stock_Teorico_Unidades", "color": "Blues", "label": "Unidades"},
-            "Valorización ($)": {"col": "Valor_Inventario_CLP", "color": "Greens", "label": "Valor CLP"},
-            "Días para Vencer (Promedio)": {"col": "Dias_Para_Vencer", "color": "Reds_r", "label": "Días Restantes"}
+        # Configuración de escala de colores
+        config = {
+            "Stock Unidades": ("Stock_Teorico_Unidades", px.colors.sequential.Blues, "sum"),
+            "Valorización ($)": ("Valor_Inventario", px.colors.sequential.Greens, "sum"),
+            "Días Vencimiento": ("Dias_Para_Vencer", px.colors.diverging.RdYlGn, "mean")
         }
         
-        config = map_map[view_option]
+        target_col, colors, mode = config[view_mode]
         
-        # Agrupar para el mapa
-        df_mapa = df_filtered.groupby(['Sucursal', 'Latitud', 'Longitud']).agg({
-            config['col']: 'sum' if view_option != "Días para Vencer (Promedio)" else 'mean'
-        }).reset_index()
+        # Agrupación por Sucursal
+        df_mapa = df_actual.groupby(['Sucursal', 'Latitud', 'Longitud'])[target_col].agg(mode).reset_index()
 
-        # --- MAPA INTERACTIVO ---
-        st.subheader(f"Mapa de {view_option} por Sucursal")
+        # --- MAPA ESTILO POWER BI ---
+        st.subheader(f"Análisis Geográfico: {view_mode}")
         
         fig = px.scatter_mapbox(
             df_mapa,
             lat="Latitud",
             lon="Longitud",
-            size=config['col'],
-            color=config['col'],
-            color_continuous_scale=config['color'],
-            size_max=40,
+            size=target_col,
+            color=target_col,
+            color_continuous_scale=colors,
+            size_max=35, # Burbujas más grandes y visibles
             zoom=10,
             hover_name="Sucursal",
-            hover_data={config['col']: True, "Latitud": False, "Longitud": False},
-            mapbox_style="carto-positron"
+            hover_data={target_col: True, "Latitud": False, "Longitud": False},
+            mapbox_style=map_style
         )
-        
+
         fig.update_layout(
             margin={"r":0,"t":0,"l":0,"b":0},
-            mapbox=dict(center=dict(lat=df_mapa['Latitud'].mean(), lon=df_mapa['Longitud'].mean()))
+            coloraxis_showscale=True,
+            mapbox=dict(
+                center=dict(lat=df_mapa['Latitud'].mean(), lon=df_mapa['Longitud'].mean()),
+            )
         )
-        
+
         st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True})
 
-        # --- MÉTRICAS ---
+        # Métricas destacadas
         c1, c2, c3 = st.columns(3)
-        c1.metric("Stock Total", f"{int(df_filtered['Stock_Teorico_Unidades'].sum()):,}")
-        c2.metric("Valor Total", f"${int(df_filtered['Valor_Inventario_CLP'].sum()):,}")
-        c3.metric("Promedio Días Venc.", f"{int(df_filtered['Dias_Para_Vencer'].mean())} días")
+        with c1:
+            st.metric("Total Unidades", f"{int(df_actual['Stock_Teorico_Unidades'].sum()):,}")
+        with c2:
+            st.metric("Inversión Total", f"${int(df_actual['Valor_Inventario'].sum()):,}")
+        with c3:
+            st.metric("Promedio Días a Vencer", f"{int(df_actual['Dias_Para_Vencer'].mean())} d")
 
     else:
-        st.warning("⚠️ Faltan archivos. Asegúrate de subir: SUCURSALES, PRODUCTOS e INVENTARIO.")
+        st.info("Sube los archivos para generar la vista de Power BI.")
