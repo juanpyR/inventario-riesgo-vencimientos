@@ -714,8 +714,7 @@ def crear_mapa_inventario_riesgo(df_riesgo):
         mapbox=dict(
             style="open-street-map",
             center={"lat": centro_lat, "lon": centro_lon},
-            zoom=9,
-            scrollZoom=True
+            zoom=9
         ),
         height=600,
         margin={"r": 0, "t": 50, "l": 0, "b": 0},
