@@ -2,74 +2,92 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.set_page_config(page_title="Consolidador de Inventario", layout="wide")
+st.set_page_config(page_title="Consolidador Inteligente", layout="wide")
 
-st.title("📊 Consolidación de Inventario y Análisis")
+st.title("🔄 Consolidador Automático de Inventario")
+st.markdown("""
+Sube los 5 archivos en cualquier orden. El sistema reconocerá automáticamente cuál es cuál 
+basándose en sus columnas y generará el archivo central.
+""")
 
-# 1. Carga de Archivos
-st.sidebar.header("Carga de Datos")
-f_sucursales = st.sidebar.file_uploader("1_SUCURSALES_MASTER.csv", type="csv")
-f_productos = st.sidebar.file_uploader("2_PRODUCTOS_MASTER.csv", type="csv")
-f_lotes = st.sidebar.file_uploader("3_LOTES_PRODUCTOS.csv", type="csv")
-f_inventario = st.sidebar.file_uploader("4_INVENTARIO_COMPLETO_LOTES.csv", type="csv")
+# 1. Carga múltiple de archivos
+uploaded_files = st.sidebar.file_uploader("Sube tus 5 archivos CSV", type="csv", accept_multiple_files=True)
 
-if f_sucursales and f_productos and f_lotes and f_inventario:
-    # Leer DataFrames
-    df_suc = pd.read_csv(f_sucursales)
-    df_prod = pd.read_csv(f_productos)
-    df_lotes = pd.read_csv(f_lotes)
-    df_inv = pd.read_csv(f_inventario)
+# Diccionario para almacenar los DataFrames identificados
+data = {
+    "sucursales": None,
+    "productos": None,
+    "lotes": None,
+    "inventario": None,
+    "stock_geo": None
+}
 
-    # 2. Proceso de Consolidación (Creación del Archivo Central)
-    # Unimos el inventario con el maestro de productos para obtener la Categoría
-    df_central = df_inv.merge(
-        df_prod[['Producto_ID', 'Categoria', 'Categoria_Rotacion']], 
-        on='Producto_ID', 
-        how='left', 
-        suffixes=('', '_master')
-    )
-    
-    # Unimos con el maestro de sucursales para obtener coordenadas y IDs
-    df_central = df_central.merge(
-        df_suc[['Sucursal', 'ID_Ciudad', 'Latitud', 'Longitud', 'Direccion_Aprox']], 
-        on='Sucursal', 
-        how='left'
-    )
+if uploaded_files:
+    for file in uploaded_files:
+        df_temp = pd.read_csv(file)
+        cols = set(df_temp.columns)
+        
+        # Lógica de identificación por columnas clave
+        if "Latitud" in cols and "ID_Ciudad" in cols and "Direccion_Aprox" in cols and "Sucursal" in cols and "Stock_Teorico_Unidades" not in cols:
+            data["sucursales"] = df_temp
+            st.sidebar.success(f"✅ Sucursales: {file.name}")
+            
+        elif "Dias_Caducidad_Base" in cols and "Producto_ID" in cols and "Lote_ID" not in cols:
+            data["productos"] = df_temp
+            st.sidebar.success(f"✅ Productos: {file.name}")
+            
+        elif "Fecha_Creacion_Lote" in cols:
+            data["lotes"] = df_temp
+            st.sidebar.success(f"✅ Lotes: {file.name}")
+            
+        elif "Tipo_Movimiento" in cols:
+            data["inventario"] = df_temp
+            st.sidebar.success(f"✅ Inventario: {file.name}")
+            
+        elif "Stock_Teorico_Unidades" in cols and "Latitud" in cols:
+            data["stock_geo"] = df_temp
+            st.sidebar.success(f"✅ Stock GEO: {file.name}")
 
-    st.success("✅ Archivo Central Consolidado con éxito.")
+    # Verificar si tenemos los archivos necesarios para consolidar
+    # (Usaremos Inventario, Productos y Sucursales para el Central)
+    if data["inventario"] is not None and data["productos"] is not None and data["sucursales"] is not None:
+        
+        # --- PROCESO DE CONSOLIDACIÓN ---
+        df_inv = data["inventario"]
+        df_prod = data["productos"]
+        df_suc = data["sucursales"]
+        
+        # 1. Unir con Productos para traer Categoría y Rotación
+        # Eliminamos columnas duplicadas antes de unir si existen
+        df_central = df_inv.merge(
+            df_prod[['Producto_ID', 'Categoria', 'Categoria_Rotacion']], 
+            on='Producto_ID', 
+            how='left'
+        )
+        
+        # 2. Unir con Sucursales para traer Geolocalización
+        df_central = df_central.merge(
+            df_suc[['Sucursal', 'ID_Ciudad', 'Latitud', 'Longitud', 'Direccion_Aprox']], 
+            on='Sucursal', 
+            how='left'
+        )
 
-    # 3. Visualización y Métricas
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total Movimientos", len(df_central))
-    with col2:
-        st.metric("Productos Únicos", df_central['Producto_ID'].nunique())
-    with col3:
-        st.metric("Sucursales", df_central['Sucursal'].nunique())
-    with col4:
-        stock_total = df_central.groupby(['Lote_ID', 'Sucursal'])['Stock_Teorico_Unidades'].last().sum()
-        st.metric("Stock Total Teórico", int(stock_total))
+        st.info("### 📈 Vista Previa del Archivo Central Consolidado")
+        st.dataframe(df_central.head(10), use_container_width=True)
 
-    # 4. Análisis Gráfico
-    st.subheader("Análisis de Stock por Categoría")
-    # Calculamos el stock actual por categoría (tomando el último registro de stock teórico por lote/sucursal)
-    df_stock_actual = df_central.sort_values('Fecha_Movimiento').groupby(['Lote_ID', 'Sucursal']).tail(1)
-    fig_cat = px.bar(df_stock_actual.groupby('Categoria')['Stock_Teorico_Unidades'].sum().reset_index(), 
-                     x='Categoria', y='Stock_Teorico_Unidades', color='Categoria',
-                     title="Distribución de Unidades por Categoría")
-    st.plotly_chart(fig_cat, use_container_width=True)
+        # Gráfico rápido de Salud de Inventario
+        if "Estado_Inventario" in df_central.columns:
+            st.subheader("Estado de Inventario Consolidado")
+            fig = px.pie(df_central, names='Estado_Inventario', title="Distribución de Estados (Normal vs Vencido)")
+            st.plotly_chart(fig)
 
-    # 5. Tabla de Datos
-    st.subheader("Vista Previa del Archivo Central")
-    st.dataframe(df_central.head(100), use_container_width=True)
-
-    # 6. Botón de Descarga
-    csv = df_central.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 Descargar Archivo Central Consolidado (CSV)",
-        data=csv,
-        file_name='CENTRAL_INVENTARIO_CONSOLIDADO.csv',
-        mime='text/csv',
-    )
-else:
-    st.info("Por favor, sube los 4 archivos maestros y transaccionales en la barra lateral para comenzar.")
+        # Botón de descarga
+        csv = df_central.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Descargar CENTRAL_CONSOLIDADO.csv",
+            data=csv,
+            file_name='CENTRAL_INVENTARIO_CONSOLIDADO.csv',
+            mime='text/csv',
+        )
+    else:
+        st.warning("Esperando a que se suban todos los archivos necesarios para identificar las relaciones...")
