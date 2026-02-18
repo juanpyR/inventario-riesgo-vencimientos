@@ -2,130 +2,112 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from datetime import datetime
 
-st.set_page_config(page_title="Gestión de Inventario 360", layout="wide")
+# --- CONFIGURACIÓN Y ESTILO ---
+st.set_page_config(page_title="Sistema de Gestión de Riesgo", layout="wide")
 
-# Estética Profesional (Power BI Style)
+# Inyectamos el CSS para ese look de "Resumen Ejecutivo" profesional
 st.markdown("""
     <style>
-    .stMetric { background-color: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #e1e4e8; }
-    div[data-testid="stExpander"] { border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .report-card { background-color: #ffffff; padding: 20px; border-radius: 10px; border-left: 5px solid #1f77b4; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
+    .metric-value { font-size: 24px; font-weight: bold; color: #1f77b4; }
+    .metric-label { font-size: 14px; color: #666; }
+    .status-critico { color: #d32f2f; font-weight: bold; }
+    .status-urgente { color: #f57c00; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🎛️ Centro de Comando de Inventario")
+# --- FUNCIONES DE LÓGICA DE NEGOCIO (Basadas en inventario.py) ---
+def clasificar_riesgo(dias):
+    if dias <= 0: return 'VENCIDO'
+    elif dias <= 15: return 'CRITICO'
+    elif dias <= 30: return 'URGENTE'
+    elif dias <= 60: return 'PREVENTIVO'
+    else: return 'NORMAL'
 
-uploaded_files = st.sidebar.file_uploader("Sube tus archivos", type="csv", accept_multiple_files=True)
+def get_color(riesgo):
+    colors = {'VENCIDO': '#9c27b0', 'CRITICO': '#d32f2f', 'URGENTE': '#f57c00', 'PREVENTIVO': '#fbc02d', 'NORMAL': '#2e7d32'}
+    return colors.get(riesgo, '#666')
 
-# Lógica de carga robusta
+# --- CARGA Y PROCESAMIENTO ---
+uploaded_files = st.sidebar.file_uploader("Sube los 5 archivos maestros", type="csv", accept_multiple_files=True)
+
 data = {"sucursales": None, "inventario": None, "productos": None}
+
 if uploaded_files:
     for file in uploaded_files:
-        df_temp = pd.read_csv(file)
-        df_temp.columns = df_temp.columns.str.strip()
-        if "Latitud" in df_temp.columns and "ID_Ciudad" in df_temp.columns and "Stock_Teorico_Unidades" not in df_temp.columns:
-            data["sucursales"] = df_temp
-        elif "Tipo_Movimiento" in df_temp.columns:
-            data["inventario"] = df_temp
-        elif "Categoria" in df_temp.columns and "Producto_ID" in df_temp.columns:
-            data["productos"] = df_temp
+        df_t = pd.read_csv(file)
+        df_t.columns = df_t.columns.str.strip()
+        if "Latitud" in df_t.columns and "ID_Ciudad" in df_t.columns: data["sucursales"] = df_t
+        elif "Tipo_Movimiento" in df_t.columns: data["inventario"] = df_t
+        elif "Categoria" in df_t.columns and "Producto_ID" in df_t.columns: data["productos"] = df_t
 
     if data["inventario"] is not None and data["sucursales"] is not None:
-        # 1. Consolidación de Inteligencia de Negocios
+        # Consolidación Inteligente
         df = data["inventario"].merge(data["sucursales"], on='Sucursal', how='left')
         if data["productos"] is not None:
-            df = df.merge(data["productos"][['Producto_ID', 'Categoria', 'Categoria_Rotacion']], on='Producto_ID', how='left')
+            df = df.merge(data["productos"][['Producto_ID', 'Categoria']], on='Producto_ID', how='left')
 
-        # 2. Cálculo de Estado Actual (Snapshot)
-        df_now = df.sort_values('Fecha_Movimiento').groupby(['Lote_ID', 'Sucursal']).tail(1).copy()
-        df_now['Valor_Total'] = df_now['Stock_Teorico_Unidades'] * df_now['Precio_Venta_CLP']
+        # Snapshot de Stock Actual
+        df_hoy = df.sort_values('Fecha_Movimiento').groupby(['Lote_ID', 'Sucursal']).tail(1).copy()
+        df_hoy['Riesgo'] = df_hoy['Dias_Para_Vencer'].apply(clasificar_riesgo)
+        df_hoy['Valor_Stock'] = df_hoy['Stock_Teorico_Unidades'] * df_hoy['Precio_Venta_CLP']
 
-        # --- BARRA LATERAL AVANZADA ---
-        st.sidebar.header("🎯 Filtros Tácticos")
-        cat_list = st.sidebar.multiselect("Categorías", df_now['Categoria'].unique(), default=df_now['Categoria'].unique())
-        risk_filter = st.sidebar.slider("Días mínimos para vencer", 0, 365, 0)
+        # --- TÍTULO Y FILTROS ---
+        st.title("🛡️ Dashboard de Control de Riesgo y Plan de Acción")
         
-        df_filtered = df_now[(df_now['Categoria'].isin(cat_list)) & (df_now['Dias_Para_Vencer'] >= risk_filter)]
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            suc_sel = st.multiselect("Filtrar Sucursales", df_hoy['Sucursal'].unique(), default=df_hoy['Sucursal'].unique())
+        with col_f2:
+            riesgo_sel = st.multiselect("Niveles de Riesgo", ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO', 'NORMAL'], default=['CRITICO', 'URGENTE', 'PREVENTIVO'])
 
-        # --- KPIS SUPERIORES ---
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Valor del Inventario", f"${int(df_filtered['Valor_Total'].sum()):,}")
-        c2.metric("Unidades Totales", f"{int(df_filtered['Stock_Teorico_Unidades'].sum()):,}")
-        c3.metric("Riesgo Medio (Días)", f"{int(df_filtered['Dias_Para_Vencer'].mean())} d")
-        c4.metric("SKUs Activos", df_filtered['Producto_ID'].nunique())
+        df_f = df_hoy[(df_hoy['Sucursal'].isin(suc_sel)) & (df_hoy['Riesgo'].isin(riesgo_sel))]
 
-        # --- MAPA MULTI-VARIABLE ---
-        st.subheader("📍 Análisis Geográfico de Riesgo y Volumen")
+        # --- BLOQUE 1: MAPA ESTRATÉGICO BI ---
+        st.subheader("📍 Mapa de Calor de Riesgo Operativo")
         
-        # Agrupación rica para el mapa
-        df_mapa = df_filtered.groupby(['Sucursal', 'Latitud', 'Longitud', 'Direccion_Aprox']).agg({
-            'Stock_Teorico_Unidades': 'sum',
-            'Valor_Total': 'sum',
-            'Dias_Para_Vencer': 'mean',
-            'Producto_ID': 'nunique'
-        }).reset_index()
-
-        fig = px.scatter_mapbox(
-            df_mapa,
-            lat="Latitud", lon="Longitud",
-            size="Stock_Teorico_Unidades",  # Tamaño = Cantidad
-            color="Dias_Para_Vencer",       # Color = Riesgo de vencimiento
-            color_continuous_scale="RdYlGn", # Rojo (vence pronto) a Verde (seguro)
-            hover_name="Sucursal",
-            hover_data={
-                "Stock_Teorico_Unidades": ":,f",
-                "Valor_Total": ":$,.0f",
-                "Dias_Para_Vencer": ":.1f",
-                "Producto_ID": True,
-                "Latitud": False, "Longitud": False
-            },
-            size_max=45, zoom=10,
-            mapbox_style="carto-positron"
+        # Tamaño = Valor Stock, Color = Riesgo
+        fig_map = px.scatter_mapbox(
+            df_f, lat="Latitud", lon="Longitud",
+            size="Valor_Stock", color="Riesgo",
+            color_discrete_map={'VENCIDO': '#9c27b0', 'CRITICO': '#d32f2f', 'URGENTE': '#f57c00', 'PREVENTIVO': '#fbc02d', 'NORMAL': '#2e7d32'},
+            hover_name="Sucursal", hover_data=["Producto", "Stock_Teorico_Unidades", "Dias_Para_Vencer"],
+            zoom=10, height=500, mapbox_style="carto-positron"
         )
+        st.plotly_chart(fig_map, use_container_width=True)
+
+        # --- BLOQUE 2: RESUMEN EJECUTIVO (Plan de Acción) ---
+        st.markdown("### 📋 Resumen Ejecutivo y Plan de Acción")
         
-        fig.update_layout(height=600, margin={"r":0,"t":0,"l":0,"b":0})
-        st.plotly_chart(fig, use_container_width=True)
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            val_critico = df_f[df_f['Riesgo'] == 'CRITICO']['Valor_Stock'].sum()
+            st.markdown(f'<div class="report-card"><span class="metric-label">Monto en Riesgo Crítico</span><br><span class="metric-value" style="color:#d32f2f">${val_critico:,.0f}</span></div>', unsafe_allow_html=True)
+        with c2:
+            unid_urgente = df_f[df_f['Riesgo'] == 'URGENTE']['Stock_Teorico_Unidades'].sum()
+            st.markdown(f'<div class="report-card"><span class="metric-label">Unidades Urgentes</span><br><span class="metric-value" style="color:#f57c00">{unid_urgente:,.0f}</span></div>', unsafe_allow_html=True)
+        with c3:
+            st.markdown(f'<div class="report-card"><span class="metric-label">Sucursal más Afectada</span><br><span class="metric-value">{df_f.groupby("Sucursal")["Valor_Stock"].sum().idxmax()}</span></div>', unsafe_allow_html=True)
+        with c4:
+            st.markdown(f'<div class="report-card"><span class="metric-label">Categoría Crítica</span><br><span class="metric-value">{df_f[df_f["Riesgo"].isin(["CRITICO", "URGENTE"])].groupby("Categoria")["Stock_Teorico_Unidades"].sum().idxmax()}</span></div>', unsafe_allow_html=True)
 
-        # --- SECCIÓN INFERIOR: ANALÍTICA DETALLADA ---
-        st.markdown("---")
-        col_left, col_right = st.columns([6, 4])
-
-        with col_left:
-            st.subheader("📦 Stock y Valor por Categoría")
-            # Gráfico de doble eje o barras apiladas
-            fig_cat = px.bar(
-                df_filtered.groupby('Categoria').agg({'Stock_Teorico_Unidades':'sum', 'Valor_Total':'sum'}).reset_index(),
-                x='Categoria', y='Stock_Teorico_Unidades',
-                color='Valor_Total',
-                text_auto='.2s',
-                title="Volumen por Categoría (Color = Valor Monetario)"
-            )
-            st.plotly_chart(fig_cat, use_container_width=True)
-
-        with col_right:
-            st.subheader("⚠️ Alerta de Lotes Críticos")
-            # Tabla de productos que necesitan atención inmediata
-            criticos = df_filtered.sort_values('Dias_Para_Vencer').head(10)
-            st.dataframe(
-                criticos[['Producto', 'Sucursal', 'Dias_Para_Vencer', 'Stock_Teorico_Unidades']],
-                hide_index=True
-            )
+        # --- BLOQUE 3: DETALLE EXTENSO ---
+        with st.expander("🔍 Ver Análisis Detallado por Lote y Plan de Salida"):
+            tab1, tab2 = st.tabs(["Detalle de Inventario", "Análisis por Categoría"])
+            
+            with tab1:
+                st.write("Listado priorizado para gestión de mermas:")
+                st.dataframe(df_f.sort_values('Dias_Para_Vencer')[['Riesgo', 'Producto', 'Sucursal', 'Stock_Teorico_Unidades', 'Dias_Para_Vencer', 'Valor_Stock']], 
+                             column_config={"Riesgo": st.column_config.TextColumn("Estado", help="Clasificación de riesgo")},
+                             use_container_width=True, hide_index=True)
+            
+            with tab2:
+                fig_bar = px.bar(df_f, x="Categoria", y="Valor_Stock", color="Riesgo", 
+                                 title="Valorización de Riesgo por Categoría",
+                                 color_discrete_map={'VENCIDO': '#9c27b0', 'CRITICO': '#d32f2f', 'URGENTE': '#f57c00', 'PREVENTIVO': '#fbc02d', 'NORMAL': '#2e7d32'})
+                st.plotly_chart(fig_bar, use_container_width=True)
 
     else:
-        st.info("Sube los archivos para activar el Centro de Comando.")
-st.markdown("---")
-st.subheader("📈 Evolución de Movimientos en el Tiempo")
-
-# Agrupar por fecha y tipo de movimiento
-df_trend = df_filtered.groupby(['Fecha_Movimiento', 'Tipo_Movimiento'])['Cantidad_Salida'].sum().reset_index()
-
-fig_line = px.line(
-    df_trend, 
-    x='Fecha_Movimiento', 
-    y='Cantidad_Salida', 
-    color='Tipo_Movimiento',
-    title="Volumen de Salidas (Ventas vs Transferencias)",
-    markers=True
-)
-fig_line.update_layout(hovermode="x unified", mapbox_style="carto-positron")
-st.plotly_chart(fig_line, use_container_width=True)
+        st.info("👋 Bienvenida/o. Por favor, carga los archivos maestros para iniciar el análisis de riesgo.")
