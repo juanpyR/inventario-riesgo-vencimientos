@@ -1,701 +1,1393 @@
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-from datetime import datetime, timedelta
-import calendar
-import textwrap
-import warnings
-import io
 import streamlit as st
+
+import pandas as pd
+
+import numpy as np
+
+import plotly.express as px
+
 import plotly.graph_objects as go
+
 from plotly.subplots import make_subplots
+
+from datetime import datetime, timedelta
+
+import calendar
+
 import pytz
+
+import io
+
+import warnings
+
 warnings.filterwarnings('ignore')
 
-# =============================================================================
-# FORMATO CHILENO
-# =============================================================================
-def clp(valor):
-    """Formatea número con estilo chileno: 1.234.567"""
-    if isinstance(valor, str):
-        return valor
-    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
-        return "$0"
-    try:
-        valor_int = int(round(float(valor)))
-        return f"${valor_int:,}".replace(",", ".")
-    except:
-        return str(valor)
 
-pd.options.display.float_format = lambda x: f'{x:,.0f}'.replace(',', '.')
 
 # =============================================================================
-# COLORES SEMÁFORO COHERENTES
-# =============================================================================
-COLOR_MAP = {
-    'VENCIDO': '#9c27b0',      # 🟣 Violeta
-    'CRITICO': '#d32f2f',      # 🔴 Rojo
-    'URGENTE': '#f57c00',      # 🟠 Naranja
-    'PREVENTIVO': '#fbc02d'    # 🟡 Amarillo
-}
+
+# 1. CONFIGURACIÓN PREMIUM + CSS
 
 # =============================================================================
-# CSS PERSONALIZADO
-# =============================================================================
-def cargar_css():
+
+st.set_page_config(page_title="🛡️ Command Center: Riesgo de Inventario", layout="wide", page_icon="📊")
+
+
+
+def cargar_css_premium():
+
     st.markdown("""
+
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
     * { font-family: 'Inter', sans-serif; }
-    
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #1a237e;
-        text-align: center;
-        margin-bottom: 2rem;
+
+    .main { background: linear-gradient(135deg, #f8f9fb 0%, #eef2f7 100%); }
+
+    .executive-card {
+
+        background: white; padding: 25px; border-radius: 16px;
+
+        box-shadow: 0 4px 20px rgba(26,35,126,0.12); border-top: 5px solid #1a237e;
+
+        text-align: center; margin: 10px 0; transition: all 0.3s ease;
+
+        border: 1px solid rgba(26,35,126,0.08);
+
     }
-    
-    .section-title-box {
-        background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
-        color: white;
-        padding: 15px 25px;
-        border-radius: 10px;
-        display: inline-block;
-        margin: 2rem 0 1rem 0;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+
+    .executive-card:hover { transform: translateY(-4px); box-shadow: 0 8px 30px rgba(26,35,126,0.2); }
+
+    .metric-value { font-size: 34px; font-weight: 800; color: #1a237e; letter-spacing: -1px; line-height: 1.1; }
+
+    .metric-label { font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+
+    .metric-sub { font-size: 11px; color: #888; margin-top: 4px; font-weight: 500; }
+
+    .plan-box {
+
+        background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
+
+        padding: 30px; border-radius: 16px; border-left: 8px solid #f57c00;
+
+        box-shadow: 0 4px 20px rgba(245,124,0,0.15); margin: 25px 0;
+
+        border: 1px solid rgba(245,124,0,0.2);
+
     }
-    
-    .section-title-box h2 {
-        color: white !important;
-        margin: 0;
-        font-size: 1.8rem;
-        font-weight: 600;
+
+    .risk-badge {
+
+        display: inline-flex; align-items: center; padding: 6px 16px;
+
+        border-radius: 20px; font-size: 12px; font-weight: 700;
+
+        text-transform: uppercase; letter-spacing: 0.5px; margin: 3px;
+
     }
-    
-    .info-card {
-        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-        border-radius: 15px;
-        padding: 25px;
-        text-align: center;
-        margin: 10px 0;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    
-    .classification-item {
-        padding: 15px;
-        margin: 10px 0;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        font-weight: 600;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .vencido { background: #f3e5f5; color: #7b1fa2; border-left: 5px solid #9c27b0; }
-    .critico { background: #ffebee; color: #c62828; border-left: 5px solid #d32f2f; }
-    .urgente { background: #fff3e0; color: #e65100; border-left: 5px solid #f57c00; }
-    .preventivo { background: #fffde7; color: #f9a825; border-left: 5px solid #fbc02d; }
-    
-    .decision-box {
-        background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%);
-        border-radius: 15px;
-        padding: 30px;
-        text-align: center;
-        border: 3px solid #1a237e;
-        margin: 20px 0;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
-    
-    .plan-section {
-        border-radius: 15px;
-        padding: 25px;
-        margin: 20px 0;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        border-left: 6px solid;
-    }
-    
-    .plan-vencido { background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%); border-color: #d32f2f; }
-    .plan-critico { background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border-color: #f57c00; }
-    .plan-urgente { background: linear-gradient(135deg, #fffde7 0%, #fff9c4 100%); border-color: #fbc02d; }
-    .plan-cierre { background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-color: #1976d2; }
-    
-    .metric-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 15px;
-        margin: 20px 0;
-    }
-    
-    .metric-item {
-        background: white;
-        padding: 20px;
-        border-radius: 12px;
-        text-align: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-    
-    .metric-label { font-size: 0.85rem; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .metric-value { font-size: 1.8rem; font-weight: 700; color: #1a237e; }
-    .metric-sub { font-size: 0.75rem; color: #999; margin-top: 5px; }
-    
-    .dataframe {
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        font-size: 0.9rem;
-        width: 100%;
-    }
-    
-    .dataframe thead th {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        font-weight: 700;
-        padding: 15px;
-        text-align: left;
-        border: none;
-    }
-    
-    .tabla-vencido thead th { background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); }
-    .tabla-critico thead th { background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); }
-    .tabla-urgente thead th { background: linear-gradient(135deg, #f57c00 0%, #e65100 100%); }
-    .tabla-preventivo thead th { background: linear-gradient(135deg, #fbc02d 0%, #f9a825 100%); }
-    
-    .badge {
-        display: inline-block;
-        padding: 5px 12px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-    }
-    
-    .badge-vencido { background: #f3e5f5; color: #7b1fa2; }
-    .badge-critico { background: #ffebee; color: #c62828; }
-    .badge-urgente { background: #fff3e0; color: #e65100; }
-    .badge-preventivo { background: #fffde7; color: #f9a825; }
-    
-    .map-container {
-        border-radius: 15px;
-        overflow: hidden;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        margin: 20px 0;
-    }
+
+    .risk-vencido { background: #f3e5f5; color: #7b1fa2; border: 2px solid #9c27b0; }
+
+    .risk-critico { background: #ffebee; color: #c62828; border: 2px solid #d32f2f; }
+
+    .risk-urgente { background: #fff3e0; color: #e65100; border: 2px solid #f57c00; }
+
+    .risk-preventivo { background: #fffde7; color: #f9a825; border: 2px solid #fbc02d; }
+
+    .risk-normal { background: #e8f5e9; color: #2e7d32; border: 2px solid #4caf50; }
+
+    .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; animation: pulse 2s infinite; }
+
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+    .section-header { color: #1a237e; font-weight: 800; font-size: 1.6rem; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 3px solid #1a237e; display: flex; align-items: center; gap: 12px; }
+
+    .dataframe { border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); font-size: 0.9rem; }
+
+    .dataframe thead th { background: linear-gradient(135deg, #1a237e 0%, #283593 100%); color: white; font-weight: 700; padding: 14px; border: none; }
+
+    .stButton>button { border-radius: 10px; font-weight: 600; transition: all 0.2s; border: 2px solid #1a237e; }
+
+    .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(26,35,126,0.3); }
+
+    .timeline { display: flex; justify-content: space-between; margin: 20px 0; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+    .timeline-item { text-align: center; flex: 1; position: relative; padding: 0 10px; }
+
+    .timeline-item:not(:last-child)::after { content: ''; position: absolute; top: 25px; right: -50%; width: 100%; height: 2px; background: #e0e0e0; z-index: 0; }
+
+    .timeline-dot { width: 14px; height: 14px; border-radius: 50%; margin: 0 auto 8px; background: #667eea; position: relative; z-index: 1; }
+
+    .timeline-time { font-size: 12px; font-weight: 700; color: #1a237e; }
+
+    .timeline-action { font-size: 11px; color: #666; }
+
     </style>
+
     """, unsafe_allow_html=True)
 
+
+
+cargar_css_premium()
+
+
+
 # =============================================================================
-# ETL - CARGA Y PROCESAMIENTO DE LOS 5 ARCHIVOS
+
+# 2. FORMATO Y CONSTANTES (Chile Standard)
+
 # =============================================================================
-@st.cache_data
-def cargar_y_procesar_etl(archivo_sucursales, archivo_productos, archivo_lotes, 
-                          archivo_inventario, archivo_stock):
+
+def clp(valor):
+
+    """Formatea a moneda chilena: $1.234.567"""
+
+    if pd.isna(valor) or valor is None: return "$0"
+
+    try:
+
+        v = int(round(float(valor)))
+
+        return f"${v:,}".replace(",", ".")
+
+    except: return "$0"
+
+
+
+# =============================================================================
+
+# 3. LÓGICA DE CLASIFICACIÓN - VENTANA MENSUAL INTELIGENTE
+
+# =============================================================================
+
+def clasificar_riesgo_mensual(dias, fecha_hoy, fecha_inicio_mes, fecha_fin_mes):
+
     """
-    ETL Completo: Carga los 5 archivos, hace joins y crea columnas calculadas
+
+    Clasificación de riesgo con lógica de ventana mensual CORREGIDA:
+
+    
+
+    ✅ CASO BASE: Si hoy es 15-Feb → ventana = 01-Feb al 28-Feb
+
+    ✅ CASO ESPECIAL: Si hoy es 28-Feb → ventana = 01-Feb al 28-Feb (NO incluye marzo)
+
+    ✅ PRODUCTOS FUERA DE VENTANA: Se excluyen del análisis de riesgo inmediato
+
+    
+
+    Mantiene distancias originales ancladas a HOY:
+
+    - VENCIDO: ≤0 días desde hoy (vence hoy o antes)
+
+    - CRÍTICO: 1-3 días desde hoy
+
+    - URGENTE: 4-7 días desde hoy  
+
+    - PREVENTIVO: 8-30 días desde hoy (pero SOLO si vence dentro del mes)
+
     """
+
+    if pd.isna(dias): return 'SIN_DATO'
+
     
-    # 1. Cargar todos los archivos
-    df_sucursales = pd.read_csv(archivo_sucursales)
-    df_productos = pd.read_csv(archivo_productos)
-    df_lotes = pd.read_csv(archivo_lotes)
-    df_inventario = pd.read_csv(archivo_inventario)
-    df_stock = pd.read_csv(archivo_stock)
+
+    # Calcular fecha real de vencimiento
+
+    fecha_vencimiento = fecha_hoy + timedelta(days=int(dias))
+
     
-    # 2. Limpieza de columnas
-    for df in [df_sucursales, df_productos, df_lotes, df_inventario, df_stock]:
+
+    # ✅ FILTRO CLAVE: Solo analizar productos que vencen DENTRO del mes actual
+
+    if not (fecha_inicio_mes <= fecha_vencimiento <= fecha_fin_mes):
+
+        return 'FUERA_VENTANA'
+
+    
+
+    # Clasificación manteniendo distancias originales ancladas a HOY
+
+    if dias <= 0: return 'VENCIDO'           # 🟣 Hoy o antes
+
+    elif dias <= 3: return 'CRITICO'          # 🔴 1-3 días desde hoy
+
+    elif dias <= 7: return 'URGENTE'          # 🟠 4-7 días desde hoy
+
+    elif dias <= 30: return 'PREVENTIVO'      # 🟡 8-30 días desde hoy (dentro del mes)
+
+    else: return 'NORMAL'                     # 🟢 Más de 30 días
+
+
+
+COLOR_MAP = {
+
+    'VENCIDO': '#9c27b0', 'CRITICO': '#d32f2f', 'URGENTE': '#f57c00',
+
+    'PREVENTIVO': '#fbc02d', 'NORMAL': '#2e7d32', 'SIN_DATO': '#9e9e9e', 'FUERA_VENTANA': '#bdbdbd'
+
+}
+
+
+
+COLUMNAS_ESPERADAS = {
+
+    'Dias_Para_Vencer': ['Dias_Para_Vencer', 'Días_para_Vencimiento', 'Días para Vencimiento'],
+
+    'Stock_Teorico_Unidades': ['Stock_Teorico_Unidades', 'Stock_Inicial', 'Cantidad_Stock'],
+
+    'Valor_Unitario_CLP': ['Valor_Unitario_CLP', 'Costo_Unitario_Neto', 'Precio_Costo'],
+
+    'Precio_Venta_CLP': ['Precio_Venta_CLP', 'Precio_Venta_Bruto'],
+
+    'Producto': ['Producto', 'producto', 'SKU_Descripcion'],
+
+    'Sucursal': ['Sucursal', 'sucursal', 'Tienda'],
+
+    'Latitud': ['Latitud', 'lat', 'Latitude'],
+
+    'Longitud': ['Longitud', 'lon', 'Longitude'],
+
+    'Fecha_Vencimiento_Lote': ['Fecha_Vencimiento_Lote', 'Fecha_Vencimiento'],
+
+    'Fecha_Movimiento': ['Fecha_Movimiento', 'Fecha', 'Fecha_Transaccion'],
+
+    'Producto_ID': ['Producto_ID', 'ID_Producto'],
+
+    'Lote_ID': ['Lote_ID', 'ID_Lote'],
+
+    'Categoria': ['Categoria', 'Categoría', 'Category'],
+
+    'Categoria_Rotacion': ['Categoria_Rotacion', 'Rotacion', 'Categoria_Rotación']
+
+}
+
+
+
+# =============================================================================
+
+# 4. MOTOR ETL INTELIGENTE
+
+# =============================================================================
+
+@st.cache_data(ttl=300)
+
+def cargar_archivo_inteligente(archivo):
+
+    try:
+
+        df = pd.read_csv(archivo)
+
         df.columns = df.columns.str.strip()
-    
-    # 3. Mapeo de columnas para estandarizar
-    # Sucursales
-    df_sucursales = df_sucursales.rename(columns={
-        'Direccion_Aprox': 'Direccion'
-    })
-    
-    # Productos
-    df_productos = df_productos.rename(columns={
-        'Dias_Caducidad_Base': 'Dias_Caducidad',
-        'ETA_Proveedor_Dias': 'ETA_Proveedor',
-        'Categoria_Rotacion': 'Rotacion'
-    })
-    
-    # Lotes
-    df_lotes = df_lotes.rename(columns={
-        'Fecha_Creacion_Lote': 'Fecha_Creacion'
-    })
-    
-    # Inventario
-    df_inventario = df_inventario.rename(columns={
-        'Fecha_Movimiento': 'Fecha',
-        'Cantidad_Entrada': 'Entrada',
-        'Cantidad_Salida': 'Salida',
-        'Valor_Unitario_CLP': 'Costo_Unitario',
-        'Precio_Venta_CLP': 'Precio_Venta',
-        'Fecha_Vencimiento_Lote': 'Fecha_Vencimiento',
-        'Dias_Para_Vencer': 'Dias_Vencer',
-        'Estado_Inventario': 'Estado',
-        'Stock_Teorico_Unidades': 'Stock'
-    })
-    
-    # Stock Actual
-    df_stock = df_stock.rename(columns={
-        'Stock_Teorico_Unidades': 'Stock',
-        'Precio_Venta_CLP': 'Precio_Venta',
-        'Fecha_Vencimiento_Lote': 'Fecha_Vencimiento',
-        'Dias_Para_Vencer': 'Dias_Vencer',
-        'Estado_Inventario': 'Estado'
-    })
-    
-    # 4. JOINS - Unir todas las tablas
-    # Unir Stock con Sucursales (por Sucursal)
-    df_master = df_stock.merge(
-        df_sucursales[['Sucursal', 'Latitud', 'Longitud', 'Direccion']],
-        on='Sucursal',
-        how='left'
-    )
-    
-    # Unir con Productos (por Producto_ID)
-    df_master = df_master.merge(
-        df_productos[['Producto_ID', 'Producto', 'Categoria', 'Dias_Caducidad', 'Rotacion']],
-        on='Producto_ID',
-        how='left'
-    )
-    
-    # Unir con Lotes (por Lote_ID)
-    df_master = df_master.merge(
-        df_lotes[['Lote_ID', 'Fecha_Creacion']],
-        on='Lote_ID',
-        how='left'
-    )
-    
-    # 5. CREAR COLUMNAS CALCULADAS
-    # Valor del stock (costo)
-    df_master['Valor_Stock_Costo'] = df_master['Stock'] * df_master['Precio_Venta'] * 0.70  # 70% del precio = costo estimado
-    
-    # Clasificación de riesgo
-    def clasificar_riesgo(dias):
-        if pd.isna(dias):
-            return 'SIN_DATO'
-        elif dias < 0:
-            return 'VENCIDO'
-        elif dias <= 3:
-            return 'CRITICO'
-        elif dias <= 7:
-            return 'URGENTE'
-        elif dias <= 10:
-            return 'PREVENTIVO'
-        else:
-            return 'NORMAL'
-    
-    df_master['Nivel_Riesgo'] = df_master['Dias_Vencer'].apply(clasificar_riesgo)
-    
-    # Fecha de análisis
-    df_master['Fecha_Analisis'] = datetime.now()
-    
-    # Días hasta vencimiento desde hoy
-    df_master['Dias_Para_Vencimiento'] = df_master['Dias_Vencer']
-    
-    # 6. Filtrar productos con stock > 0
-    df_riesgo = df_master[df_master['Stock'] > 0].copy()
-    
-    return df_riesgo, df_master, {
-        'sucursales': df_sucursales,
-        'productos': df_productos,
-        'lotes': df_lotes,
-        'inventario': df_inventario,
-        'stock': df_stock
-    }
+
+        for col in df.select_dtypes(include=['object']).columns:
+
+            df[col] = df[col].astype(str).str.strip()
+
+        return df
+
+    except Exception as e:
+
+        st.error(f"❌ Error cargando {archivo.name}: {str(e)}")
+
+        return None
+
+
+
+def detectar_tipo_archivo(df):
+
+    cols = set(df.columns)
+
+    if {'Latitud', 'Longitud', 'ID_Ciudad'}.issubset(cols) and 'Stock_Teorico_Unidades' not in cols:
+
+        return 'sucursales'
+
+    elif {'Categoria', 'Producto_ID', 'Dias_Caducidad_Base'}.issubset(cols) and 'Lote_ID' not in cols:
+
+        return 'productos'
+
+    elif {'Tipo_Movimiento', 'Lote_ID', 'Fecha_Movimiento'}.issubset(cols):
+
+        return 'inventario_movimientos'
+
+    elif {'Fecha_Creacion_Lote', 'Lote_ID', 'Dias_Caducidad_Base'}.issubset(cols):
+
+        return 'lotes'
+
+    elif {'Stock_Teorico_Unidades', 'Latitud', 'Lote_ID'}.issubset(cols) or {'Dias_Para_Vencer', 'Stock_Teorico_Unidades'}.issubset(cols):
+
+        return 'stock_geo'
+
+    return 'desconocido'
+
+
+
+def mapear_columnas(df):
+
+    """Mapeo inteligente de columnas según diccionario"""
+
+    for col_destino, col_posibles in COLUMNAS_ESPERADAS.items():
+
+        for col_posible in col_posibles:
+
+            if col_posible in df.columns and col_destino not in df.columns:
+
+                df.rename(columns={col_posible: col_destino}, inplace=True)
+
+                break
+
+    return df
+
+
 
 # =============================================================================
-# FUNCIONES DE VISUALIZACIÓN
-# =============================================================================
-def mostrar_resumen_ejecutivo(df_riesgo, total_riesgo, fecha_hoy):
-    """Muestra el resumen ejecutivo"""
-    st.markdown('<h1 class="main-header">Resumen Ejecutivo</h1>', unsafe_allow_html=True)
-    
-    total_productos = df_riesgo['Producto'].nunique()
-    total_unidades = int(df_riesgo['Stock'].sum())
-    total_sucursales = df_riesgo['Sucursal'].nunique()
-    
-    col1, col2, col3 = st.columns([1, 2.5, 1])
-    
-    with col1:
-        st.markdown("### Acciones Rápidas")
-        if st.button("🔄 Actualizar", use_container_width=True, key="btn_actualizar"):
-            st.rerun()
-        if st.button("📊 Ver Detalle Completo", use_container_width=True, key="btn_detalle"):
-            st.session_state['ver_detalle'] = True
-    
-    with col2:
-        st.markdown(f"""
-        <div class='info-card'>
-            <h2 style='color: #1565c0; margin: 0;'>Análisis al {fecha_hoy.strftime('%d/%m/%Y')}</h2>
-            <p style='font-size: 1.3rem; margin: 15px 0; font-weight: 600;'>
-                <span style='color: #d32f2f;'>{total_productos}</span> productos | 
-                <span style='color: #1976d2;'>{total_unidades:,}</span> unidades | 
-                <span style='color: #f57c00;'>{clp(total_riesgo)}</span>
-            </p>
-            <p style='font-size: 0.9rem; color: #666;'>
-                🏪 {total_sucursales} sucursales analizadas
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("### Estado")
-        st.success("✅ Activo")
-        hora_chile = datetime.now(pytz.timezone('America/Santiago'))
-        st.info(f"🕒 {hora_chile.strftime('%H:%M:%S')}")
 
-def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy):
-    """Muestra clasificación del inventario"""
-    st.markdown('<div class="section-title-box"><h2>Inventario por Nivel de Riesgo</h2></div>', unsafe_allow_html=True)
-    st.markdown("### Clasificación")
-    
-    # Calcular métricas por nivel
-    metricas = {}
-    for nivel in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']:
-        df_nivel = df_riesgo[df_riesgo['Nivel_Riesgo'] == nivel]
-        metricas[nivel] = {
-            'productos': df_nivel['Producto'].nunique() if len(df_nivel) > 0 else 0,
-            'unidades': int(df_nivel['Stock'].sum()) if len(df_nivel) > 0 else 0,
-            'valor': df_nivel['Valor_Stock_Costo'].sum() if len(df_nivel) > 0 else 0
-        }
-    
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown(f"""
-        <div class='classification-item vencido'>
-            <span class='indicator' style='background-color: #9c27b0;'></span>
-            <strong>Vencido:</strong> {metricas['VENCIDO']['productos']} productos | {clp(metricas['VENCIDO']['valor'])}
-        </div>
-        <div class='classification-item critico'>
-            <span class='indicator' style='background-color: #d32f2f;'></span>
-            <strong>Crítico:</strong> {metricas['CRITICO']['productos']} productos | {clp(metricas['CRITICO']['valor'])}
-        </div>
-        <div class='classification-item urgente'>
-            <span class='indicator' style='background-color: #f57c00;'></span>
-            <strong>Urgente:</strong> {metricas['URGENTE']['productos']} productos | {clp(metricas['URGENTE']['valor'])}
-        </div>
-        <div class='classification-item preventivo'>
-            <span class='indicator' style='background-color: #fbc02d;'></span>
-            <strong>Preventivo:</strong> {metricas['PREVENTIVO']['productos']} productos | {clp(metricas['PREVENTIVO']['valor'])}
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        # Calcular plan de acción
-        credito_trib = metricas['VENCIDO']['valor'] * 0.27
-        recuperacion_crit = metricas['CRITICO']['valor'] * 0.50
-        recuperacion_urg = metricas['URGENTE']['valor'] * 0.40
-        total_recuperado = credito_trib + recuperacion_crit + recuperacion_urg
-        
-        st.session_state['metricas_plan'] = {
-            'credito_tributario': credito_trib,
-            'recuperacion_descuentos': recuperacion_crit + recuperacion_urg,
-            'total_recuperado': total_recuperado
-        }
-        
-        st.markdown(f"""
-        <div class='decision-box'>
-            <h3>💰 Impacto Financiero del Plan</h3>
-            <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 20px 0;'>
-                <div style='background: #e8f5e9; padding: 15px; border-radius: 8px;'>
-                    <div style='font-size: 0.9rem; color: #2e7d32;'>Crédito Tributario (27%)</div>
-                    <div style='font-size: 1.5rem; font-weight: 700; color: #1565c0;'>{clp(credito_trib)}</div>
-                </div>
-                <div style='background: #fff3e0; padding: 15px; border-radius: 8px;'>
-                    <div style='font-size: 0.9rem; color: #e65100;'>Recuperación Descuentos</div>
-                    <div style='font-size: 1.5rem; font-weight: 700; color: #ef6c00;'>{clp(recuperacion_crit + recuperacion_urg)}</div>
-                </div>
-            </div>
-            <div style='background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); padding: 20px; border-radius: 10px; text-align: center; color: white;'>
-                <div style='font-size: 1.2rem;'>TOTAL RECUPERADO</div>
-                <div style='font-size: 2.5rem; font-weight: 700;'>{clp(total_recuperado)}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-def crear_mapa_inventario(df_riesgo):
-    """Crea un mapa interactivo con Plotly"""
-    
-    # Agrupar por sucursal
-    stock_por_sucursal = df_riesgo.groupby('Sucursal').agg({
-        'Stock': 'sum',
-        'Valor_Stock_Costo': 'sum',
-        'Dias_Para_Vencimiento': 'mean',
-        'Latitud': 'first',
-        'Longitud': 'first'
-    }).reset_index()
-    
-    # Filtrar sucursales sin coordenadas
-    stock_por_sucursal = stock_por_sucursal.dropna(subset=['Latitud', 'Longitud'])
-    
-    if len(stock_por_sucursal) == 0:
-        return None, None
-    
-    # Crear mapa
-    fig = go.Figure()
-    
-    # Colores según nivel de riesgo promedio
-    def color_por_dias(dias):
-        if pd.isna(dias):
-            return '#9c27b0'
-        elif dias < 0:
-            return '#9c27b0'
-        elif dias <= 3:
-            return '#d32f2f'
-        elif dias <= 7:
-            return '#f57c00'
-        else:
-            return '#fbc02d'
-    
-    stock_por_sucursal['Color'] = stock_por_sucursal['Dias_Para_Vencimiento'].apply(color_por_dias)
-    
-    fig.add_trace(go.Scattermapbox(
-        lat=stock_por_sucursal['Latitud'],
-        lon=stock_por_sucursal['Longitud'],
-        mode='markers',
-        marker=dict(
-            size=stock_por_sucursal['Stock'] / 100,
-            sizemode='area',
-            sizeref=2,
-            color=stock_por_sucursal['Color'],
-            opacity=0.8,
-        ),
-        text=stock_por_sucursal.apply(
-            lambda row: f"<b>{row['Sucursal']}</b><br>"
-                       f"📦 Stock: {int(row['Stock']):,} unidades<br>"
-                       f"💰 Valor: {clp(row['Valor_Stock_Costo'])}<br>"
-                       f"⏰ Días prom: {row['Días_Para_Vencimiento']:.1f}<br>"
-                       f"📍 {row.get('Direccion', 'N/A')}",
-            axis=1
-        ),
-        hoverinfo='text',
-        name='Sucursales'
-    ))
-    
-    # Configurar layout
-    fig.update_layout(
-        height=600,
-        margin=dict(l=0, r=0, t=30, b=0),
-        mapbox=dict(
-            style='open-street-map',
-            center=dict(lat=-33.45, lon=-70.65),
-            zoom=9
-        ),
-        showlegend=False,
-        title=dict(
-            text='🗺️ Distribución de Inventario por Sucursal',
-            x=0.5,
-            font=dict(size=18, color='#1a237e')
-        )
-    )
-    
-    return fig, stock_por_sucursal
+# 5. LÓGICA DE VENTANA MENSUAL CORREGIDA (Core Request)
 
 # =============================================================================
-# FUNCIÓN PRINCIPAL
-# =============================================================================
-def main():
-    """Función principal de la aplicación Streamlit"""
-    st.set_page_config(
-        page_title="Sistema de Gestión de Vencimientos",
-        page_icon="📦",
-        layout="wide"
-    )
-    cargar_css()
+
+def obtener_ventana_mensual(fecha_referencia):
+
+    """
+
+    Calcula la ventana de análisis mensual CORREGIDA:
+
     
-    st.title("📦 SISTEMA DE GESTIÓN DE VENCIMIENTOS")
+
+    ✅ Si hoy es 15-Feb-2026 → ventana = 01-Feb-2026 a 28-Feb-2026
+
+    ✅ Si hoy es 28-Feb-2026 → ventana = 01-Feb-2026 a 28-Feb-2026 (NO marzo)
+
+    ✅ Si hoy es 01-Mar-2026 → ventana = 01-Mar-2026 a 31-Mar-2026
+
+    
+
+    La ventana SIEMPRE es: [1 del mes actual] hasta [último día del mes actual]
+
+    """
+
+    inicio_mes = fecha_referencia.replace(day=1)
+
+    ultimo_dia = calendar.monthrange(fecha_referencia.year, fecha_referencia.month)[1]
+
+    fin_mes = fecha_referencia.replace(day=ultimo_dia)
+
+    return inicio_mes, fin_mes
+
+
+
+def filtrar_por_ventana_mensual(df, fecha_hoy, columna_fecha_venc):
+
+    """
+
+    Filtra productos cuya fecha de vencimiento cae DENTRO del mes actual,
+
+    manteniendo la clasificación por días relativos a hoy.
+
+    """
+
+    inicio_mes, fin_mes = obtener_ventana_mensual(fecha_hoy)
+
+    
+
+    # Convertir a datetime si es string
+
+    if df[columna_fecha_venc].dtype == 'object':
+
+        df[columna_fecha_venc] = pd.to_datetime(df[columna_fecha_venc], errors='coerce')
+
+    
+
+    # Filtrar por ventana mensual: productos que vencen entre inicio_mes y fin_mes
+
+    mask_ventana = (df[columna_fecha_venc] >= inicio_mes) & (df[columna_fecha_venc] <= fin_mes)
+
+    df_filtrado = df[mask_ventana].copy()
+
+    
+
+    # Calcular días efectivos desde hoy para clasificación (pueden ser negativos si ya venció)
+
+    df_filtrado['Dias_Efectivos'] = (df_filtrado[columna_fecha_venc] - fecha_hoy).dt.days
+
+    
+
+    return df_filtrado, inicio_mes, fin_mes
+
+
+
+# =============================================================================
+
+# 6. SIDEBAR: PANEL DE CONTROL
+
+# =============================================================================
+
+with st.sidebar:
+
+    st.title("🎛️ Panel de Control")
+
     st.markdown("---")
+
     
-    # =============================================================================
-    # SIDEBAR - CARGA DE LOS 5 ARCHIVOS
-    # =============================================================================
-    with st.sidebar:
-        st.header("📁 Carga de Archivos (ETL)")
-        st.markdown("---")
-        
-        st.markdown("**Se requieren los 5 archivos para el ETL completo:**")
-        
-        archivo_sucursales = st.file_uploader(
-            "1️⃣ 1_SUCURSALES_MASTER.csv",
-            type=['csv'],
-            help="Ubicaciones de tiendas con coordenadas GPS",
-            key="uploader_sucursales"
-        )
-        
-        archivo_productos = st.file_uploader(
-            "2️⃣ 2_PRODUCTOS_MASTER.csv",
-            type=['csv'],
-            help="Catálogo maestro de productos",
-            key="uploader_productos"
-        )
-        
-        archivo_lotes = st.file_uploader(
-            "3️⃣ 3_LOTES_PRODUCTOS.csv",
-            type=['csv'],
-            help="Información de lotes y caducidad",
-            key="uploader_lotes"
-        )
-        
-        archivo_inventario = st.file_uploader(
-            "4️⃣ 4_INVENTARIO_COMPLETO_LOTES.csv",
-            type=['csv'],
-            help="Inventario completo con movimientos",
-            key="uploader_inventario"
-        )
-        
-        archivo_stock = st.file_uploader(
-            "5️⃣ 5_STOCK_ACTUAL_GEO_POWERBI.csv",
-            type=['csv'],
-            help="Stock actual con ubicación geográfica",
-            key="uploader_stock"
-        )
-        
-        st.markdown("---")
-        
-        # Contador de archivos cargados
-        archivos_cargados = sum([
-            archivo_sucursales is not None,
-            archivo_productos is not None,
-            archivo_lotes is not None,
-            archivo_inventario is not None,
-            archivo_stock is not None
-        ])
-        
-        st.progress(archivos_cargados / 5)
-        st.caption(f"{archivos_cargados}/5 archivos cargados")
-        
-        # Botón de ejecutar (solo se habilita si todos los archivos están cargados)
-        todos_archivos = archivos_cargados == 5
-        
-        if todos_archivos:
-            boton_ejecutar = st.button("✅ Ejecutar ETL y Análisis", type="primary", use_container_width=True)
-        else:
-            st.warning(f"⚠️ Faltan {5 - archivos_cargados} archivos. Se necesitan los 5 para el ETL completo.")
-            boton_ejecutar = False
+
+    st.subheader("📁 Archivos Maestros")
+
+    uploaded_files = st.file_uploader(
+
+        "Arrastra los 5 archivos CSV", type="csv", accept_multiple_files=True,
+
+        help="• 1_SUCURSALES_MASTER.csv\n• 2_PRODUCTOS_MASTER.csv\n• 3_LOTES_PRODUCTOS.csv\n• 4_INVENTARIO_COMPLETO.csv\n• 5_STOCK_ACTUAL_GEO.csv"
+
+    )
+
     
-    # =============================================================================
-    # SESSION STATE
-    # =============================================================================
-    if 'ejecutar' not in st.session_state:
-        st.session_state['ejecutar'] = False
-    if 'datos_procesados' not in st.session_state:
-        st.session_state['datos_procesados'] = None
-    if 'ver_detalle' not in st.session_state:
-        st.session_state['ver_detalle'] = False
-    if 'plan_aceptado' not in st.session_state:
-        st.session_state['plan_aceptado'] = False
-    if 'metricas_plan' not in st.session_state:
-        st.session_state['metricas_plan'] = {}
+
+    if uploaded_files:
+
+        progreso = min(len(uploaded_files) / 5, 1.0)
+
+        st.progress(progreso)
+
+        st.caption(f"✅ {len(uploaded_files)}/5 archivos cargados")
+
     
-    # =============================================================================
-    # EJECUCIÓN DEL ETL Y ANÁLISIS
-    # =============================================================================
-    if boton_ejecutar or st.session_state['ejecutar']:
-        
-        if not todos_archivos:
-            st.warning("⚠️ Por favor cargue los 5 archivos para ejecutar el ETL completo")
-            st.stop()
-        
+
+    st.markdown("---")
+
+    st.subheader("⚙️ Configuración de Ventana")
+
+    
+
+    # Mostrar fecha de referencia y ventana calculada
+
+    tz_cl = pytz.timezone('America/Santiago')
+
+    fecha_hoy_ui = datetime.now(tz_cl).replace(tzinfo=None)
+
+    inicio_mes_ui, fin_mes_ui = obtener_ventana_mensual(fecha_hoy_ui)
+
+    
+
+    st.info(f"""
+
+    📅 **Ventana de Análisis Mensual**
+
+    
+
+    • Hoy: {fecha_hoy_ui.strftime('%d/%m/%Y')}
+
+    • Inicio mes: {inicio_mes_ui.strftime('%d/%m/%Y')}
+
+    • Fin mes: {fin_mes_ui.strftime('%d/%m/%Y')}
+
+    
+
+    ✅ Solo productos que vencen DENTRO de esta ventana serán clasificados como riesgo.
+
+    ✅ La clasificación (Vencido/Crítico/Urgente) se calcula RELATIVO a HOY.
+
+    """)
+
+    
+
+    incluir_fuera_ventana = st.checkbox(
+
+        "🔍 Mostrar productos fuera de ventana (referencia)", value=False,
+
+        help="Incluir productos que vencen fuera del mes actual como contexto adicional"
+
+    )
+
+    
+
+    st.markdown("---")
+
+    st.subheader("⚡ Acciones")
+
+    if st.button("🔄 Actualizar Datos", use_container_width=True):
+
+        st.cache_data.clear()
+
+        st.rerun()
+
+
+
+# =============================================================================
+
+# 7. PROCESAMIENTO PRINCIPAL CON LÓGICA MENSUAL CORREGIDA
+
+# =============================================================================
+
+if uploaded_files:
+
+    data = {}
+
+    
+
+    # Cargar y clasificar archivos
+
+    for file in uploaded_files:
+
+        df_temp = cargar_archivo_inteligente(file)
+
+        if df_temp is not None:
+
+            df_temp = mapear_columnas(df_temp)
+
+            tipo = detectar_tipo_archivo(df_temp)
+
+            data[tipo] = df_temp
+
+            st.sidebar.success(f"✅ {tipo}: {len(df_temp)} registros")
+
+    
+
+    # Validar archivos esenciales
+
+    if 'stock_geo' in data or 'inventario_movimientos' in data:
+
         try:
-            with st.spinner("🔄 Ejecutando ETL: Cargando y procesando los 5 archivos..."):
+
+            with st.spinner("🔄 Procesando inteligencia de inventario con ventana mensual..."):
+
                 
-                # EJECUTAR ETL COMPLETO
-                df_riesgo, df_master, dfs_originales = cargar_y_procesar_etl(
-                    archivo_sucursales,
-                    archivo_productos,
-                    archivo_lotes,
-                    archivo_inventario,
-                    archivo_stock
-                )
+
+                # ========================================
+
+                # CONSOLIDACIÓN ETL
+
+                # ========================================
+
+                df_base = data.get('stock_geo')
+
+                if df_base is None or (hasattr(df_base, 'empty') and df_base.empty):
+
+                    df_base = data.get('inventario_movimientos')
+
                 
-                # Fecha de referencia
-                fecha_hoy = datetime.now()
+
+                if df_base is None or df_base.empty:
+
+                    st.error("❌ No se encontró archivo de stock o inventario válido")
+
+                    st.stop()
+
                 
-                # Calcular total en riesgo
-                total_riesgo = df_riesgo['Valor_Stock_Costo'].sum()
-                
-                st.success("✅ ETL completado exitosamente!")
-                st.info(f"📅 Análisis para: {fecha_hoy.strftime('%d/%m/%Y')} | Productos en riesgo: {len(df_riesgo)}")
-                
-                # Mostrar resumen de datos cargados
-                with st.expander("📊 Resumen de Datos Cargados", expanded=False):
-                    col1, col2, col3, col4, col5 = st.columns(5)
-                    with col1:
-                        st.metric("🏪 Sucursales", len(dfs_originales['sucursales']))
-                    with col2:
-                        st.metric("📦 Productos", len(dfs_originales['productos']))
-                    with col3:
-                        st.metric("🔢 Lotes", len(dfs_originales['lotes']))
-                    with col4:
-                        st.metric("📋 Movimientos", len(dfs_originales['inventario']))
-                    with col5:
-                        st.metric("📍 Stock Actual", len(dfs_originales['stock']))
-            
-            # =============================================================================
-            # MOSTRAR RESULTADOS
-            # =============================================================================
-            
-            # 1. Resumen ejecutivo
-            mostrar_resumen_ejecutivo(df_riesgo, total_riesgo, fecha_hoy)
-            st.markdown("---")
-            
-            # 2. Clasificación de inventario
-            mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy)
-            st.markdown("---")
-            
-            # 3. MAPA DE SUCURSALES
-            st.markdown('<div class="section-title-box"><h2>🗺️ Mapa de Sucursales</h2></div>', unsafe_allow_html=True)
-            
-            fig, stock_por_sucursal = crear_mapa_inventario(df_riesgo)
-            
-            if fig:
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Resumen por sucursal
-                if stock_por_sucursal is not None and not stock_por_sucursal.empty:
-                    st.markdown("### 📊 Resumen por Sucursal")
-                    st.dataframe(
-                        stock_por_sucursal[['Sucursal', 'Stock', 'Valor_Stock_Costo', 'Días_Para_Vencimiento']]
-                        .sort_values('Stock', ascending=False)
-                        .head(20),
-                        use_container_width=True,
-                        hide_index=True
+
+                # Merge con sucursales
+
+                if 'sucursales' in data and 'Sucursal' in df_base.columns:
+
+                    df_base = df_base.merge(
+
+                        data['sucursales'][['Sucursal', 'Latitud', 'Longitud', 'Direccion_Aprox']],
+
+                        on='Sucursal', how='left'
+
                     )
-            
-            st.markdown("---")
-            
-            # 4. Vista de detalle (opcional)
-            if st.session_state.get('ver_detalle', False):
-                with st.expander("📋 Ver Detalle Completo de Productos en Riesgo", expanded=True):
-                    cols_detalle = ['Producto', 'Sucursal', 'Stock', 'Días_Para_Vencimiento', 
-                                   'Valor_Stock_Costo', 'Nivel_Riesgo', 'Categoria']
-                    st.dataframe(
-                        df_riesgo[cols_detalle]
-                        .sort_values(['Nivel_Riesgo', 'Valor_Stock_Costo'], ascending=[False, False]),
-                        use_container_width=True,
-                        hide_index=True
-                    )
+
                 
-                if st.button("⬅️ Volver al Resumen", type="primary"):
-                    st.session_state['ver_detalle'] = False
-                    st.rerun()
-            
-            # Guardar estado de ejecución
-            st.session_state['ejecutar'] = True
-            st.session_state['datos_procesados'] = {
-                'fecha': fecha_hoy,
-                'total_riesgo': total_riesgo,
-                'total_productos': len(df_riesgo),
-                'total_recuperado': st.session_state.get('metricas_plan', {}).get('total_recuperado', 0)
-            }
-            
+
+                # Merge con productos
+
+                if 'productos' in data and 'Producto_ID' in df_base.columns:
+
+                    df_base = df_base.merge(
+
+                        data['productos'][['Producto_ID', 'Categoria', 'Categoria_Rotacion']],
+
+                        on='Producto_ID', how='left'
+
+                    )
+
+                
+
+                # ========================================
+
+                # 🎯 LÓGICA DE VENTANA MENSUAL (Core Corregido)
+
+                # ========================================
+
+                tz_cl = pytz.timezone('America/Santiago')
+
+                fecha_hoy = datetime.now(tz_cl).replace(tzinfo=None)
+
+                
+
+                # Determinar columna de fecha de vencimiento disponible
+
+                col_fecha_venc = None
+
+                if 'Fecha_Vencimiento_Lote' in df_base.columns:
+
+                    col_fecha_venc = 'Fecha_Vencimiento_Lote'
+
+                elif 'Fecha_Vencimiento' in df_base.columns:
+
+                    col_fecha_venc = 'Fecha_Vencimiento'
+
+                
+
+                if col_fecha_venc:
+
+                    # Aplicar filtro de ventana mensual + cálculo de días efectivos
+
+                    df_base, inicio_mes, fin_mes = filtrar_por_ventana_mensual(
+
+                        df_base, fecha_hoy, col_fecha_venc
+
+                    )
+
+                    
+
+                    # Clasificación de riesgo con lógica mensual CORREGIDA
+
+                    df_base['Riesgo_BI'] = df_base['Dias_Efectivos'].apply(
+
+                        lambda d: clasificar_riesgo_mensual(d, fecha_hoy, inicio_mes, fin_mes)
+
+                    )
+
+                    
+
+                elif 'Dias_Para_Vencer' in df_base.columns:
+
+                    # Fallback: usar días directos con filtro de ventana
+
+                    df_base['Dias_Efectivos'] = pd.to_numeric(df_base['Dias_Para_Vencer'], errors='coerce').fillna(0)
+
+                    
+
+                    # Calcular fecha de vencimiento para filtro mensual
+
+                    df_base['Fecha_Venc_Calc'] = fecha_hoy + pd.to_timedelta(df_base['Dias_Efectivos'], unit='D')
+
+                    inicio_mes, fin_mes = obtener_ventana_mensual(fecha_hoy)
+
+                    
+
+                    # Filtrar por ventana mensual
+
+                    mask_ventana = (df_base['Fecha_Venc_Calc'] >= inicio_mes) & (df_base['Fecha_Venc_Calc'] <= fin_mes)
+
+                    if not incluir_fuera_ventana:
+
+                        df_base = df_base[mask_ventana].copy()
+
+                    
+
+                    # Clasificación
+
+                    df_base['Riesgo_BI'] = df_base['Dias_Efectivos'].apply(
+
+                        lambda d: clasificar_riesgo_mensual(d, fecha_hoy, inicio_mes, fin_mes)
+
+                    )
+
+                else:
+
+                    st.warning("⚠️ No se encontró columna de fecha de vencimiento. Usando clasificación básica.")
+
+                    df_base['Dias_Efectivos'] = 0
+
+                    df_base['Riesgo_BI'] = 'SIN_DATO'
+
+                    inicio_mes, fin_mes = obtener_ventana_mensual(fecha_hoy)
+
+                
+
+                # ========================================
+
+                # CÁLCULO DE VALOR MONETARIO
+
+                # ========================================
+
+                if 'Valor_Unitario_CLP' in df_base.columns and 'Stock_Teorico_Unidades' in df_base.columns:
+
+                    df_base['Valor_Costo_Total'] = (
+
+                        df_base['Stock_Teorico_Unidades'].fillna(0) * 
+
+                        df_base['Valor_Unitario_CLP'].fillna(0)
+
+                    )
+
+                elif 'Precio_Venta_CLP' in df_base.columns:
+
+                    df_base['Valor_Costo_Total'] = (
+
+                        df_base['Stock_Teorico_Unidades'].fillna(0) * 
+
+                        df_base['Precio_Venta_CLP'].fillna(0) * 0.70
+
+                    )
+
+                else:
+
+                    df_base['Valor_Costo_Total'] = df_base['Stock_Teorico_Unidades'].fillna(0) * 1000  # Estimado
+
+                
+
+                # ========================================
+
+                # FILTROS INTERACTIVOS
+
+                # ========================================
+
+                col_f1, col_f2, col_f3 = st.columns(3)
+
+                
+
+                with col_f1:
+
+                    sucursales_disp = df_base['Sucursal'].dropna().unique() if 'Sucursal' in df_base.columns else []
+
+                    sel_suc = st.multiselect("🏪 Sucursales", sucursales_disp, default=sucursales_disp[:3] if len(sucursales_disp)>0 else [], key="filter_suc")
+
+                
+
+                with col_f2:
+
+                    categorias_disp = df_base['Categoria'].dropna().unique() if 'Categoria' in df_base.columns else []
+
+                    sel_cat = st.multiselect("📦 Categorías", categorias_disp, default=categorias_disp, key="filter_cat")
+
+                
+
+                with col_f3:
+
+                    riesgos_disp = [r for r in COLOR_MAP.keys() if r in df_base['Riesgo_BI'].values and r not in ['FUERA_VENTANA', 'SIN_DATO']]
+
+                    sel_risk = st.multiselect("⚠️ Nivel de Riesgo", riesgos_disp, default=['VENCIDO', 'CRITICO', 'URGENTE'], key="filter_risk")
+
+                
+
+                # Aplicar filtros
+
+                df_f = df_base.copy()
+
+                if sel_suc and 'Sucursal' in df_f.columns: df_f = df_f[df_f['Sucursal'].isin(sel_suc)]
+
+                if sel_cat and 'Categoria' in df_f.columns: df_f = df_f[df_f['Categoria'].isin(sel_cat)]
+
+                if sel_risk: df_f = df_f[df_f['Riesgo_BI'].isin(sel_risk)]
+
+                
+
+                # ========================================
+
+                # CABECERA EJECUTIVA
+
+                # ========================================
+
+                st.title(f"🛡️ Command Center: Riesgo de Inventario")
+
+                st.markdown(f"""
+
+                <div style="background: linear-gradient(135deg, #1a237e 0%, #283593 100%); 
+
+                           color: white; padding: 20px 30px; border-radius: 16px; 
+
+                           margin: 10px 0 30px 0; box-shadow: 0 4px 20px rgba(26,35,126,0.3);">
+
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+
+                        <div>
+
+                            <h2 style="margin: 0; font-size: 1.8rem;">📊 Inteligencia Mensual</h2>
+
+                            <p style="margin: 5px 0 0 0; opacity: 0.9;">
+
+                                🕒 Actualizado: {datetime.now(tz_cl).strftime('%d/%m/%Y %H:%M')} CLT | 
+
+                                📅 Ventana: {inicio_mes.strftime('%d/%m')} al {fin_mes.strftime('%d/%m/%Y')}
+
+                            </p>
+
+                        </div>
+
+                        <div style="text-align: right;">
+
+                            <span style="display: inline-flex; align-items: center; background: rgba(255,255,255,0.2); 
+
+                                   padding: 8px 16px; border-radius: 20px; font-weight: 600;">
+
+                                <span class="status-dot" style="background: #4caf50;"></span>
+
+                                Sistema Activo
+
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                """, unsafe_allow_html=True)
+
+                
+
+                # ========================================
+
+                # KPIs EJECUTIVOS (Solo ventana mensual)
+
+                # ========================================
+
+                # Excluir FUERA_VENTANA y SIN_DATO de cálculos principales
+
+                df_riesgo = df_f[df_f['Riesgo_BI'].isin(['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO'])].copy()
+
+                
+
+                val_total = df_riesgo["Valor_Costo_Total"].sum()
+
+                venc_val = df_riesgo[df_riesgo['Riesgo_BI'] == 'VENCIDO']['Valor_Costo_Total'].sum()
+
+                crit_val = df_riesgo[df_riesgo['Riesgo_BI'] == 'CRITICO']['Valor_Costo_Total'].sum()
+
+                urg_val = df_riesgo[df_riesgo['Riesgo_BI'] == 'URGENTE']['Valor_Costo_Total'].sum()
+
+                unid_alerta = int(df_riesgo["Stock_Teorico_Unidades"].sum())
+
+                
+
+                # Cálculos de recuperación (Ley 19.885 Chile)
+
+                credito_fiscal = venc_val * 0.27
+
+                recuperacion_crit = crit_val * 0.50
+
+                recuperacion_urg = urg_val * 0.40
+
+                total_recuperable = credito_fiscal + recuperacion_crit + recuperacion_urg
+
+                
+
+                k1, k2, k3, k4 = st.columns(4)
+
+                
+
+                with k1:
+
+                    st.markdown(f'''
+
+                    <div class="executive-card">
+
+                        <span class="metric-label">💰 Monto Total en Riesgo (Mes)</span>
+
+                        <div class="metric-value">{clp(val_total)}</div>
+
+                        <div class="metric-sub">{len(df_riesgo)} productos • {unid_alerta:,} unidades</div>
+
+                    </div>
+
+                    ''', unsafe_allow_html=True)
+
+                
+
+                with k2:
+
+                    st.markdown(f'''
+
+                    <div class="executive-card" style="border-top-color: #9c27b0;">
+
+                        <span class="metric-label">🏛️ Crédito Fiscal (Donación)</span>
+
+                        <div class="metric-value" style="color:#9c27b0;">{clp(credito_fiscal)}</div>
+
+                        <div class="metric-sub">27% sobre ${int(venc_val):,} vencidos</div>
+
+                    </div>
+
+                    ''', unsafe_allow_html=True)
+
+                
+
+                with k3:
+
+                    st.markdown(f'''
+
+                    <div class="executive-card" style="border-top-color: #d32f2f;">
+
+                        <span class="metric-label">🔥 Recuperación Crítica</span>
+
+                        <div class="metric-value" style="color:#d32f2f;">{clp(recuperacion_crit)}</div>
+
+                        <div class="metric-sub">50% estimado liquidación</div>
+
+                    </div>
+
+                    ''', unsafe_allow_html=True)
+
+                
+
+                with k4:
+
+                    pct_rec = (total_recuperable/val_total*100) if val_total>0 else 0
+
+                    st.markdown(f'''
+
+                    <div class="executive-card" style="border-top-color: #4caf50;">
+
+                        <span class="metric-label">✅ Total Recuperable</span>
+
+                        <div class="metric-value" style="color:#2e7d32;">{clp(total_recuperable)}</div>
+
+                        <div class="metric-sub">{pct_rec:.1f}% del riesgo mensual</div>
+
+                    </div>
+
+                    ''', unsafe_allow_html=True)
+
+                
+
+                # ========================================
+
+                # MAPA GEOGRÁFICO CON FILTRO MENSUAL
+
+                # ========================================
+
+                st.markdown('<h2 class="section-header">🌐 Riesgo por Sucursal (Ventana Mensual)</h2>', unsafe_allow_html=True)
+
+                
+
+                if 'Latitud' in df_riesgo.columns and 'Longitud' in df_riesgo.columns and df_riesgo['Latitud'].notna().any():
+
+                    df_map = df_riesgo.groupby(['Sucursal', 'Latitud', 'Longitud']).agg({
+
+                        'Valor_Costo_Total': 'sum', 'Stock_Teorico_Unidades': 'sum',
+
+                        'Riesgo_BI': lambda x: x.mode()[0] if len(x.mode()) > 0 else 'NORMAL',
+
+                        'Dias_Efectivos': 'mean'
+
+                    }).reset_index()
+
+                    
+
+                    fig_map = px.scatter_mapbox(
+
+                        df_map, lat="Latitud", lon="Longitud", size="Valor_Costo_Total", size_max=40,
+
+                        color="Riesgo_BI", color_discrete_map=COLOR_MAP, hover_name="Sucursal",
+
+                        hover_data={"Valor_Costo_Total": ":$.0f", "Stock_Teorico_Unidades": ":,.0f", "Dias_Efectivos": ":.1f"},
+
+                        zoom=9, height=500, mapbox_style="carto-positron", center={"lat": -33.45, "lon": -70.65}
+
+                    )
+
+                    fig_map.update_layout(margin={"r":0,"t":10,"l":0,"b":0}, legend=dict(orientation="h", yanchor="bottom", y=0.01, xanchor="right", x=0.99))
+
+                    st.plotly_chart(fig_map, use_container_width=True, config={'scrollZoom': True})
+
+                    
+
+                    with st.expander("📋 Detalle por Sucursal", expanded=False):
+
+                        resumen_suc = df_riesgo.groupby('Sucursal').agg({
+
+                            'Valor_Costo_Total': 'sum', 'Stock_Teorico_Unidades': 'sum',
+
+                            'Producto': 'count' if 'Producto' in df_riesgo.columns else 'first',
+
+                            'Dias_Efectivos': 'mean'
+
+                        }).round(0).sort_values('Valor_Costo_Total', ascending=False)
+
+                        st.dataframe(resumen_suc.style.format({'Valor_Costo_Total': clp, 'Stock_Teorico_Unidades': '{:,.0f}', 'Dias_Efectivos': '{:.1f}'}), use_container_width=True)
+
+                else:
+
+                    st.info("📍 Coordenadas no disponibles. Verifica archivos de sucursales/stock.")
+
+                
+
+                # ========================================
+
+                # PLAN DE ACCIÓN ESTRATÉGICO
+
+                # ========================================
+
+                st.markdown(f'''
+
+                <div class="plan-box">
+
+                    <h3 style="margin-top:0; color:#1a237e; display:flex; align-items:center; gap:10px;">
+
+                        📋 Plan de Acción - Ventana Mensual ({inicio_mes.strftime('%b')} {inicio_mes.year})
+
+                    </h3>
+
+                    <p style="margin-bottom:20px;">
+
+                        Acciones prioritarias para mitigar pérdida de <b>{clp(val_total)}</b> en riesgo <b>dentro del mes actual</b>:
+
+                    </p>
+
+                    
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
+
+                        <div style="background: white; padding: 15px; border-radius: 10px; border-left: 4px solid #9c27b0;">
+
+                            <strong style="color:#7b1fa2;">🟣 VENCIDOS ({int(df_riesgo[df_riesgo['Riesgo_BI']=='VENCIDO']['Producto'].nunique() if 'Producto' in df_riesgo.columns else 0)})</strong><br>
+
+                            <small>→ Donación inmediata para crédito fiscal 27% (Ley 19.885)</small>
+
+                        </div>
+
+                        <div style="background: white; padding: 15px; border-radius: 10px; border-left: 4px solid #d32f2f;">
+
+                            <strong style="color:#c62828;">🔴 CRÍTICOS ({int(df_riesgo[df_riesgo['Riesgo_BI']=='CRITICO']['Producto'].nunique() if 'Producto' in df_riesgo.columns else 0)})</strong><br>
+
+                            <small>→ Liquidación FEFO con 40-60% descuento (1-3 días)</small>
+
+                        </div>
+
+                        <div style="background: white; padding: 15px; border-radius: 10px; border-left: 4px solid #f57c00;">
+
+                            <strong style="color:#e65100;">🟠 URGENTES ({int(df_riesgo[df_riesgo['Riesgo_BI']=='URGENTE']['Producto'].nunique() if 'Producto' in df_riesgo.columns else 0)})</strong><br>
+
+                            <small>→ Transferencia a sedes de alto tráfico (4-7 días)</small>
+
+                        </div>
+
+                        <div style="background: white; padding: 15px; border-radius: 10px; border-left: 4px solid #fbc02d;">
+
+                            <strong style="color:#f9a825;">🟡 PREVENTIVOS ({int(df_riesgo[df_riesgo['Riesgo_BI']=='PREVENTIVO']['Producto'].nunique() if 'Producto' in df_riesgo.columns else 0)})</strong><br>
+
+                            <small>→ Monitoreo diario y promoción temprana (8-30 días)</small>
+
+                        </div>
+
+                    </div>
+
+                    
+
+                    <div class="timeline">
+
+                        <div class="timeline-item">
+
+                            <div class="timeline-dot" style="background:#d32f2f;"></div>
+
+                            <div class="timeline-time">HOY 08:00</div>
+
+                            <div class="timeline-action">Retirar vencidos</div>
+
+                        </div>
+
+                        <div class="timeline-item">
+
+                            <div class="timeline-dot" style="background:#f57c00;"></div>
+
+                            <div class="timeline-time">HOY 14:00</div>
+
+                            <div class="timeline-action">Activar descuentos críticos</div>
+
+                        </div>
+
+                        <div class="timeline-item">
+
+                            <div class="timeline-dot" style="background:#fbc02d;"></div>
+
+                            <div class="timeline-time">MAÑANA</div>
+
+                            <div class="timeline-action">Revisar preventivos</div>
+
+                        </div>
+
+                        <div class="timeline-item">
+
+                            <div class="timeline-dot" style="background:#2e7d32;"></div>
+
+                            <div class="timeline-time">FIN MES</div>
+
+                            <div class="timeline-action">Cierre y reporte</div>
+
+                        </div>
+
+                    </div>
+
+                    
+
+                    <div style="background: #e8f5e9; padding: 15px; border-radius: 10px; text-align: center;">
+
+                        <strong style="color: #2e7d32; font-size: 1.2rem;">
+
+                            💰 Proyección de Recuperación Mensual: {clp(total_recuperable)} CLP
+
+                        </strong>
+
+                        <br><small style="color: #666;">Incluye crédito fiscal + liquidación estimada • Ventana: {inicio_mes.strftime('%d/%m')} al {fin_mes.strftime('%d/%m')}</small>
+
+                    </div>
+
+                </div>
+
+                ''', unsafe_allow_html=True)
+
+                
+
+                # ========================================
+
+                # GRÁFICOS DE PROFUNDIDAD
+
+                # ========================================
+
+                st.markdown('<h2 class="section-header">🔍 Análisis de Profundidad (Ventana Mensual)</h2>', unsafe_allow_html=True)
+
+                
+
+                tab1, tab2, tab3, tab4 = st.tabs(["📊 Valor por Categoría", "📉 Días vs Stock", "📍 Top Sucursales", "📑 Auditoría"])
+
+                
+
+                with tab1:
+
+                    if len(df_riesgo) > 0 and 'Categoria' in df_riesgo.columns:
+
+                        fig1 = px.bar(df_riesgo, x="Categoria", y="Valor_Costo_Total", color="Riesgo_BI", 
+
+                                     color_discrete_map=COLOR_MAP, barmode="group", text_auto='.2s',
+
+                                     title=f"Distribución del valor en riesgo - {inicio_mes.strftime('%B %Y')}")
+
+                        fig1.update_layout(xaxis_tickangle=-45, height=400)
+
+                        st.plotly_chart(fig1, use_container_width=True)
+
+                    else:
+
+                        st.info("📊 Sin datos para visualizar")
+
+                
+
+                with tab2:
+
+                    if len(df_riesgo) > 0 and 'Dias_Efectivos' in df_riesgo.columns:
+
+                        fig2 = px.scatter(df_riesgo, x="Dias_Efectivos", y="Stock_Teorico_Unidades", 
+
+                                         size="Valor_Costo_Total", color="Riesgo_BI", color_discrete_map=COLOR_MAP,
+
+                                         hover_name="Producto" if 'Producto' in df_riesgo.columns else None,
+
+                                         title="Tamaño = Valor Monetario • Línea roja = Hoy")
+
+                        fig2.add_vline(x=0, line_dash="dash", line_color="red", annotation_text="HOY")
+
+                        fig2.update_layout(height=400)
+
+                        st.plotly_chart(fig2, use_container_width=True)
+
+                    else:
+
+                        st.info("📊 Sin datos para visualizar")
+
+                
+
+                with tab3:
+
+                    if 'Sucursal' in df_riesgo.columns and len(df_riesgo) > 0:
+
+                        top_suc = df_riesgo.groupby('Sucursal')['Valor_Costo_Total'].sum().sort_values(ascending=False).head(10).reset_index()
+
+                        fig3 = px.bar(top_suc, x='Sucursal', y='Valor_Costo_Total', color='Valor_Costo_Total', 
+
+                                     color_continuous_scale='YlOrRd', text_auto='.3s',
+
+                                     title="Top 10 Sucursales con Mayor Exposición Mensual")
+
+                        fig3.update_layout(xaxis_tickangle=-45, height=400)
+
+                        st.plotly_chart(fig3, use_container_width=True)
+
+                    else:
+
+                        st.info("📊 Sin datos de sucursales disponibles")
+
+                
+
+                with tab4:
+
+                    if len(df_riesgo) > 0:
+
+                        cols_show = [c for c in ['Riesgo_BI', 'Producto', 'Sucursal', 'Dias_Efectivos', 
+
+                                                'Stock_Teorico_Unidades', 'Valor_Costo_Total', 'Categoria'] 
+
+                                   if c in df_riesgo.columns]
+
+                        
+
+                        def badge_riesgo(val):
+
+                            color_class = f"risk-{val.lower()}" if val in COLOR_MAP else "risk-normal"
+
+                            return f'<span class="risk-badge {color_class}">{val}</span>'
+
+                        
+
+                        df_display = df_riesgo[cols_show].sort_values('Dias_Efectivos' if 'Dias_Efectivos' in cols_show else cols_show[0])
+
+                        
+
+                        st.dataframe(
+
+                            df_display.style.format({
+
+                                'Valor_Costo_Total': clp if 'Valor_Costo_Total' in df_display.columns else None,
+
+                                'Stock_Teorico_Unidades': '{:,.0f}' if 'Stock_Teorico_Unidades' in df_display.columns else None,
+
+                                'Dias_Efectivos': '{:.0f}' if 'Dias_Efectivos' in df_display.columns else None
+
+                            }).map(badge_riesgo, subset=['Riesgo_BI']) if 'Riesgo_BI' in df_display.columns else None,
+
+                            use_container_width=True, hide_index=True
+
+                        )
+
+                        
+
+                        csv = df_display.to_csv(index=False, encoding='utf-8-sig')
+
+                        st.download_button(
+
+                            label="📥 Descargar Auditoría Mensual (CSV)",
+
+                            data=csv,
+
+                            file_name=f"auditoria_riesgo_{fecha_hoy.strftime('%Y%m')}.csv",
+
+                            mime="text/csv", use_container_width=True
+
+                        )
+
+                    else:
+
+                        st.info("📊 Sin datos para auditar")
+
+                
+
+                # ========================================
+
+                # FOOTER
+
+                # ========================================
+
+                st.markdown("---")
+
+                st.caption(f"""
+
+                🛡️ **Command Center v2.2** • Generado: {datetime.now(tz_cl).strftime('%d/%m/%Y %H:%M:%S')} CLT  
+
+                📅 Ventana de análisis: {inicio_mes.strftime('%d/%m/%Y')} al {fin_mes.strftime('%d/%m/%Y')}  
+
+                📁 Fuentes: {', '.join([f.name for f in uploaded_files])} • Registros en ventana: {len(df_riesgo):,}
+
+                """)
+
+                
+
         except Exception as e:
-            st.error(f"❌ Error en el ETL: {type(e).__name__}: {str(e)}")
-            with st.expander("🔍 Ver detalles técnicos del error"):
+
+            st.error(f"❌ Error en procesamiento: {type(e).__name__}: {str(e)}")
+
+            with st.expander("🔍 Detalles técnicos del error"):
+
                 st.exception(e)
 
-if __name__ == "__main__":
-    main()
+    
+
+    else:
+
+        st.info("👋 **Bienvenido al Command Center**\n\nPor favor, carga al menos el archivo de **Stock Actual** o **Inventario Completo** para activar el análisis de inteligencia.")
+
+
+
+else:
+
+    # Pantalla de bienvenida
+
+    st.markdown("""
+
+    <div style="text-align: center; padding: 60px 20px;">
+
+        <h1 style="color: #1a237e; margin-bottom: 20px;">🛡️ Command Center: Riesgo de Inventario</h1>
+
+        <p style="font-size: 1.2rem; color: #666; max-width: 600px; margin: 0 auto 30px;">
+
+            Plataforma de inteligencia estratégica para gestión proactiva de caducidad de inventario con análisis mensual.
+
+        </p>
+
+        <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+
+            <span class="risk-badge risk-vencido">🟣 Vencido (≤0 días)</span>
+
+            <span class="risk-badge risk-critico">🔴 Crítico (1-3 días)</span>
+
+            <span class="risk-badge risk-urgente">🟠 Urgente (4-7 días)</span>
+
+            <span class="risk-badge risk-preventivo">🟡 Preventivo (8-30 días)</span>
+
+        </div>
+
+        <p style="margin-top: 40px; color: #888; font-weight: 500;">
+
+            ✨ <b>Nuevo:</b> Análisis acotado al mes actual • Ej: Si hoy es 15/Feb → ventana 01/Feb al 28/Feb
+
+        </p>
+
+        <p style="margin-top: 20px; color: #888;">← Sube tus archivos en el panel lateral para comenzar</p>
+
+    </div>
+
+    """, unsafe_allow_html=True)
+
+    
+
+    with st.expander("📋 Estructura esperada de archivos"):
+
+        st.markdown("""
+
+        | Archivo | Columnas Clave | Propósito |
+
+        |---------|---------------|-----------|
+
+        | `1_SUCURSALES_MASTER.csv` | Sucursal, Latitud, Longitud, ID_Ciudad | Geolocalización de sedes |
+
+        | `2_PRODUCTOS_MASTER.csv` | Producto_ID, Categoria, Categoria_Rotacion | Catálogo maestro |
+
+        | `3_LOTES_PRODUCTOS.csv` | Lote_ID, Producto_ID, Fecha_Creacion_Lote | Trazabilidad de lotes |
+
+        | `4_INVENTARIO_COMPLETO.csv` | Lote_ID, Sucursal, Tipo_Movimiento, Fecha_Movimiento | Historial de movimientos |
+
+        | `5_STOCK_ACTUAL_GEO.csv` | Lote_ID, Stock_Teorico_Unidades, Valor_Unitario_CLP, Latitud | Snapshot actual con geo |
+
+        
+
+        > 💡 **Lógica de Ventana Mensual Corregida**: 
+
+        > - Si hoy es **15 de febrero 2026**, el análisis incluye productos que vencen entre **01/02/2026 y 28/02/2026**
+
+        > - Si hoy es **28 de febrero 2026**, el análisis incluye productos que vencen entre **01/02/2026 y 28/02/2026** (NO marzo)
+
+        > - Dentro de esa ventana, se mantiene la clasificación original ANCLADA A HOY: 
+
+        >   - 🟣 **VENCIDO**: ≤0 días desde hoy (vence hoy o antes)
+
+        >   - 🔴 **CRÍTICO**: 1-3 días desde hoy  
+
+        >   - 🟠 **URGENTE**: 4-7 días desde hoy
+
+        >   - 🟡 **PREVENTIVO**: 8-30 días desde hoy (pero SOLO si vence dentro del mes)
+
+        > - Productos que vencen fuera del mes se excluyen del análisis de riesgo inmediato
+
+        """) 
