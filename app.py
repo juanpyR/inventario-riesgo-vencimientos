@@ -865,38 +865,58 @@ def mostrar_plan_48h(stats, df_riesgo):
     # FUNCIÓN AUXILIAR PARA MOSTRAR DESGLOSE POR SUCURSAL
     # =========================================================================
     def mostrar_desglose_sucursal(df_nivel, titulo_color):
-        """Muestra tabla de productos agrupados por sucursal"""
-        if len(df_nivel) == 0:
-            return
+    """Muestra tabla de productos agrupados por sucursal en formato grid"""
+    if len(df_nivel) == 0:
+        return
+    
+    # Agrupar por sucursal
+    resumen_sucursal = df_nivel.groupby('Sucursal').agg({
+        'Producto': lambda x: list(x.unique()),
+        'Stock_Teorico_Unidades': 'sum',
+        'Valor_Stock': 'sum'
+    }).reset_index()
+    
+    resumen_sucursal = resumen_sucursal.sort_values('Valor_Stock', ascending=False)
+    
+    st.markdown(f"**📍 Desglose por Sucursal:**")
+    
+    # Calcular número de columnas (máximo 3-4 dependiendo de la cantidad)
+    num_sucursales = len(resumen_sucursal)
+    num_cols = min(3, num_sucursales) if num_sucursales > 1 else 1
+    
+    # Crear columnas
+    columnas = st.columns(num_cols)
+    
+    for idx, row in resumen_sucursal.iterrows():
+        sucursal = row['Sucursal']
+        productos = row['Producto']
+        unidades = int(row['Stock_Teorico_Unidades'])
+        valor = row['Valor_Stock']
         
-        # Agrupar por sucursal
-        resumen_sucursal = df_nivel.groupby('Sucursal').agg({
-            'Producto': lambda x: list(x.unique()),
-            'Stock_Teorico_Unidades': 'sum',
-            'Valor_Stock': 'sum'
-        }).reset_index()
+        productos_str = ", ".join(productos[:3])  # Mostrar máx 3 productos
+        if len(productos) > 3:
+            productos_str += f" (+{len(productos)-3} más)"
         
-        resumen_sucursal = resumen_sucursal.sort_values('Valor_Stock', ascending=False)
+        # Determinar en qué columna va
+        col_idx = idx % num_cols
         
-        st.markdown(f"**📍 Desglose por Sucursal:**")
-        
-        for _, row in resumen_sucursal.iterrows():
-            sucursal = row['Sucursal']
-            productos = row['Producto']
-            unidades = int(row['Stock_Teorico_Unidades'])
-            valor = row['Valor_Stock']
-            
-            productos_str = ", ".join(productos[:5])  # Mostrar máx 5 productos
-            if len(productos) > 5:
-                productos_str += f" (+{len(productos)-5} más)"
-            
+        with columnas[col_idx]:
             st.markdown(f"""
-            <div style='background: white; padding: 12px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {titulo_color};'>
-                <strong>🏪 {sucursal}</strong><br>
-                <span style='color: #666; font-size: 0.9rem;'>
-                    📦 {unidades:,} unidades | 💰 {clp(valor)} CLP<br>
-                    📋 Productos: {productos_str}
-                </span>
+            <div style='background: white; padding: 15px; border-radius: 10px; margin: 8px 0; 
+                        border-left: 5px solid {titulo_color}; 
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+                <strong style='font-size: 1.1rem;'>🏪 {sucursal}</strong><br><br>
+                <div style='display: flex; justify-content: space-between; margin: 8px 0;'>
+                    <span style='color: #666;'>📦 Unidades:</span>
+                    <span style='font-weight: 600;'>{unidades:,}</span>
+                </div>
+                <div style='display: flex; justify-content: space-between; margin: 8px 0;'>
+                    <span style='color: #666;'>💰 Valor:</span>
+                    <span style='font-weight: 600; color: #d32f2f;'>{clp(valor)} CLP</span>
+                </div>
+                <div style='margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;'>
+                    <span style='color: #999; font-size: 0.85rem;'>📋 {productos_str}</span>
+                </div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -1008,90 +1028,6 @@ def mostrar_plan_48h(stats, df_riesgo):
             <span style='font-size: 1.2rem; font-weight: 700; color: #f57c00;'>
                 📈 Recuperación estimada: {clp(recuperacion_urgentes)} CLP (40%)
             </span>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # =========================================================================
-    # SECCIÓN PREVENTIVO CON DESGLOSE
-    # =========================================================================
-    if stats['PREVENTIVO']['productos'] > 0:
-        df_preventivo = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'PREVENTIVO'].copy()
-        
-        st.markdown(f"""
-        <div class="plan-section" style="background: linear-gradient(135deg, #fffde7 0%, #fff9c4 100%); border-color: #fbc02d;">
-            <h3 style='color: #f9a825; margin: 0 0 15px 0;'>🟡 MAÑANA 12:00-18:00 | MARKDOWN 15% (PREVENTIVO - 8 a 10 días)</h3>
-            <div class="metric-grid">
-                <div class="metric-item">
-                    <div class="metric-label">📦 Productos</div>
-                    <div class="metric-value">{stats['PREVENTIVO']['productos']}</div>
-                </div>
-                <div class="metric-item">
-                    <div class="metric-label">📊 Unidades</div>
-                    <div class="metric-value">{clp(stats['PREVENTIVO']['unidades'])}</div>
-                </div>
-                <div class="metric-item">
-                    <div class="metric-label">💰 Valor</div>
-                    <div class="metric-value">{clp(valor_preventivo)}</div>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Desglose por sucursal para PREVENTIVO
-        mostrar_desglose_sucursal(df_preventivo, '#fbc02d')
-        
-        st.markdown(f"""
-        <div style='background: #fffde7; padding: 15px; border-radius: 10px; text-align: center; margin-top: 15px;'>
-            <span style='font-size: 1.2rem; font-weight: 700; color: #f9a825;'>
-                📈 Recuperación estimada: {clp(recuperacion_preventivo)} CLP (15%)
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # =========================================================================
-    # RESUMEN TOTAL (se mantiene igual)
-    # =========================================================================
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
-                border-radius: 15px; padding: 30px; margin: 20px 0;">
-        <h2 style="color: white; text-align: center; margin-bottom: 10px;">
-            ✅ RESUMEN PLAN 48H (Escenario Base)
-        </h2>
-        <p style="color: #bbdefb; text-align: center; margin-bottom: 25px; font-size: 0.9rem;">
-            Proyección basada en tasas de recuperación estándar
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%);
-                    border-radius: 12px; padding: 25px; text-align: center;">
-            <div style="font-size: 2rem; margin-bottom: 10px;">💰</div>
-            <div style="color: #0d47a1; font-weight: 600;">CRÉDITO TRIBUTARIO</div>
-            <div style="color: #0d47a1; font-size: 1.8rem; font-weight: 700;">{clp(credito_trib)}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #ffb74d 0%, #ffa726 100%);
-                    border-radius: 12px; padding: 25px; text-align: center;">
-            <div style="font-size: 2rem; margin-bottom: 10px;">🏷️</div>
-            <div style="color: #e65100; font-weight: 600;">RECUPERACIÓN DESCUENTOS</div>
-            <div style="color: #e65100; font-size: 1.8rem; font-weight: 700;">{clp(recuperacion_descuentos)}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col3:
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
-                    border-radius: 12px; padding: 25px; text-align: center;">
-            <div style="font-size: 2rem; margin-bottom: 10px;">✅</div>
-            <div style="color: #1b5e20; font-weight: 600;">TOTAL RECUPERADO</div>
-            <div style="color: #1b5e20; font-size: 2.2rem; font-weight: 700;">{clp(total_recuperado)}</div>
         </div>
         """, unsafe_allow_html=True)
 
