@@ -618,13 +618,17 @@ if uploaded_files:
                         df_display = df_riesgo[cols_show].sort_values('Dias_Efectivos' if 'Dias_Efectivos' in cols_show else cols_show[0])
                         
                         st.dataframe(
-                            df_display.style.format({
-                                'Valor_Costo_Total': clp if 'Valor_Costo_Total' in df_display.columns else None,
-                                'Stock_Teorico_Unidades': '{:,.0f}' if 'Stock_Teorico_Unidades' in df_display.columns else None,
-                                'Dias_Efectivos': '{:.0f}' if 'Dias_Efectivos' in df_display.columns else None
-                            }).map(badge_riesgo, subset=['Riesgo_BI']) if 'Riesgo_BI' in df_display.columns else None,
-                            use_container_width=True, hide_index=True
-                        )
+                            st.dataframe(
+    df_display.style.set_properties(
+        **{'background-color': '#f3e5f5', 'color': '#7b1fa2'},
+        subset=df_display['Nivel_Riesgo'] == 'VENCIDO'
+    ).set_properties(
+        **{'background-color': '#ffebee', 'color': '#c62828'},
+        subset=df_display['Nivel_Riesgo'] == 'CRITICO'
+    ),
+    use_container_width=True,
+    hide_index=True
+)
                         
                         csv = df_display.to_csv(index=False, encoding='utf-8-sig')
                         st.download_button(
