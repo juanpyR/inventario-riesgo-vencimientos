@@ -4,7 +4,7 @@ import numpy as np
 from datetime import datetime
 
 # =============================================================================
-# CONFIG
+# CONFIGURACIÓN
 # =============================================================================
 
 st.set_page_config(
@@ -32,12 +32,12 @@ def to_numeric_safe(df, cols):
 # =============================================================================
 
 @st.cache_data
-def cargar_datos():
+def cargar_y_transformar(suc_file, prod_file, lotes_file, inv_file):
 
-    suc = pd.read_csv("1_SUCURSALES_MASTER.csv")
-    prod = pd.read_csv("2_PRODUCTOS_MASTER.csv")
-    lotes = pd.read_csv("3_LOTES_PRODUCTOS.csv")
-    inv = pd.read_csv("4_INVENTARIO_COMPLETO_LOTES.csv")
+    suc = pd.read_csv(suc_file)
+    prod = pd.read_csv(prod_file)
+    lotes = pd.read_csv(lotes_file)
+    inv = pd.read_csv(inv_file)
 
     # Limpieza columnas
     for df in [suc, prod, lotes, inv]:
@@ -57,13 +57,15 @@ def cargar_datos():
     df = inv.merge(prod, on="Producto_ID", how="left")
     df = df.merge(suc, on="Sucursal", how="left")
 
-    # Capital
+    # =============================
+    # MÉTRICAS BASE
+    # =============================
+
     df["Capital_Inmovilizado"] = (
         df["Stock_Teorico_Unidades"] *
         df["Valor_Unitario_CLP"]
     )
 
-    # Margen unitario
     df["Margen_Unitario"] = (
         df["Precio_Venta_CLP"] -
         df["Valor_Unitario_CLP"]
@@ -78,24 +80,17 @@ def cargar_datos():
     )
 
     df = df.merge(rotacion, on="Producto_ID", how="left")
-
     df["Venta_Promedio"] = df["Venta_Promedio"].replace(0, 1)
 
-    # Cobertura
     df["Cobertura_Dias"] = (
         df["Stock_Teorico_Unidades"] /
         df["Venta_Promedio"]
     )
 
-    return df
+    # =============================
+    # MOTOR DE RIESGO
+    # =============================
 
-# =============================================================================
-# MOTOR DE RIESGO
-# =============================================================================
-
-def calcular_riesgo(df):
-
-    # Score vencimiento
     df["Score_Vencimiento"] = np.where(
         df["Dias_Para_Vencer"] <= 0, 5,
         np.where(df["Dias_Para_Vencer"] <= 3, 4,
@@ -103,14 +98,13 @@ def calcular_riesgo(df):
         np.where(df["Dias_Para_Vencer"] <= 15, 2, 1)))
     )
 
-    # Score capital (quintiles)
     df["Score_Capital"] = pd.qcut(
         df["Capital_Inmovilizado"].rank(method="first"),
         5,
-        labels=False
+        labels=False,
+        duplicates="drop"
     ) + 1
 
-    # Score cobertura
     df["Score_Sobrestock"] = np.where(
         df["Cobertura_Dias"] > 60, 4,
         np.where(df["Cobertura_Dias"] > 30, 3,
@@ -126,58 +120,69 @@ def calcular_riesgo(df):
     return df
 
 # =============================================================================
-# MÉTRICAS EJECUTIVAS
+# SIDEBAR - CARGA OBLIGATORIA
 # =============================================================================
 
-def calcular_kpis(df):
+st.sidebar.title("📂 Cargar Archivos Base")
 
-    capital_total = df["Capital_Inmovilizado"].sum()
+suc_file = st.sidebar.file_uploader("1️⃣ SUCURSALES_MASTER", type="csv")
+prod_file = st.sidebar.file_uploader("2️⃣ PRODUCTOS_MASTER", type="csv")
+lotes_file = st.sidebar.file_uploader("3️⃣ LOTES_PRODUCTOS", type="csv")
+inv_file = st.sidebar.file_uploader("4️⃣ INVENTARIO_COMPLETO_LOTES", type="csv")
 
-    df_riesgo = df[df["Score_Total"] >= 3]
+if not (suc_file and prod_file and lotes_file and inv_file):
+    st.warning("⚠ Debes cargar los 4 archivos para iniciar el análisis.")
+    st.stop()
 
-    capital_riesgo = df_riesgo["Capital_Inmovilizado"].sum()
+# =============================================================================
+# EJECUCIÓN
+# =============================================================================
 
-    perdida_proyectada = capital_riesgo * 0.5
+df = cargar_y_transformar(
+    suc_file,
+    prod_file,
+    lotes_file,
+    inv_file
+)
 
-    indice_salud = 100 - (
-        df["Score_Total"].mean() - 1
-    ) / 4 * 100
+# =============================================================================
+# KPIs EJECUTIVOS
+# =============================================================================
 
-    pct_riesgo = (
-        capital_riesgo / capital_total * 100
-        if capital_total > 0 else 0
-    )
+capital_total = df["Capital_Inmovilizado"].sum()
 
-    return {
-        "capital_total": capital_total,
-        "capital_riesgo": capital_riesgo,
-        "perdida_proyectada": perdida_proyectada,
-        "indice_salud": max(0, min(100, indice_salud)),
-        "pct_riesgo": pct_riesgo
-    }
+df_riesgo = df[df["Score_Total"] >= 3]
+capital_riesgo = df_riesgo["Capital_Inmovilizado"].sum()
+
+perdida_proyectada = capital_riesgo * 0.5
+
+indice_salud = 100 - (
+    (df["Score_Total"].mean() - 1) / 4 * 100
+)
+
+pct_riesgo = (
+    capital_riesgo / capital_total * 100
+    if capital_total > 0 else 0
+)
 
 # =============================================================================
 # DASHBOARD
 # =============================================================================
 
-df = cargar_datos()
-df = calcular_riesgo(df)
-kpis = calcular_kpis(df)
-
 st.title("🛡️ Centro Analítico de Inventario")
 
 c1, c2, c3, c4, c5 = st.columns(5)
 
-c1.metric("Capital Total", clp(kpis["capital_total"]))
-c2.metric("Capital en Riesgo", clp(kpis["capital_riesgo"]))
-c3.metric("% Capital Riesgo", f"{kpis['pct_riesgo']:.1f}%")
-c4.metric("Pérdida Proyectada", clp(kpis["perdida_proyectada"]))
-c5.metric("Índice Salud", f"{kpis['indice_salud']:.1f}/100")
+c1.metric("Capital Total", clp(capital_total))
+c2.metric("Capital en Riesgo", clp(capital_riesgo))
+c3.metric("% Capital en Riesgo", f"{pct_riesgo:.1f}%")
+c4.metric("Pérdida Proyectada", clp(perdida_proyectada))
+c5.metric("Índice Salud", f"{indice_salud:.1f}/100")
 
 st.divider()
 
 # =============================================================================
-# TOP PRODUCTOS RIESGO
+# TOP PRODUCTOS CRÍTICOS
 # =============================================================================
 
 st.subheader("🔥 Top 20 Productos Más Críticos")
@@ -245,6 +250,6 @@ csv = df.to_csv(index=False, encoding="utf-8-sig")
 st.download_button(
     "⬇ Descargar análisis completo",
     data=csv,
-    file_name="inventario_enterprise_analizado.csv",
+    file_name="inventario_analizado_enterprise.csv",
     mime="text/csv"
 )
