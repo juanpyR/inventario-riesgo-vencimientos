@@ -328,7 +328,45 @@ def cargar_css():
         font-size: 0.95rem;
     }
 
+    .tabla-profesional {
+    background: white;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    overflow-x: auto;
+    }
     
+    .tabla-profesional table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+    
+    .tabla-profesional thead {
+        background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+        color: white;
+    }
+    
+    .tabla-profesional th {
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+    }
+    
+    .tabla-profesional td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #eeeeee;
+    }
+    
+    .tabla-profesional tr:hover {
+        background: #f5f7ff;
+        transition: 0.2s;
+    }
+    
+    .tabla-profesional tbody tr:nth-child(even) {
+        background: #fafafa;
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -1214,12 +1252,13 @@ def mostrar_productos_por_riesgo(df_riesgo, stats):
                     df_display['Valor (CLP)'] = df_display['Valor (CLP)'].apply(lambda x: clp(x))
                 
                 # Mostrar tabla
-                st.dataframe(
-                    df_display,
-                    use_container_width=True,
-                    hide_index=True,
-                    height=min(400, len(df_display) * 35 + 38)
-                )
+                tabla_html = f"""
+                    <div class="tabla-profesional">
+                        {df_display.to_html(index=False, escape=False)}
+                    </div>
+                    """
+
+                st.markdown(tabla_html, unsafe_allow_html=True)
 
         else:
             st.markdown(f"""
