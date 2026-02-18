@@ -3,34 +3,22 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
+import pytz
 
-# --- 1. CONFIGURACIÓN Y ESTILO (Look BI & Ejecutivo) ---
-st.set_page_config(page_title="Gestión de Riesgo Operativo", layout="wide")
+# --- CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="BI - Gestión de Riesgo de Inventario", layout="wide")
 
-st.markdown("""
-    <style>
-    .main { background-color: #f4f7f9; }
-    .executive-card {
-        background-color: #ffffff; padding: 20px; border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-top: 6px solid #1f77b4;
-        text-align: center; margin-bottom: 20px;
-    }
-    .plan-accion-box {
-        background-color: #fff9e6; padding: 20px; border-radius: 12px;
-        border-left: 8px solid #f57c00; margin: 20px 0;
-    }
-    .metric-val { font-size: 28px; font-weight: bold; color: #1f77b4; }
-    .metric-label { font-size: 14px; color: #555; text-transform: uppercase; letter-spacing: 1px; }
-    .badge { padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: bold; }
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- 2. FUNCIONES DE LÓGICA (Formato CLP y Clasificación) ---
+# =============================================================================
+# LÓGICA DE NEGOCIO Y FORMATO (Basada en inventario.py)
+# =============================================================================
 def clp(valor):
+    """Formatea número con estilo chileno: $1.234.567"""
     if pd.isna(valor): return "$0"
     return f"${int(round(float(valor))):,}".replace(",", ".")
 
-def asignar_categoria_riesgo(dias):
+def clasificar_riesgo_hoy(fecha_venc, fecha_hoy):
+    """Clasificación semáforo según lógica de inventario.py"""
+    dias = (fecha_venc - fecha_hoy).days
     if dias <= 0: return 'VENCIDO'
     elif dias <= 15: return 'CRITICO'
     elif dias <= 30: return 'URGENTE'
@@ -42,110 +30,123 @@ COLOR_MAP = {
     'URGENTE': '#f57c00', 'PREVENTIVO': '#fbc02d', 'NORMAL': '#2e7d32'
 }
 
-# --- 3. CARGA E IDENTIFICACIÓN DE RELACIONES ---
-st.title("🛡️ Dashboard de Inteligencia de Inventario")
-st.sidebar.header("📂 Carga de Datos")
-files = st.sidebar.file_uploader("Sube los 5 archivos maestros", type="csv", accept_multiple_files=True)
+# --- ESTILOS CSS (Dashboard BI) ---
+st.markdown("""
+    <style>
+    .report-container { background-color: #ffffff; padding: 20px; border-radius: 12px; border-top: 6px solid #1f77b4; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 25px; }
+    .plan-box { background-color: #fef9e7; border-left: 8px solid #f39c12; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    .metric-val { font-size: 30px; font-weight: bold; color: #1f77b4; }
+    .metric-label { font-size: 14px; color: #555; font-weight: bold; text-transform: uppercase; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# Contenedor de datos
-data = {"suc": None, "prod": None, "inv": None, "lotes": None}
+# --- CARGA Y RELACIÓN DE TABLAS ---
+st.sidebar.title("📁 Carga de Datos")
+uploaded_files = st.sidebar.file_uploader("Subir archivos maestros y transaccionales", type="csv", accept_multiple_files=True)
 
-if files:
-    for f in files:
-        df_temp = pd.read_csv(f)
-        df_temp.columns = df_temp.columns.str.strip() # Limpieza de nombres
+data = {"sucursales": None, "productos": None, "inventario": None}
+
+if uploaded_files:
+    for file in uploaded_files:
+        df_temp = pd.read_csv(file)
+        df_temp.columns = df_temp.columns.str.strip()
         cols = df_temp.columns
         
-        # Identificación por "ADN" de columnas
-        if "Latitud" in cols and "ID_Ciudad" in cols and "Stock_Teorico_Unidades" not in cols:
-            data["suc"] = df_temp
+        # Identificación de tablas por columnas clave
+        if "Latitud" in cols and "ID_Ciudad" in cols:
+            data["sucursales"] = df_temp
         elif "Categoria" in cols and "Producto_ID" in cols and "Lote_ID" not in cols:
-            data["prod"] = df_temp
-        elif "Tipo_Movimiento" in cols:
-            data["inv"] = df_temp
-        elif "Fecha_Creacion_Lote" in cols:
-            data["lotes"] = df_temp
+            data["productos"] = df_temp
+        elif "Tipo_Movimiento" in cols and "Lote_ID" in cols:
+            data["inventario"] = df_temp
 
-    # --- 4. ESTABLECER RELACIONES (MERGE) ---
-    if data["inv"] is not None and data["prod"] is not None and data["suc"] is not None:
+    # --- PROCESO DE INTEGRACIÓN Y ANÁLISIS ---
+    if all(v is not None for v in [data["sucursales"], data["productos"], data["inventario"]]):
         try:
-            # Relación 1: Inventario + Sucursales (Para Mapa)
-            df_master = data["inv"].merge(data["suc"][['Sucursal', 'Latitud', 'Longitud', 'ID_Ciudad']], on='Sucursal', how='left')
+            # 1. Relación de Tablas (Merge)
+            df_full = data["inventario"].merge(data["sucursales"], on='Sucursal', how='left')
+            df_full = df_full.merge(data["productos"][['Producto_ID', 'Categoria', 'Categoria_Rotacion']], on='Producto_ID', how='left')
             
-            # Relación 2: Inventario + Productos (Para Categorías)
-            df_master = df_master.merge(data["prod"][['Producto_ID', 'Categoria', 'Categoria_Rotacion']], on='Producto_ID', how='left')
+            # 2. Análisis al día de hoy
+            tz_cl = pytz.timezone('America/Santiago')
+            fecha_hoy = datetime.now(tz_cl).replace(tzinfo=None)
             
-            # Procesamiento de Stock Actual
-            df_snapshot = df_master.sort_values('Fecha_Movimiento').groupby(['Lote_ID', 'Sucursal']).tail(1).copy()
-            df_snapshot['Riesgo'] = df_snapshot['Dias_Para_Vencer'].apply(asignar_categoria_riesgo)
-            df_snapshot['Valor_Stock'] = df_snapshot['Stock_Teorico_Unidades'] * df_snapshot['Precio_Venta_CLP']
+            df_full['Fecha_Vencimiento_Lote'] = pd.to_datetime(df_full['Fecha_Vencimiento_Lote'])
+            
+            # Snapshot actual: último movimiento por lote en cada sucursal
+            df_actual = df_full.sort_values('Fecha_Movimiento').groupby(['Lote_ID', 'Sucursal']).tail(1).copy()
+            
+            # Recalcular Riesgo basado en HOY
+            df_actual['Dias_Restantes'] = (df_actual['Fecha_Vencimiento_Lote'] - fecha_hoy).dt.days
+            df_actual['Riesgo_Hoy'] = df_actual['Dias_Restantes'].apply(lambda x: clasificar_riesgo_hoy(datetime.now(), datetime.now() + pd.Timedelta(days=x)))
+            df_actual['Valor_Stock'] = df_actual['Stock_Teorico_Unidades'] * df_actual['Precio_Venta_CLP']
 
-            # --- 5. RESUMEN EJECUTIVO (BI) ---
-            st.subheader("📊 Resumen Ejecutivo de Riesgos")
+            # --- VISTA BI PRINCIPAL ---
+            st.title(f"🛡️ Panel de Riesgo al {fecha_hoy.strftime('%d/%m/%Y')}")
             
-            # Filtros Rápidos
-            col_f1, col_f2 = st.columns(2)
-            with col_f1:
-                sel_suc = st.multiselect("Filtrar por Sucursal", df_snapshot['Sucursal'].unique(), default=df_snapshot['Sucursal'].unique())
-            with col_f2:
-                sel_riesgo = st.multiselect("Ver Niveles de Riesgo", list(COLOR_MAP.keys()), default=['CRITICO', 'URGENTE', 'PREVENTIVO'])
-            
-            df_f = df_snapshot[(df_snapshot['Sucursal'].isin(sel_suc)) & (df_snapshot['Riesgo'].isin(sel_riesgo))]
+            # Filtros de Dashboard
+            c_f1, c_f2 = st.columns(2)
+            with c_f1:
+                sel_suc = st.multiselect("Filtrar por Sucursal", df_actual['Sucursal'].unique(), default=df_actual['Sucursal'].unique())
+            with c_f2:
+                sel_riesgo = st.multiselect("Niveles de Riesgo", list(COLOR_MAP.keys()), default=['VENCIDO', 'CRITICO', 'URGENTE'])
 
-            # KPIs Superiores
+            df_final = df_actual[(df_actual['Sucursal'].isin(sel_suc)) & (df_actual['Riesgo_Hoy'].isin(sel_riesgo))]
+
+            # --- RESUMEN EJECUTIVO ---
+            st.subheader("📊 Resumen Ejecutivo")
             k1, k2, k3, k4 = st.columns(4)
             with k1:
-                st.markdown(f'<div class="executive-card"><span class="metric-label">Monto Crítico</span><br><span class="metric-val" style="color:#d32f2f">{clp(df_f[df_f["Riesgo"]=="CRITICO"]["Valor_Stock"].sum())}</span></div>', unsafe_allow_html=True)
+                val_vencido = df_final[df_final['Riesgo_Hoy']=='VENCIDO']['Valor_Stock'].sum()
+                st.markdown(f'<div class="report-container"><span class="metric-label">Pérdida Vencida</span><br><span class="metric-val" style="color:{COLOR_MAP["VENCIDO"]}">{clp(val_vencido)}</span></div>', unsafe_allow_html=True)
             with k2:
-                st.markdown(f'<div class="executive-card"><span class="metric-label">Unidades Urgentes</span><br><span class="metric-val" style="color:#f57c00">{int(df_f[df_f["Riesgo"]=="URGENTE"]["Stock_Teorico_Unidades"].sum()):,}</span></div>', unsafe_allow_html=True)
+                val_critico = df_final[df_final['Riesgo_Hoy']=='CRITICO']['Valor_Stock'].sum()
+                st.markdown(f'<div class="report-container"><span class="metric-label">Riesgo Crítico (15d)</span><br><span class="metric-val" style="color:{COLOR_MAP["CRITICO"]}">{clp(val_critico)}</span></div>', unsafe_allow_html=True)
             with k3:
-                st.markdown(f'<div class="executive-card"><span class="metric-label">Valor en Riesgo Total</span><br><span class="metric-val">{clp(df_f["Valor_Stock"].sum())}</span></div>', unsafe_allow_html=True)
+                val_urgente = df_final[df_final['Riesgo_Hoy']=='URGENTE']['Valor_Stock'].sum()
+                st.markdown(f'<div class="report-container"><span class="metric-label">Riesgo Urgente (30d)</span><br><span class="metric-val" style="color:{COLOR_MAP["URGENTE"]}">{clp(val_urgente)}</span></div>', unsafe_allow_html=True)
             with k4:
-                st.markdown(f'<div class="executive-card"><span class="metric-label">Días Promedio</span><br><span class="metric-val">{int(df_f["Dias_Para_Vencer"].mean())} d</span></div>', unsafe_allow_html=True)
+                val_total = df_final['Valor_Stock'].sum()
+                st.markdown(f'<div class="report-container"><span class="metric-label">Total en Observación</span><br><span class="metric-val">{clp(val_total)}</span></div>', unsafe_allow_html=True)
 
-            # --- 6. MAPA ESTRATÉGICO ---
-            st.subheader("🌐 Distribución Geográfica del Riesgo")
+            # --- MAPA GEOGRÁFICO BI ---
+            st.subheader("🌐 Análisis Geográfico de Riesgo")
+            [Image of a professional business intelligence dashboard map of Chile with colored inventory risk bubbles]
             fig_map = px.scatter_mapbox(
-                df_f, lat="Latitud", lon="Longitud",
-                size="Valor_Stock", color="Riesgo",
+                df_final, lat="Latitud", lon="Longitud",
+                size="Valor_Stock", color="Riesgo_Hoy",
                 color_discrete_map=COLOR_MAP,
-                hover_name="Sucursal", hover_data=["Producto", "Stock_Teorico_Unidades", "Dias_Para_Vencer"],
+                hover_name="Sucursal", 
+                hover_data={"Producto": True, "Stock_Teorico_Unidades": True, "Dias_Restantes": True, "Latitud": False, "Longitud": False},
                 zoom=10, height=500, mapbox_style="carto-positron"
             )
             st.plotly_chart(fig_map, use_container_width=True)
 
-            # --- 7. RESUMEN PLAN DE ACCIÓN ---
+            # --- PLAN DE ACCIÓN ---
             st.markdown(f"""
-                <div class="plan-accion-box">
-                    <h3>📢 Plan de Acción Táctico</h3>
-                    <p>Basado en el análisis de <b>{len(df_f)} lotes</b> detectados:</p>
+                <div class="plan-box">
+                    <h3 style="margin-top:0;">📝 Plan de Acción Estratégico</h3>
                     <ul>
-                        <li><b>Prioridad Crítica:</b> Movilizar {clp(df_f[df_f["Riesgo"]=="CRITICO"]["Valor_Stock"].sum())} mediante ofertas relámpago o transferencias inmediatas.</li>
-                        <li><b>Gestión Urgente:</b> Revisar exhibición de productos con menos de 30 días en <b>{df_f[df_f["Riesgo"]=="URGENTE"]["Sucursal"].nunique()} sucursales</b>.</li>
-                        <li><b>Acción Preventiva:</b> Programar reposición controlada para categorías de rotación lenta.</li>
+                        <li><b>Manejo de Vencidos:</b> Retirar de inmediato {clp(val_vencido)} de sala para proceso de merma/devolución.</li>
+                        <li><b>Acción Crítica:</b> Aplicar descuento FEFO del 40-50% en productos con riesgo Crítico.</li>
+                        <li><b>Estrategia Urgente:</b> Realizar transferencias cruzadas desde {len(sel_suc)} sucursales a puntos de mayor venta.</li>
                     </ul>
                 </div>
             """, unsafe_allow_html=True)
 
-            # --- 8. DETALLES (EXTENSO) ---
+            # --- DETALLE EXTENSO ---
             st.markdown("---")
-            with st.expander("🔍 Ver Análisis Detallado de Inventario (Vista Extensa)"):
-                col_det1, col_det2 = st.columns([6, 4])
-                with col_det1:
-                    st.write("### Listado de Lotes por Riesgo")
-                    st.dataframe(
-                        df_f[['Riesgo', 'Producto', 'Sucursal', 'Dias_Para_Vencer', 'Stock_Teorico_Unidades', 'Valor_Stock']].sort_values('Dias_Para_Vencer'),
-                        column_config={"Valor_Stock": st.column_config.NumberColumn("Valor CLP", format="$%d")},
-                        use_container_width=True, hide_index=True
-                    )
-                with col_det2:
-                    st.write("### Concentración de Riesgo ($)")
-                    fig_bar = px.bar(df_f.groupby('Categoria')['Valor_Stock'].sum().reset_index(), 
-                                     x='Categoria', y='Valor_Stock', title="Riesgo por Categoría",
-                                     color_discrete_sequence=['#1f77b4'])
+            with st.expander("🔍 Análisis Detallado por Lote y Categoría (Vista Completa)"):
+                t1, t2 = st.tabs(["Detalle Lotes", "Valor por Categoría"])
+                with t1:
+                    st.dataframe(df_final[['Riesgo_Hoy', 'Producto', 'Sucursal', 'Dias_Restantes', 'Stock_Teorico_Unidades', 'Valor_Stock']].sort_values('Dias_Restantes'), 
+                                 use_container_width=True, hide_index=True)
+                with t2:
+                    fig_bar = px.bar(df_final, x="Categoria", y="Valor_Stock", color="Riesgo_Hoy", 
+                                     color_discrete_map=COLOR_MAP, title="Valorización de Riesgo por Categoría")
                     st.plotly_chart(fig_bar, use_container_width=True)
 
         except Exception as e:
-            st.error(f"Error al procesar relaciones: {e}. Asegúrate de cargar los archivos correctos.")
+            st.error(f"Error en la relación de datos: {e}")
     else:
-        st.info("👋 Por favor, carga los archivos maestros (Productos, Sucursales e Inventario) para activar el dashboard.")
+        st.info("👋 Por favor, carga los archivos (Sucursales, Productos e Inventario) para iniciar el análisis en tiempo real.")
