@@ -274,6 +274,61 @@ def cargar_css():
         border-radius: 0 8px 8px 0;
         font-size: 0.9rem;
     }
+
+
+    .upload-container {
+    background: white;
+    padding: 40px;
+    border-radius: 18px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    max-width: 1000px;
+    margin: 0 auto 40px auto;
+   }
+
+    .upload-title {
+        text-align: center;
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1a237e;
+        margin-bottom: 30px;
+    }
+    
+    .upload-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+    
+    .upload-card {
+        padding: 20px;
+        border-radius: 14px;
+        color: white;
+        font-weight: 600;
+        text-align: center;
+        transition: 0.3s ease;
+    }
+    
+    .upload-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 18px rgba(0,0,0,0.15);
+    }
+    
+    .grad-1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .grad-2 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .grad-3 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .grad-4 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+    .grad-5 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+    
+    .upload-info {
+        background: #e3f2fd;
+        padding: 18px;
+        border-radius: 12px;
+        border-left: 5px solid #2196f3;
+        margin-top: 30px;
+        font-size: 0.95rem;
+    }
+
+    
     </style>
     """, unsafe_allow_html=True)
 
@@ -1203,89 +1258,42 @@ def main():
     if not archivos_subidos:
         # PANTALLA DE INICIO PROFESIONAL
         st.markdown("""
-        <div style='text-align: center; padding: 60px 20px;'>
-            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                        padding: 40px; border-radius: 20px; 
-                        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-                        margin-bottom: 40px;'>
-                <h1 style='color: white; margin: 0; font-size: 2.5rem; font-weight: 700;'>
-                    📦 Sistema de Gestión de Inventario
-                </h1>
-                <p style='color: rgba(255,255,255,0.9); margin: 15px 0 0 0; font-size: 1.2rem;'>
-                    Plataforma de Inteligencia de Negocios
-                </p>
-            </div>
-            
-            <div style='background: white; padding: 40px; border-radius: 15px; 
-                        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                        max-width: 800px; margin: 0 auto;'>
-                <h2 style='color: #1a237e; margin-bottom: 30px; font-size: 1.8rem;'>
-                    📋 Archivos Requeridos para el Análisis
-                </h2>
+                <div class="upload-container">
                 
-                <div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
-                            gap: 20px; margin: 30px 0;'>
-                    <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                padding: 20px; border-radius: 12px; color: white;'>
-                        <div style='font-size: 2rem; margin-bottom: 10px;'>🏢</div>
-                        <h3 style='margin: 0 0 10px 0; font-size: 1.1rem;'>1. Sucursales</h3>
-                        <p style='margin: 0; font-size: 0.9rem; opacity: 0.9;'>
-                            1_SUCURSALES_MASTER.csv
-                        </p>
-                    </div>
-                    
-                    <div style='background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-                                padding: 20px; border-radius: 12px; color: white;'>
-                        <div style='font-size: 2rem; margin-bottom: 10px;'>📦</div>
-                        <h3 style='margin: 0 0 10px 0; font-size: 1.1rem;'>2. Productos</h3>
-                        <p style='margin: 0; font-size: 0.9rem; opacity: 0.9;'>
-                            2_PRODUCTOS_MASTER.csv
-                        </p>
-                    </div>
-                    
-                    <div style='background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-                                padding: 20px; border-radius: 12px; color: white;'>
-                        <div style='font-size: 2rem; margin-bottom: 10px;'>🏷️</div>
-                        <h3 style='margin: 0 0 10px 0; font-size: 1.1rem;'>3. Lotes</h3>
-                        <p style='margin: 0; font-size: 0.9rem; opacity: 0.9;'>
-                            3_LOTES_PRODUCTOS.csv
-                        </p>
-                    </div>
-                    
-                    <div style='background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-                                padding: 20px; border-radius: 12px; color: white;'>
-                        <div style='font-size: 2rem; margin-bottom: 10px;'>📊</div>
-                        <h3 style='margin: 0 0 10px 0; font-size: 1.1rem;'>4. Inventario</h3>
-                        <p style='margin: 0; font-size: 0.9rem; opacity: 0.9;'>
-                            4_INVENTARIO_COMPLETO_LOTES.csv
-                        </p>
-                    </div>
-                    
-                    <div style='background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-                                padding: 20px; border-radius: 12px; color: white;
-                                grid-column: span 1;'>
-                        <div style='font-size: 2rem; margin-bottom: 10px;'>📍</div>
-                        <h3 style='margin: 0 0 10px 0; font-size: 1.1rem;'>5. Stock Geo</h3>
-                        <p style='margin: 0; font-size: 0.9rem; opacity: 0.9;'>
-                            5_STOCK_ACTUAL_GEO_POWERBI.csv
-                        </p>
-                    </div>
+                <div class="upload-title">
+                📂 Archivos Necesarios para el Análisis
                 </div>
                 
-                <div style='background: #e3f2fd; padding: 20px; border-radius: 10px; 
-                            border-left: 5px solid #2196f3; margin-top: 30px;'>
-                    <p style='margin: 0; color: #1976d2; font-size: 1rem;'>
-                        <strong>💡 Instrucciones:</strong> Sube los 5 archivos CSV en el panel lateral 
-                        y luego haz clic en "Ejecutar Análisis" para comenzar.
-                    </p>
+                <div class="upload-grid">
+                
+                <div class="upload-card grad-1">
+                🏢 1_SUCURSALES_MASTER.csv
                 </div>
-            </div>
-            
-            <div style='margin-top: 40px; padding: 20px; color: #666; font-size: 0.9rem;'>
-                <p>🔒 Sistema seguro de gestión de inventario | Análisis de vencimientos en tiempo real</p>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+                
+                <div class="upload-card grad-2">
+                📦 2_PRODUCTOS_MASTER.csv
+                </div>
+                
+                <div class="upload-card grad-3">
+                🏷️ 3_LOTES_PRODUCTOS.csv
+                </div>
+                
+                <div class="upload-card grad-4">
+                📊 4_INVENTARIO_COMPLETO_LOTES.csv
+                </div>
+                
+                <div class="upload-card grad-5">
+                📍 5_STOCK_ACTUAL_GEO_POWERBI.csv
+                </div>
+                
+                </div>
+                
+                <div class="upload-info">
+                💡 Sube los 5 archivos en el panel lateral y luego presiona <b>Ejecutar Análisis</b>.
+                </div>
+                
+                </div>
+                """, unsafe_allow_html=True)
         return
 
     if len(archivos_subidos) < 5:
