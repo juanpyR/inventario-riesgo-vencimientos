@@ -645,8 +645,9 @@ if uploaded_files:
                             label="📥 Descargar Auditoría Mensual (CSV)",
                             data=csv,
                             file_name=f"auditoria_riesgo_{fecha_hoy.strftime('%Y%m')}.csv",
-                            mime="text/csv", use_container_width=True
+                            mime="text/csv"  # ✅ Quité use_container_width=True
                         )
+                        
                     else:
                         st.info("📊 Sin datos para auditar")
                 
