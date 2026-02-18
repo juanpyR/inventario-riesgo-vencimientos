@@ -865,7 +865,7 @@ def mostrar_plan_48h(stats, df_riesgo):
     # FUNCIÓN AUXILIAR PARA MOSTRAR DESGLOSE POR SUCURSAL
     # =========================================================================
     def mostrar_desglose_sucursal(df_nivel, titulo_color):
-        """Muestra cards por sucursal en formato GRID horizontal"""
+        """Muestra cards por sucursal en formato GRID correcto"""
     
         if len(df_nivel) == 0:
             return
@@ -881,17 +881,14 @@ def mostrar_plan_48h(stats, df_riesgo):
             .sort_values('Valor_Stock', ascending=False)
         )
     
-        st.markdown("**📍 Desglose por Sucursal:**")
-    
-        # 🔥 INICIO GRID
-        st.markdown(f"""
+        html = """
         <div style="
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 15px;
             margin-top: 15px;
         ">
-        """, unsafe_allow_html=True)
+        """
     
         for _, row in resumen_sucursal.iterrows():
             sucursal = row['Sucursal']
@@ -903,7 +900,7 @@ def mostrar_plan_48h(stats, df_riesgo):
             if len(productos) > 4:
                 productos_str += f" (+{len(productos)-4} más)"
     
-            st.markdown(f"""
+            html += f"""
             <div style="
                 background: white;
                 padding: 16px;
@@ -927,10 +924,12 @@ def mostrar_plan_48h(stats, df_riesgo):
                     📋 {productos_str}
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """
     
-        # 🔥 CIERRE GRID
-        st.markdown("</div>", unsafe_allow_html=True)
+        html += "</div>"
+    
+        st.markdown(html, unsafe_allow_html=True)
+
 
     
     # =========================================================================
