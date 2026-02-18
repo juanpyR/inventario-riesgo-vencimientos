@@ -405,53 +405,55 @@ def cargar_css():
     /* TABLAS FORMATO EXPANSIBLE*/
     
     
-    [data-testid="stExpander"] > div:first-child {
-        font-weight: 700 !important;
-        font-size: 1rem !important;
-        border-radius: 12px !important;
-        padding: 12px 16px !important;
+        details {
+        margin-bottom: 15px;
+        border-radius: 12px;
+        overflow: hidden;
     }
     
-   
-    
-    .expander-vencido [data-testid="stExpander"] > div:first-child {
-        background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%) !important;
-        color: #6a1b9a !important;
-        border-left: 6px solid #9c27b0 !important;
-    }
-
-    /* CRITICO 🔴 */
-
-    
-    .expander-critico [data-testid="stExpander"] > div:first-child {
-        background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%) !important;
-        color: #b71c1c !important;
-        border-left: 6px solid #d32f2f !important;
+    summary {
+        padding: 14px 18px;
+        font-weight: 700;
+        cursor: pointer;
+        list-style: none;
+        font-size: 1rem;
     }
     
-
-    /* URGENTE 🟠 */
-    
-    .expander-urgente [data-testid="stExpander"] > div:first-child {
-        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%) !important;
-        color: #e65100 !important;
-        border-left: 6px solid #f57c00 !important;
+    summary::-webkit-details-marker {
+        display: none;
     }
     
-
-    /* PREVENTIVO 🟡 */
-    
-    .expander-preventivo [data-testid="stExpander"] > div:first-child {
-        background: linear-gradient(135deg, #fffde7 0%, #fff9c4 100%) !important;
-        color: #f9a825 !important;
-        border-left: 6px solid #fbc02d !important;
+    .expander-body {
+        padding: 20px;
+        background: #fafafa;
     }
     
+    /* VENCIDO */
+    .expander-vencido summary {
+        background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+        color: #6a1b9a;
+        border-left: 6px solid #9c27b0;
+    }
     
-    [data-testid="stExpander"] > div:last-child {
-        background: #fafafa !important;
-        padding: 20px !important;
-        border-radius: 0 0 12px 12px !important;
+    /* CRITICO */
+    .expander-critico summary {
+        background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+        color: #b71c1c;
+        border-left: 6px solid #d32f2f;
+    }
+    
+    /* URGENTE */
+    .expander-urgente summary {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        color: #e65100;
+        border-left: 6px solid #f57c00;
+    }
+    
+    /* PREVENTIVO */
+    .expander-preventivo summary {
+        background: linear-gradient(135deg, #fffde7 0%, #fff9c4 100%);
+        color: #f9a825;
+        border-left: 6px solid #fbc02d;
     }
 
     </style>
@@ -1323,61 +1325,60 @@ def mostrar_productos_por_riesgo(df_riesgo, stats):
             n_unidades = stats[nivel]['unidades']
             valor = stats[nivel]['valor']
 
-            st.markdown(
-                f"<div class='{clase_css[nivel]}'>",
-                unsafe_allow_html=True
+            df_display = df_nivel.sort_values('Valor_Stock', ascending=False)
+
+            columnas = [
+                'Producto',
+                'Sucursal',
+                'Stock_Teorico_Unidades',
+                'Dias_Para_Vencer',
+                'Valor_Stock'
+            ]
+
+            columnas_existentes = [c for c in columnas if c in df_display.columns]
+            df_display = df_display[columnas_existentes].copy()
+
+            rename_map = {
+                'Producto': 'Producto',
+                'Sucursal': 'Sucursal',
+                'Stock_Teorico_Unidades': 'Stock (uds)',
+                'Dias_Para_Vencer': 'Días Vencer',
+                'Valor_Stock': 'Valor (CLP)'
+            }
+
+            df_display = df_display.rename(
+                columns={k: v for k, v in rename_map.items() if k in df_display.columns}
             )
 
-            with st.expander(
-                f"{emoji} {nivel} ({n_productos} productos | {clp(n_unidades)} unidades | {clp(valor)} CLP)"
-            ):
+            if 'Valor (CLP)' in df_display.columns:
+                df_display['Valor (CLP)'] = df_display['Valor (CLP)'].apply(lambda x: clp(x))
 
-                df_display = df_nivel.sort_values('Valor_Stock', ascending=False)
+            clase_tabla = f"tabla-{nivel.lower()}"
 
-                columnas = [
-                    'Producto',
-                    'Sucursal',
-                    'Stock_Teorico_Unidades',
-                    'Dias_Para_Vencer',
-                    'Valor_Stock'
-                ]
+            # 🔥 EXPANDER HTML PERSONALIZADO
+            html_block = f"
+            <div class="{clase_css[nivel]}">
+                <details>
+                    <summary>
+                        {emoji} {nivel} ({n_productos} productos | {clp(n_unidades)} unidades | {clp(valor)} CLP)
+                    </summary>
+                    <div class="expander-body">
+                        <div class="tabla-profesional {clase_tabla}">
+                            {df_display.to_html(index=False, escape=False)}
+                        </div>
+                    </div>
+                </details>
+            </div>
+            "
 
-                columnas_existentes = [c for c in columnas if c in df_display.columns]
-                df_display = df_display[columnas_existentes].copy()
-
-                rename_map = {
-                    'Producto': 'Producto',
-                    'Sucursal': 'Sucursal',
-                    'Stock_Teorico_Unidades': 'Stock (uds)',
-                    'Dias_Para_Vencer': 'Días Vencer',
-                    'Valor_Stock': 'Valor (CLP)'
-                }
-
-                df_display = df_display.rename(
-                    columns={k: v for k, v in rename_map.items() if k in df_display.columns}
-                )
-
-                if 'Valor (CLP)' in df_display.columns:
-                    df_display['Valor (CLP)'] = df_display['Valor (CLP)'].apply(lambda x: clp(x))
-
-                clase_tabla = f"tabla-{nivel.lower()}"
-
-                tabla_html = f"""
-                <div class="tabla-profesional {clase_tabla}">
-                    {df_display.to_html(index=False, escape=False)}
-                </div>
-                """
-
-                st.markdown(tabla_html, unsafe_allow_html=True)
-
-            st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown(html_block, unsafe_allow_html=True)
 
         else:
-            st.markdown(f"""
+            st.markdown(f"
             <div style='padding: 10px; background: #f5f5f5; border-radius: 8px; margin: 5px 0;'>
                 <span style='color: #999;'>{emoji} {nivel} - Sin productos en esta categoría</span>
             </div>
-            """, unsafe_allow_html=True)
+            ", unsafe_allow_html=True)
 
 
 # =============================================================================
