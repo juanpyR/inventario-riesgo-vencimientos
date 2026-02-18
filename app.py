@@ -1,21 +1,19 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import io
 from datetime import datetime
-import pytz
 
 # =============================================================================
 # CONFIG
 # =============================================================================
 
 st.set_page_config(
-    page_title="🛡️ Centro Analítico de Inventario",
+    page_title="Centro Analítico de Inventario",
     layout="wide"
 )
 
 # =============================================================================
-# UTILIDADES GENERALES
+# UTILIDADES
 # =============================================================================
 
 def clp(x):
@@ -23,216 +21,230 @@ def clp(x):
         return "$0"
     return f"${int(x):,}".replace(",", ".")
 
-def normalizar_columnas(df):
-    df.columns = (
-        df.columns
-        .str.strip()
-        .str.upper()
-        .str.replace(" ", "_")
-        .str.replace("-", "_")
-    )
+def to_numeric_safe(df, cols):
+    for c in cols:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
     return df
-
-def convertir_numerico_seguro(df, columnas):
-    for col in columnas:
-        if col in df.columns:
-            df[col] = (
-                df[col]
-                .astype(str)
-                .str.replace(".", "", regex=False)
-                .str.replace(",", ".", regex=False)
-            )
-            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-        else:
-            df[col] = 0
-    return df
-
-def detectar_tipo_archivo(df):
-    cols = df.columns.tolist()
-
-    if "VENTA" in " ".join(cols):
-        return "VENTAS"
-    if "STOCK" in " ".join(cols):
-        return "STOCK"
-    if "PRECIO" in " ".join(cols):
-        return "MAESTRO"
-    return "DESCONOCIDO"
 
 # =============================================================================
-# ETL
+# ETL CENTRAL
 # =============================================================================
 
 @st.cache_data
-def procesar_archivos(archivos):
+def cargar_datos():
 
-    data = {
-        "VENTAS": [],
-        "STOCK": [],
-        "MAESTRO": []
-    }
+    suc = pd.read_csv("1_SUCURSALES_MASTER.csv")
+    prod = pd.read_csv("2_PRODUCTOS_MASTER.csv")
+    lotes = pd.read_csv("3_LOTES_PRODUCTOS.csv")
+    inv = pd.read_csv("4_INVENTARIO_COMPLETO_LOTES.csv")
 
-    for archivo in archivos:
-        df = pd.read_csv(io.BytesIO(archivo.getvalue()))
-        df = normalizar_columnas(df)
-        tipo = detectar_tipo_archivo(df)
+    # Limpieza columnas
+    for df in [suc, prod, lotes, inv]:
+        df.columns = df.columns.str.strip()
 
-        if tipo in data:
-            data[tipo].append(df)
+    # Normalización numérica
+    inv = to_numeric_safe(inv, [
+        "Cantidad_Entrada",
+        "Cantidad_Salida",
+        "Valor_Unitario_CLP",
+        "Precio_Venta_CLP",
+        "Stock_Teorico_Unidades",
+        "Dias_Para_Vencer"
+    ])
 
-    # Concatenar
-    for k in data:
-        if data[k]:
-            data[k] = pd.concat(data[k], ignore_index=True)
-        else:
-            data[k] = pd.DataFrame()
+    # Merge dimensiones
+    df = inv.merge(prod, on="Producto_ID", how="left")
+    df = df.merge(suc, on="Sucursal", how="left")
 
-    # -----------------------
-    # LIMPIEZA Y NORMALIZACIÓN
-    # -----------------------
+    # Capital
+    df["Capital_Inmovilizado"] = (
+        df["Stock_Teorico_Unidades"] *
+        df["Valor_Unitario_CLP"]
+    )
 
-    if not data["STOCK"].empty:
-        data["STOCK"] = convertir_numerico_seguro(
-            data["STOCK"],
-            ["STOCK_Teorico_Unidades".upper(), "STOCK"]
-        )
+    # Margen unitario
+    df["Margen_Unitario"] = (
+        df["Precio_Venta_CLP"] -
+        df["Valor_Unitario_CLP"]
+    )
 
-    if not data["VENTAS"].empty:
-        data["VENTAS"] = convertir_numerico_seguro(
-            data["VENTAS"],
-            ["VENTA", "CANTIDAD"]
-        )
+    # Rotación promedio por producto
+    rotacion = (
+        df.groupby("Producto_ID")["Cantidad_Salida"]
+        .mean()
+        .reset_index()
+        .rename(columns={"Cantidad_Salida": "Venta_Promedio"})
+    )
 
-    if not data["MAESTRO"].empty:
-        data["MAESTRO"] = convertir_numerico_seguro(
-            data["MAESTRO"],
-            ["PRECIO", "VALOR_UNITARIO_CLP"]
-        )
+    df = df.merge(rotacion, on="Producto_ID", how="left")
 
-    # -----------------------
-    # UNIFICAR CLAVE SKU
-    # -----------------------
+    df["Venta_Promedio"] = df["Venta_Promedio"].replace(0, 1)
 
-    for k in data:
-        if not data[k].empty:
-            if "SKU" not in data[k].columns:
-                if "CODIGO" in data[k].columns:
-                    data[k]["SKU"] = data[k]["CODIGO"]
+    # Cobertura
+    df["Cobertura_Dias"] = (
+        df["Stock_Teorico_Unidades"] /
+        df["Venta_Promedio"]
+    )
 
-    # -----------------------
-    # MERGE FINAL
-    # -----------------------
-
-    df_base = data["STOCK"]
-
-    if not data["VENTAS"].empty:
-        ventas_agg = data["VENTAS"].groupby("SKU", as_index=False).sum()
-        df_base = df_base.merge(ventas_agg, on="SKU", how="left")
-
-    if not data["MAESTRO"].empty:
-        df_base = df_base.merge(data["MAESTRO"], on="SKU", how="left")
-
-    df_base.fillna(0, inplace=True)
-
-    return df_base
+    return df
 
 # =============================================================================
-# SCORING
+# MOTOR DE RIESGO
 # =============================================================================
 
-def score_vencimiento(dias):
-    if dias <= 0: return 5
-    elif dias <= 3: return 4
-    elif dias <= 7: return 3
-    elif dias <= 15: return 2
-    else: return 1
+def calcular_riesgo(df):
+
+    # Score vencimiento
+    df["Score_Vencimiento"] = np.where(
+        df["Dias_Para_Vencer"] <= 0, 5,
+        np.where(df["Dias_Para_Vencer"] <= 3, 4,
+        np.where(df["Dias_Para_Vencer"] <= 7, 3,
+        np.where(df["Dias_Para_Vencer"] <= 15, 2, 1)))
+    )
+
+    # Score capital (quintiles)
+    df["Score_Capital"] = pd.qcut(
+        df["Capital_Inmovilizado"].rank(method="first"),
+        5,
+        labels=False
+    ) + 1
+
+    # Score cobertura
+    df["Score_Sobrestock"] = np.where(
+        df["Cobertura_Dias"] > 60, 4,
+        np.where(df["Cobertura_Dias"] > 30, 3,
+        np.where(df["Cobertura_Dias"] > 15, 2, 1))
+    )
+
+    df["Score_Total"] = (
+        df["Score_Vencimiento"] * 0.5 +
+        df["Score_Capital"] * 0.3 +
+        df["Score_Sobrestock"] * 0.2
+    )
+
+    return df
 
 # =============================================================================
-# UI
+# MÉTRICAS EJECUTIVAS
 # =============================================================================
 
-with st.sidebar:
-    st.title("📂 Carga de Archivos")
-    archivos = st.file_uploader(
-        "Sube archivos de Stock / Ventas / Maestro",
-        type="csv",
-        accept_multiple_files=True
-    )
+def calcular_kpis(df):
 
-if archivos:
+    capital_total = df["Capital_Inmovilizado"].sum()
 
-    df = procesar_archivos(archivos)
+    df_riesgo = df[df["Score_Total"] >= 3]
 
-    # --------------------------------------------------
-    # CÁLCULOS
-    # --------------------------------------------------
+    capital_riesgo = df_riesgo["Capital_Inmovilizado"].sum()
 
-    df = convertir_numerico_seguro(
-        df,
-        ["STOCK", "VALOR_UNITARIO_CLP", "VENTA"]
-    )
-
-    df["CAPITAL_INMOVILIZADO"] = df["STOCK"] * df["VALOR_UNITARIO_CLP"]
-
-    df["COBERTURA_DIAS"] = np.where(
-        df["VENTA"] > 0,
-        df["STOCK"] / df["VENTA"],
-        999
-    )
-
-    df["DIAS_EFECTIVOS"] = df.get("DIAS_EFECTIVOS", 30)
-
-    df["SCORE_VENCIMIENTO"] = df["DIAS_EFECTIVOS"].apply(score_vencimiento)
-
-    df["SCORE_SOBRESTOCK"] = np.where(
-        df["COBERTURA_DIAS"] > 60, 4,
-        np.where(df["COBERTURA_DIAS"] > 30, 3,
-        np.where(df["COBERTURA_DIAS"] > 15, 2, 1))
-    )
-
-    df["SCORE_TOTAL"] = (
-        df["SCORE_VENCIMIENTO"] * 0.6 +
-        df["SCORE_SOBRESTOCK"] * 0.4
-    )
-
-    # --------------------------------------------------
-    # KPIs
-    # --------------------------------------------------
-
-    capital_total = df["CAPITAL_INMOVILIZADO"].sum()
-    capital_riesgo = df[df["SCORE_TOTAL"] >= 3]["CAPITAL_INMOVILIZADO"].sum()
+    perdida_proyectada = capital_riesgo * 0.5
 
     indice_salud = 100 - (
-        (df["SCORE_TOTAL"].mean() - 1) / 4 * 100
+        df["Score_Total"].mean() - 1
+    ) / 4 * 100
+
+    pct_riesgo = (
+        capital_riesgo / capital_total * 100
+        if capital_total > 0 else 0
     )
 
-    c1, c2, c3 = st.columns(3)
+    return {
+        "capital_total": capital_total,
+        "capital_riesgo": capital_riesgo,
+        "perdida_proyectada": perdida_proyectada,
+        "indice_salud": max(0, min(100, indice_salud)),
+        "pct_riesgo": pct_riesgo
+    }
 
-    c1.metric("Capital Total", clp(capital_total))
-    c2.metric("Capital en Riesgo", clp(capital_riesgo))
-    c3.metric("Índice Salud", f"{indice_salud:.1f}/100")
+# =============================================================================
+# DASHBOARD
+# =============================================================================
 
-    # --------------------------------------------------
-    # RANKING
-    # --------------------------------------------------
+df = cargar_datos()
+df = calcular_riesgo(df)
+kpis = calcular_kpis(df)
 
-    st.subheader("🔥 Top Riesgo")
+st.title("🛡️ Centro Analítico de Inventario")
 
-    df_top = df.sort_values("SCORE_TOTAL", ascending=False).head(20)
+c1, c2, c3, c4, c5 = st.columns(5)
 
-    st.dataframe(df_top, use_container_width=True, hide_index=True)
+c1.metric("Capital Total", clp(kpis["capital_total"]))
+c2.metric("Capital en Riesgo", clp(kpis["capital_riesgo"]))
+c3.metric("% Capital Riesgo", f"{kpis['pct_riesgo']:.1f}%")
+c4.metric("Pérdida Proyectada", clp(kpis["perdida_proyectada"]))
+c5.metric("Índice Salud", f"{kpis['indice_salud']:.1f}/100")
 
-    # --------------------------------------------------
-    # DESCARGA
-    # --------------------------------------------------
+st.divider()
 
-    csv = df.to_csv(index=False, encoding="utf-8-sig")
+# =============================================================================
+# TOP PRODUCTOS RIESGO
+# =============================================================================
 
-    st.download_button(
-        "Descargar análisis completo",
-        data=csv,
-        file_name="inventario_full_etl.csv",
-        mime="text/csv"
+st.subheader("🔥 Top 20 Productos Más Críticos")
+
+df_top = df.sort_values(
+    by="Score_Total",
+    ascending=False
+).head(20)
+
+st.dataframe(
+    df_top[[
+        "Producto_ID",
+        "Sucursal",
+        "Capital_Inmovilizado",
+        "Dias_Para_Vencer",
+        "Cobertura_Dias",
+        "Score_Total"
+    ]],
+    use_container_width=True,
+    hide_index=True
+)
+
+# =============================================================================
+# RIESGO POR SUCURSAL
+# =============================================================================
+
+st.subheader("🏬 Riesgo por Sucursal")
+
+riesgo_sucursal = (
+    df.groupby("Sucursal")
+    .agg({
+        "Capital_Inmovilizado": "sum",
+        "Score_Total": "mean"
+    })
+    .reset_index()
+)
+
+st.dataframe(riesgo_sucursal, use_container_width=True)
+
+# =============================================================================
+# MAPA GEO
+# =============================================================================
+
+if {"Latitud", "Longitud"}.issubset(df.columns):
+
+    st.subheader("📍 Concentración Geográfica")
+
+    df_geo = (
+        df.groupby(["Latitud", "Longitud"], as_index=False)
+        .agg({"Capital_Inmovilizado": "sum"})
+        .rename(columns={
+            "Latitud": "lat",
+            "Longitud": "lon"
+        })
     )
 
-else:
-    st.info("Sube archivos para iniciar el ETL.")
+    st.map(df_geo)
+
+# =============================================================================
+# DESCARGA
+# =============================================================================
+
+csv = df.to_csv(index=False, encoding="utf-8-sig")
+
+st.download_button(
+    "⬇ Descargar análisis completo",
+    data=csv,
+    file_name="inventario_enterprise_analizado.csv",
+    mime="text/csv"
+)
