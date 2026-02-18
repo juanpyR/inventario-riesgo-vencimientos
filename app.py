@@ -216,6 +216,66 @@ def cargar_css():
 
     .metric-label-green { color: #2e7d32; }
     .metric-value-blue { color: #1565c0; font-size: 1.1rem; }
+    
+    /* Estilos para análisis de sensibilidad */
+    .sensibilidad-header {
+        background: linear-gradient(135deg, #e1bee7 0%, #f3e5f5 100%);
+        padding: 20px;
+        border-radius: 15px 15px 0 0;
+        margin-bottom: 0;
+    }
+    
+    .sensibilidad-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        padding: 20px;
+        background: #fafafa;
+    }
+    
+    .escenario-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 2px solid transparent;
+    }
+    
+    .escenario-card.base {
+        border: 3px solid #4caf50;
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    }
+    
+    .escenario-title {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+    
+    .escenario-valor {
+        font-size: 1.6rem;
+        font-weight: 700;
+        margin: 10px 0;
+    }
+    
+    .escenario-detalle {
+        font-size: 0.85rem;
+        color: #666;
+        line-height: 1.6;
+    }
+    
+    .nota-proyeccion {
+        background: #fff8e1;
+        border-left: 4px solid #ffc107;
+        padding: 15px 20px;
+        margin: 15px 0;
+        border-radius: 0 8px 8px 0;
+        font-size: 0.9rem;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -269,14 +329,14 @@ def clasificar_riesgo(dias):
     """Clasifica el riesgo según días para vencimiento"""
     if pd.isna(dias):
         return None
-    elif dias <= 0:
-        return 'VENCIDO'
-    elif dias <= 3:
-        return 'CRITICO'
-    elif dias <= 7:
-        return 'URGENTE'
-    elif dias <= 10:
-        return 'PREVENTIVO'
+    elif dias == 0:
+        return 'VENCIDO'      # Solo día = 0 (hoy)
+    elif dias >= 1 and dias <= 3:
+        return 'CRITICO'      # 1-3 días
+    elif dias >= 4 and dias <= 7:
+        return 'URGENTE'      # 4-7 días
+    elif dias >= 8 and dias <= 10:
+        return 'PREVENTIVO'   # 8-10 días
     else:
         return None  # No es riesgo en el rango de análisis
 
@@ -296,8 +356,7 @@ def preparar_datos_analisis(df_stock):
     # Filtrar solo productos en riesgo (VENCIDO, CRITICO, URGENTE, PREVENTIVO)
     df_riesgo = df_stock[df_stock['Nivel_Riesgo'].notna()].copy()
 
-    # IMPORTANTE: Filtrar solo productos con días >= 0 (no considerar los que ya vencieron)
-    # Esto es porque no sabemos qué pasó con ese stock
+    # Filtrar solo productos con días >= 0 (no considerar los que ya vencieron antes de hoy)
     df_riesgo = df_riesgo[df_riesgo['Dias_Para_Vencer'] >= 0].copy()
 
     return df_riesgo, fecha_actual
@@ -609,10 +668,10 @@ def crear_mapa_inventario_riesgo(df_riesgo):
                     f"<b>Total en Riesgo:</b> {int(row['Stock_Teorico_Unidades']):,} uds<br>" +
                     f"<b>Valor:</b> ${int(row['Valor_Stock']):,} CLP<br>" +
                     f"<br><b>Desglose:</b><br>" +
-                    f"🟣 Vencido: {int(row['VENCIDO']):,} uds<br>" +
-                    f"🔴 Crítico: {int(row['CRITICO']):,} uds<br>" +
-                    f"🟠 Urgente: {int(row['URGENTE']):,} uds<br>" +
-                    f"🟡 Preventivo: {int(row['PREVENTIVO']):,} uds",
+                    f"🟣 Vencido (hoy): {int(row['VENCIDO']):,} uds<br>" +
+                    f"🔴 Crítico (1-3 días): {int(row['CRITICO']):,} uds<br>" +
+                    f"🟠 Urgente (4-7 días): {int(row['URGENTE']):,} uds<br>" +
+                    f"🟡 Preventivo (8-10 días): {int(row['PREVENTIVO']):,} uds",
         axis=1
     )
 
@@ -681,7 +740,7 @@ def crear_mapa_inventario_riesgo(df_riesgo):
 # =============================================================================
 
 def mostrar_analisis_sensibilidad(stats):
-    """Muestra el análisis de sensibilidad"""
+    """Muestra el análisis de sensibilidad con 6 escenarios"""
 
     if stats is None:
         return
@@ -692,43 +751,96 @@ def mostrar_analisis_sensibilidad(stats):
     valor_urgente = stats['URGENTE']['valor']
     valor_preventivo = stats['PREVENTIVO']['valor']
 
-    # Calcular recuperaciones según escenario
-    credito_trib = valor_vencido * 0.27  # 27% crédito tributario por donación
+    # Crédito tributario constante (27% sobre donaciones de vencidos)
+    credito_trib = valor_vencido * 0.27
 
-    # Escenarios
-    escenarios = {
-        'Muy Pesimista': {'factor': 0.3, 'color': '#b71c1c'},
-        'Pesimista': {'factor': 0.5, 'color': '#d32f2f'},
-        'Conservador': {'factor': 0.7, 'color': '#f57c00'},
-        'Base': {'factor': 0.85, 'color': '#4caf50'},
-        'Optimista': {'factor': 1.0, 'color': '#8bc34a'},
-    }
+    # Recuperación base (escenario base): 100% de lo esperado
+    # Críticos: 50% del valor, Urgentes: 40% del valor, Preventivo: 15% del valor
+    recuperacion_base = (valor_critico * 0.50) + (valor_urgente * 0.40) + (valor_preventivo * 0.15)
+    total_base = recuperacion_base + credito_trib
 
-    st.markdown("### 📊 Análisis de Sensibilidad")
+    # 6 Escenarios con factores sobre la recuperación
+    escenarios = [
+        {'nombre': 'Muy Pesimista', 'factor': 0.50, 'signo': '-50%', 'color': '#d32f2f', 'icono': '🔴'},
+        {'nombre': 'Pesimista', 'factor': 0.70, 'signo': '-30%', 'color': '#f57c00', 'icono': '🟠'},
+        {'nombre': 'Conservador', 'factor': 0.85, 'signo': '-15%', 'color': '#fbc02d', 'icono': '🟡'},
+        {'nombre': 'Escenario Base', 'factor': 1.0, 'signo': '✓', 'color': '#4caf50', 'icono': '✅', 'es_base': True},
+        {'nombre': 'Optimista', 'factor': 1.30, 'signo': '+30%', 'color': '#4caf50', 'icono': '🟢'},
+        {'nombre': 'Muy Optimista', 'factor': 1.50, 'signo': '+50%', 'color': '#1565c0', 'icono': '🔵'},
+    ]
 
-    col1, col2, col3, col4, col5 = st.columns(5)
-    cols = [col1, col2, col3, col4, col5]
+    # Header
+    st.markdown("""
+    <div class="sensibilidad-header">
+        <h2 style='color: #4a148c; margin: 0;'>📊 ANÁLISIS DE SENSIBILIDAD</h2>
+        <p style='color: #7b1fa2; margin: 10px 0 0 0;'>Proyección de recuperación según diferentes escenarios de venta</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    for i, (nombre, datos) in enumerate(escenarios.items()):
-        recuperacion = (valor_critico * 0.50 + valor_urgente * 0.40) * datos['factor']
+    # Grid 3x2 de escenarios
+    col1, col2, col3 = st.columns(3)
+    columnas = [col1, col2, col3, col1, col2, col3]
+
+    for i, esc in enumerate(escenarios):
+        recuperacion = recuperacion_base * esc['factor']
         total = recuperacion + credito_trib
-        es_base = nombre == 'Base'
+        es_base = esc.get('es_base', False)
 
-        with cols[i]:
+        with columnas[i]:
+            if i < 3:
+                # Primera fila
+                st.markdown(f"""
+                <div class='escenario-card {"base" if es_base else ""}'>
+                    <div class='escenario-title'>
+                        <span>{esc['icono']}</span>
+                        <span>{esc['nombre']} ({esc['signo']})</span>
+                    </div>
+                    <div class='escenario-valor' style='color: {esc["color"]};'>
+                        {clp(total)} CLP
+                    </div>
+                    <div class='escenario-detalle'>
+                        Recuperación: {clp(recuperacion)}<br>
+                        + Crédito: {clp(credito_trib)}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # Segunda fila
+    col1, col2, col3 = st.columns(3)
+    columnas2 = [col1, col2, col3]
+
+    for i, esc in enumerate(escenarios[3:]):
+        recuperacion = recuperacion_base * esc['factor']
+        total = recuperacion + credito_trib
+        es_base = esc.get('es_base', False)
+
+        with columnas2[i]:
             st.markdown(f"""
-            <div style='background: {"#e8f5e9" if es_base else "white"};
-                        padding: 15px; border-radius: 10px; text-align: center;
-                        margin: 5px 0; border: {"3px solid #4caf50" if es_base else "1px solid #ddd"};'>
-                <div style='font-size: 0.8rem; color: #666; font-weight: 600;'>{nombre}</div>
-                <div style='font-size: 1.3rem; font-weight: 700; color: {datos["color"]}; margin: 5px 0;'>
+            <div class='escenario-card {"base" if es_base else ""}'>
+                <div class='escenario-title'>
+                    <span>{esc['icono']}</span>
+                    <span>{esc['nombre']} ({esc['signo']})</span>
+                </div>
+                <div class='escenario-valor' style='color: {esc["color"]};'>
                     {clp(total)} CLP
                 </div>
-                <div style='font-size: 0.7rem; color: #999;'>+{int(datos['factor']*100)}%</div>
+                <div class='escenario-detalle'>
+                    Recuperación: {clp(recuperacion)}<br>
+                    + Crédito: {clp(credito_trib)}
+                </div>
             </div>
             """, unsafe_allow_html=True)
 
+    # Nota de proyección
+    st.markdown("""
+    <div class="nota-proyeccion">
+        <strong>⚠️ Nota:</strong> Estas son <strong>proyecciones estimadas</strong>. 
+        Los resultados reales dependen del tráfico de tienda, ubicación de productos y respuesta de clientes.
+    </div>
+    """, unsafe_allow_html=True)
+
 def mostrar_plan_48h(stats, df_riesgo):
-    """Muestra el plan de acción de 48 horas"""
+    """Muestra el plan de acción de 48 horas con valores coherentes"""
 
     if stats is None:
         return
@@ -740,18 +852,22 @@ def mostrar_plan_48h(stats, df_riesgo):
     valor_vencido = stats['VENCIDO']['valor']
     valor_critico = stats['CRITICO']['valor']
     valor_urgente = stats['URGENTE']['valor']
+    valor_preventivo = stats['PREVENTIVO']['valor']
 
-    credito_trib = valor_vencido * 0.27
-    recuperacion_criticos = valor_critico * 0.50
-    recuperacion_urgentes = valor_urgente * 0.40
-    recuperacion_total = recuperacion_criticos + recuperacion_urgentes
-    total_recuperado = credito_trib + recuperacion_total
+    # Cálculos del escenario BASE (no optimista)
+    credito_trib = valor_vencido * 0.27                        # 27% crédito tributario
+    recuperacion_criticos = valor_critico * 0.50               # 50% de críticos
+    recuperacion_urgentes = valor_urgente * 0.40               # 40% de urgentes
+    recuperacion_preventivo = valor_preventivo * 0.15          # 15% de preventivo
+    
+    recuperacion_descuentos = recuperacion_criticos + recuperacion_urgentes + recuperacion_preventivo
+    total_recuperado = credito_trib + recuperacion_descuentos
 
     # Sección VENCIDOS
     if stats['VENCIDO']['productos'] > 0:
         st.markdown(f"""
         <div class="plan-section plan-vencido">
-            <h3 style='color: #d32f2f; margin: 0 0 15px 0;'>🔴 HOY 08:00-12:00 | DONACIONES (VENCIDOS)</h3>
+            <h3 style='color: #d32f2f; margin: 0 0 15px 0;'>🟣 HOY 08:00-12:00 | DONACIONES (VENCIDOS - Día 0)</h3>
             <div class="metric-grid">
                 <div class="metric-item">
                     <div class="metric-label">📦 Productos</div>
@@ -778,7 +894,7 @@ def mostrar_plan_48h(stats, df_riesgo):
     if stats['CRITICO']['productos'] > 0:
         st.markdown(f"""
         <div class="plan-section plan-critico">
-            <h3 style='color: #f57c00; margin: 0 0 15px 0;'>🟠 HOY 12:00-18:00 | MARKDOWN 40% (CRÍTICOS)</h3>
+            <h3 style='color: #f57c00; margin: 0 0 15px 0;'>🔴 HOY 12:00-18:00 | MARKDOWN 40% (CRÍTICOS - 1 a 3 días)</h3>
             <div class="metric-grid">
                 <div class="metric-item">
                     <div class="metric-label">📦 Productos</div>
@@ -805,7 +921,7 @@ def mostrar_plan_48h(stats, df_riesgo):
     if stats['URGENTE']['productos'] > 0:
         st.markdown(f"""
         <div class="plan-section plan-urgente">
-            <h3 style='color: #f9a825; margin: 0 0 15px 0;'>🟡 MAÑANA 08:00-12:00 | MARKDOWN 25% (URGENTES)</h3>
+            <h3 style='color: #f9a825; margin: 0 0 15px 0;'>🟠 MAÑANA 08:00-12:00 | MARKDOWN 25% (URGENTES - 4 a 7 días)</h3>
             <div class="metric-grid">
                 <div class="metric-item">
                     <div class="metric-label">📦 Productos</div>
@@ -828,65 +944,77 @@ def mostrar_plan_48h(stats, df_riesgo):
         </div>
         """, unsafe_allow_html=True)
 
-    # Resumen total
-    st.markdown("""
+    # Resumen total - ESCENARIO BASE
+    st.markdown(f"""
     <div style="background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
                 border-radius: 15px; padding: 30px; margin: 20px 0;">
-        <h2 style="color: white; text-align: center; margin-bottom: 30px;">
-            ✅ RESUMEN PLAN 48H
+        <h2 style="color: white; text-align: center; margin-bottom: 10px;">
+            ✅ RESUMEN PLAN 48H (Escenario Base)
         </h2>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+        <p style="color: #bbdefb; text-align: center; margin-bottom: 25px; font-size: 0.9rem;">
+            Proyección basada en tasas de recuperación estándar
+        </p>
     """, unsafe_allow_html=True)
 
-    # Tarjeta 1 - Crédito Tributario (fondo azul claro)
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%);
-                border-radius: 12px; padding: 25px; text-align: center;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
-        <div style="font-size: 2rem; margin-bottom: 10px;">💰</div>
-        <div style="color: #0d47a1; font-weight: 600; font-size: 0.9rem;
-                    margin-bottom: 10px;">CRÉDITO TRIBUTARIO</div>
-        <div style="color: #0d47a1; font-size: 1.8rem; font-weight: 700;">
-            {clp(credito_trib)}
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%);
+                    border-radius: 12px; padding: 25px; text-align: center;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+            <div style="font-size: 2rem; margin-bottom: 10px;">💰</div>
+            <div style="color: #0d47a1; font-weight: 600; font-size: 0.9rem;
+                        margin-bottom: 10px;">CRÉDITO TRIBUTARIO</div>
+            <div style="color: #0d47a1; font-size: 1.8rem; font-weight: 700;">
+                {clp(credito_trib)}
+            </div>
+            <div style="color: #1565c0; font-size: 0.85rem; margin-top: 5px;">
+                27% s/donaciones
+            </div>
         </div>
-        <div style="color: #1565c0; font-size: 0.85rem; margin-top: 5px;">
-            27% s/donaciones
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-    # Tarjeta 2 - Recuperación Descuentos (fondo naranja claro)
-    recuperacion_descuentos = total_recuperado - credito_trib
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #ffb74d 0%, #ffa726 100%);
-                border-radius: 12px; padding: 25px; text-align: center;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
-        <div style="font-size: 2rem; margin-bottom: 10px;">🏷️</div>
-        <div style="color: #e65100; font-weight: 600; font-size: 0.9rem;
-                    margin-bottom: 10px;">RECUPERACIÓN DESCUENTOS</div>
-        <div style="color: #e65100; font-size: 1.8rem; font-weight: 700;">
-            {clp(recuperacion_descuentos)}
+    with col2:
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #ffb74d 0%, #ffa726 100%);
+                    border-radius: 12px; padding: 25px; text-align: center;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+            <div style="font-size: 2rem; margin-bottom: 10px;">🏷️</div>
+            <div style="color: #e65100; font-weight: 600; font-size: 0.9rem;
+                        margin-bottom: 10px;">RECUPERACIÓN DESCUENTOS</div>
+            <div style="color: #e65100; font-size: 1.8rem; font-weight: 700;">
+                {clp(recuperacion_descuentos)}
+            </div>
+            <div style="color: #ef6c00; font-size: 0.85rem; margin-top: 5px;">
+                50%, 40%, 15% dto
+            </div>
         </div>
-        <div style="color: #ef6c00; font-size: 0.85rem; margin-top: 5px;">
-            40%, 25%, 15% dto
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-    # Tarjeta 3 - Total Recuperado (fondo verde)
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
-                border-radius: 12px; padding: 25px; text-align: center;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
-        <div style="font-size: 2rem; margin-bottom: 10px;">✅</div>
-        <div style="color: #1b5e20; font-weight: 600; font-size: 0.9rem;
-                    margin-bottom: 10px;">TOTAL RECUPERADO</div>
-        <div style="color: #1b5e20; font-size: 2.2rem; font-weight: 700;">
-            {clp(total_recuperado)}
+    with col3:
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
+                    border-radius: 12px; padding: 25px; text-align: center;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+            <div style="font-size: 2rem; margin-bottom: 10px;">✅</div>
+            <div style="color: #1b5e20; font-weight: 600; font-size: 0.9rem;
+                        margin-bottom: 10px;">TOTAL RECUPERADO</div>
+            <div style="color: #1b5e20; font-size: 2.2rem; font-weight: 700;">
+                {clp(total_recuperado)}
+            </div>
+            <div style="color: #2e7d32; font-size: 0.85rem; margin-top: 5px;">
+                Inyección de liquidez
+            </div>
         </div>
-        <div style="color: #2e7d32; font-size: 0.85rem; margin-top: 5px;">
-            Inyección de liquidez
-        </div>
+        """, unsafe_allow_html=True)
+
+    # Nota de proyección
+    st.markdown("""
+    <div class="nota-proyeccion" style="margin-top: 20px;">
+        <strong>⚠️ Nota:</strong> Los valores mostrados corresponden al <strong>Escenario Base</strong> de recuperación. 
+        Los resultados reales pueden variar entre -50% y +50% según condiciones de mercado.
+        Consulte el Análisis de Sensibilidad para ver todos los escenarios.
     </div>
     """, unsafe_allow_html=True)
 
@@ -938,20 +1066,21 @@ def mostrar_clasificacion(stats):
     col1, col2, col3, col4 = st.columns(4)
 
     niveles = [
-        ('VENCIDO', 'vencido', '🟣', '#9c27b0'),
-        ('CRITICO', 'critico', '🔴', '#d32f2f'),
-        ('URGENTE', 'urgente', '🟠', '#f57c00'),
-        ('PREVENTIVO', 'preventivo', '🟡', '#fbc02d')
+        ('VENCIDO', 'vencido', '🟣', '#9c27b0', 'Día 0 (Hoy)'),
+        ('CRITICO', 'critico', '🔴', '#d32f2f', '1-3 días'),
+        ('URGENTE', 'urgente', '🟠', '#f57c00', '4-7 días'),
+        ('PREVENTIVO', 'preventivo', '🟡', '#fbc02d', '8-10 días')
     ]
 
     columnas = [col1, col2, col3, col4]
 
-    for (nivel, clase, emoji, color), col in zip(niveles, columnas):
+    for (nivel, clase, emoji, color, dias), col in zip(niveles, columnas):
         with col:
             st.markdown(f"""
             <div class='classification-item {clase}' style='text-align: center; display: block;'>
                 <span class='indicator' style='background-color: {color}; margin: 0 auto 10px auto;'></span>
-                <strong>{emoji} {nivel}</strong><br><br>
+                <strong>{emoji} {nivel}</strong><br>
+                <small style='color: #666;'>({dias})</small><br><br>
                 <div style='font-size: 1.4rem;'>{stats[nivel]['productos']}</div>
                 <small>productos</small><br>
                 <div style='font-size: 1.1rem;'>{clp(stats[nivel]['unidades'])}</div>
@@ -960,30 +1089,70 @@ def mostrar_clasificacion(stats):
             </div>
             """, unsafe_allow_html=True)
 
-def mostrar_tabla_productos(df_riesgo):
-    """Muestra los productos en riesgo"""
+def mostrar_productos_por_riesgo(df_riesgo, stats):
+    """Muestra los productos agrupados por nivel de riesgo en secciones expandibles"""
 
     st.markdown("---")
-    st.markdown("### ⚠️ Productos en Riesgo (Top 30)")
+    st.markdown('<div class="section-title-box"><h2>📦 PRODUCTOS POR NIVEL DE RIESGO</h2></div>', unsafe_allow_html=True)
 
     if df_riesgo is None or len(df_riesgo) == 0:
         st.success("No hay productos en riesgo")
         return
 
-    # Ordenar por días para vencer
-    df_display = df_riesgo.sort_values('Dias_Para_Vencer', ascending=True).head(30)
+    niveles_config = [
+        ('VENCIDO', '🟣', '#9c27b0', 'Día 0 - Hoy'),
+        ('CRITICO', '🔴', '#d32f2f', '1-3 días'),
+        ('URGENTE', '🟠', '#f57c00', '4-7 días'),
+        ('PREVENTIVO', '🟡', '#fbc02d', '8-10 días')
+    ]
 
-    # Seleccionar columnas
-    columnas = ['Producto', 'Sucursal', 'Stock_Teorico_Unidades', 'Dias_Para_Vencer', 'Nivel_Riesgo', 'Valor_Stock']
-    df_display = df_display[columnas].copy()
-
-    # Renombrar
-    df_display.columns = ['Producto', 'Sucursal', 'Stock', 'Días Vencer', 'Nivel', 'Valor (CLP)']
-
-    # Formatear
-    df_display['Valor (CLP)'] = df_display['Valor (CLP)'].apply(lambda x: clp(x))
-
-    st.dataframe(df_display, use_container_width=True, hide_index=True)
+    for nivel, emoji, color, dias in niveles_config:
+        df_nivel = df_riesgo[df_riesgo['Nivel_Riesgo'] == nivel].copy()
+        
+        if len(df_nivel) > 0:
+            # Header del expander
+            n_productos = stats[nivel]['productos']
+            n_unidades = stats[nivel]['unidades']
+            valor = stats[nivel]['valor']
+            
+            with st.expander(f"{emoji} {nivel} ({n_productos} productos | {clp(n_unidades)} unidades | {clp(valor)} CLP)"):
+                # Ordenar por valor descendente
+                df_display = df_nivel.sort_values('Valor_Stock', ascending=False)
+                
+                # Seleccionar columnas relevantes
+                columnas = ['Producto', 'Sucursal', 'Stock_Teorico_Unidades', 'Dias_Para_Vencer', 'Valor_Stock']
+                
+                # Verificar que las columnas existen
+                columnas_existentes = [c for c in columnas if c in df_display.columns]
+                df_display = df_display[columnas_existentes].copy()
+                
+                # Renombrar columnas
+                rename_map = {
+                    'Producto': 'Producto',
+                    'Sucursal': 'Sucursal',
+                    'Stock_Teorico_Unidades': 'Stock (uds)',
+                    'Dias_Para_Vencer': 'Días Vencer',
+                    'Valor_Stock': 'Valor (CLP)'
+                }
+                df_display = df_display.rename(columns={k: v for k, v in rename_map.items() if k in df_display.columns})
+                
+                # Formatear valor
+                if 'Valor (CLP)' in df_display.columns:
+                    df_display['Valor (CLP)'] = df_display['Valor (CLP)'].apply(lambda x: clp(x))
+                
+                # Mostrar tabla
+                st.dataframe(
+                    df_display,
+                    use_container_width=True,
+                    hide_index=True,
+                    height=min(400, len(df_display) * 35 + 38)
+                )
+        else:
+            st.markdown(f"""
+            <div style='padding: 10px; background: #f5f5f5; border-radius: 8px; margin: 5px 0;'>
+                <span style='color: #999;'>{emoji} {nivel} - Sin productos en esta categoría</span>
+            </div>
+            """, unsafe_allow_html=True)
 
 # =============================================================================
 # FUNCIÓN PRINCIPAL
@@ -1125,12 +1294,12 @@ def main():
 
     with tab_riesgo:
         st.markdown("### Inventario en Riesgo por Sucursal")
-        st.markdown("*Muestra solo el inventario clasificado como: **Vencido**, **Crítico**, **Urgente** y **Preventivo***")
+        st.markdown("*Muestra solo el inventario clasificado como: **Vencido** (hoy), **Crítico** (1-3 días), **Urgente** (4-7 días) y **Preventivo** (8-10 días)*")
 
         # Mostrar leyenda de colores
         st.markdown("""
         <div style='display: flex; gap: 20px; margin: 10px 0; flex-wrap: wrap;'>
-            <span style='display: flex; align-items: center;'><span style='width: 15px; height: 15px; background: #9c27b0; border-radius: 50%; margin-right: 5px;'></span> Vencido (≤0 días)</span>
+            <span style='display: flex; align-items: center;'><span style='width: 15px; height: 15px; background: #9c27b0; border-radius: 50%; margin-right: 5px;'></span> Vencido (Día 0 - Hoy)</span>
             <span style='display: flex; align-items: center;'><span style='width: 15px; height: 15px; background: #d32f2f; border-radius: 50%; margin-right: 5px;'></span> Crítico (1-3 días)</span>
             <span style='display: flex; align-items: center;'><span style='width: 15px; height: 15px; background: #f57c00; border-radius: 50%; margin-right: 5px;'></span> Urgente (4-7 días)</span>
             <span style='display: flex; align-items: center;'><span style='width: 15px; height: 15px; background: #fbc02d; border-radius: 50%; margin-right: 5px;'></span> Preventivo (8-10 días)</span>
@@ -1145,14 +1314,14 @@ def main():
 
     st.markdown("---")
 
-    # Análisis de sensibilidad
+    # Análisis de sensibilidad (6 escenarios)
     mostrar_analisis_sensibilidad(stats)
 
     # Plan 48h
     mostrar_plan_48h(stats, df_riesgo)
 
-    # Tabla de productos
-    mostrar_tabla_productos(df_riesgo)
+    # Productos por nivel de riesgo (accordions)
+    mostrar_productos_por_riesgo(df_riesgo, stats)
 
     st.markdown("---")
     st.markdown("""
