@@ -78,14 +78,21 @@ def clp(valor):
     except: return "$0"
 
 # =============================================================================
-# 3. LÓGICA DE CLASIFICACIÓN - ADAPTADA A VENTANA MENSUAL
+# 3. LÓGICA DE CLASIFICACIÓN - VENTANA MENSUAL INTELIGENTE
 # =============================================================================
 def clasificar_riesgo_mensual(dias, fecha_hoy, fecha_inicio_mes, fecha_fin_mes):
     """
-    Clasificación de riesgo con lógica de ventana mensual:
-    - Si el producto vence DENTRO del mes actual → se clasifica según días desde hoy
-    - Si el producto vence FUERA del mes actual → se excluye del análisis de riesgo inmediato
-    - Mantiene las distancias originales: VENCIDO(≤0), CRÍTICO(1-3), URGENTE(4-7), PREVENTIVO(8-30)
+    Clasificación de riesgo con lógica de ventana mensual CORREGIDA:
+    
+    ✅ CASO BASE: Si hoy es 15-Feb → ventana = 01-Feb al 28-Feb
+    ✅ CASO ESPECIAL: Si hoy es 28-Feb → ventana = 01-Feb al 28-Feb (NO incluye marzo)
+    ✅ PRODUCTOS FUERA DE VENTANA: Se excluyen del análisis de riesgo inmediato
+    
+    Mantiene distancias originales ancladas a HOY:
+    - VENCIDO: ≤0 días desde hoy (vence hoy o antes)
+    - CRÍTICO: 1-3 días desde hoy
+    - URGENTE: 4-7 días desde hoy  
+    - PREVENTIVO: 8-30 días desde hoy (pero SOLO si vence dentro del mes)
     """
     if pd.isna(dias): return 'SIN_DATO'
     
@@ -94,13 +101,13 @@ def clasificar_riesgo_mensual(dias, fecha_hoy, fecha_inicio_mes, fecha_fin_mes):
     
     # ✅ FILTRO CLAVE: Solo analizar productos que vencen DENTRO del mes actual
     if not (fecha_inicio_mes <= fecha_vencimiento <= fecha_fin_mes):
-        return 'FUERA_VENTANA'  # No incluir en análisis de riesgo inmediato
+        return 'FUERA_VENTANA'
     
-    # Clasificación manteniendo distancias originales de inventario.py
+    # Clasificación manteniendo distancias originales ancladas a HOY
     if dias <= 0: return 'VENCIDO'           # 🟣 Hoy o antes
-    elif dias <= 3: return 'CRITICO'          # 🔴 1-3 días
-    elif dias <= 7: return 'URGENTE'          # 🟠 4-7 días
-    elif dias <= 30: return 'PREVENTIVO'      # 🟡 8-30 días (dentro del mes)
+    elif dias <= 3: return 'CRITICO'          # 🔴 1-3 días desde hoy
+    elif dias <= 7: return 'URGENTE'          # 🟠 4-7 días desde hoy
+    elif dias <= 30: return 'PREVENTIVO'      # 🟡 8-30 días desde hoy (dentro del mes)
     else: return 'NORMAL'                     # 🟢 Más de 30 días
 
 COLOR_MAP = {
@@ -164,12 +171,17 @@ def mapear_columnas(df):
     return df
 
 # =============================================================================
-# 5. LÓGICA DE VENTANA MENSUAL (Core Request)
+# 5. LÓGICA DE VENTANA MENSUAL CORREGIDA (Core Request)
 # =============================================================================
 def obtener_ventana_mensual(fecha_referencia):
     """
-    Calcula la ventana de análisis mensual:
-    Ej: Si hoy es 15-Feb-2026 → ventana = 01-Feb-2026 a 28-Feb-2026
+    Calcula la ventana de análisis mensual CORREGIDA:
+    
+    ✅ Si hoy es 15-Feb-2026 → ventana = 01-Feb-2026 a 28-Feb-2026
+    ✅ Si hoy es 28-Feb-2026 → ventana = 01-Feb-2026 a 28-Feb-2026 (NO marzo)
+    ✅ Si hoy es 01-Mar-2026 → ventana = 01-Mar-2026 a 31-Mar-2026
+    
+    La ventana SIEMPRE es: [1 del mes actual] hasta [último día del mes actual]
     """
     inicio_mes = fecha_referencia.replace(day=1)
     ultimo_dia = calendar.monthrange(fecha_referencia.year, fecha_referencia.month)[1]
@@ -187,11 +199,11 @@ def filtrar_por_ventana_mensual(df, fecha_hoy, columna_fecha_venc):
     if df[columna_fecha_venc].dtype == 'object':
         df[columna_fecha_venc] = pd.to_datetime(df[columna_fecha_venc], errors='coerce')
     
-    # Filtrar por ventana mensual
+    # Filtrar por ventana mensual: productos que vencen entre inicio_mes y fin_mes
     mask_ventana = (df[columna_fecha_venc] >= inicio_mes) & (df[columna_fecha_venc] <= fin_mes)
     df_filtrado = df[mask_ventana].copy()
     
-    # Calcular días efectivos desde hoy para clasificación
+    # Calcular días efectivos desde hoy para clasificación (pueden ser negativos si ya venció)
     df_filtrado['Dias_Efectivos'] = (df_filtrado[columna_fecha_venc] - fecha_hoy).dt.days
     
     return df_filtrado, inicio_mes, fin_mes
@@ -230,11 +242,12 @@ with st.sidebar:
     • Fin mes: {fin_mes_ui.strftime('%d/%m/%Y')}
     
     ✅ Solo productos que vencen DENTRO de esta ventana serán clasificados como riesgo.
+    ✅ La clasificación (Vencido/Crítico/Urgente) se calcula RELATIVO a HOY.
     """)
     
     incluir_fuera_ventana = st.checkbox(
-        "Mostrar productos fuera de ventana", value=False,
-        help="Incluir productos que vencen fuera del mes actual (como referencia)"
+        "🔍 Mostrar productos fuera de ventana (referencia)", value=False,
+        help="Incluir productos que vencen fuera del mes actual como contexto adicional"
     )
     
     st.markdown("---")
@@ -244,7 +257,7 @@ with st.sidebar:
         st.rerun()
 
 # =============================================================================
-# 7. PROCESAMIENTO PRINCIPAL CON LÓGICA MENSUAL
+# 7. PROCESAMIENTO PRINCIPAL CON LÓGICA MENSUAL CORREGIDA
 # =============================================================================
 if uploaded_files:
     data = {}
@@ -266,7 +279,13 @@ if uploaded_files:
                 # ========================================
                 # CONSOLIDACIÓN ETL
                 # ========================================
-                df_base = data.get('stock_geo') or data.get('inventario_movimientos')
+                df_base = data.get('stock_geo')
+                if df_base is None or (hasattr(df_base, 'empty') and df_base.empty):
+                    df_base = data.get('inventario_movimientos')
+                
+                if df_base is None or df_base.empty:
+                    st.error("❌ No se encontró archivo de stock o inventario válido")
+                    st.stop()
                 
                 # Merge con sucursales
                 if 'sucursales' in data and 'Sucursal' in df_base.columns:
@@ -283,7 +302,7 @@ if uploaded_files:
                     )
                 
                 # ========================================
-                # 🎯 LÓGICA DE VENTANA MENSUAL (Core)
+                # 🎯 LÓGICA DE VENTANA MENSUAL (Core Corregido)
                 # ========================================
                 tz_cl = pytz.timezone('America/Santiago')
                 fecha_hoy = datetime.now(tz_cl).replace(tzinfo=None)
@@ -301,22 +320,25 @@ if uploaded_files:
                         df_base, fecha_hoy, col_fecha_venc
                     )
                     
-                    # Clasificación de riesgo con lógica mensual
+                    # Clasificación de riesgo con lógica mensual CORREGIDA
                     df_base['Riesgo_BI'] = df_base['Dias_Efectivos'].apply(
                         lambda d: clasificar_riesgo_mensual(d, fecha_hoy, inicio_mes, fin_mes)
                     )
+                    
                 elif 'Dias_Para_Vencer' in df_base.columns:
                     # Fallback: usar días directos con filtro de ventana
-                    df_base['Dias_Efectivos'] = df_base['Dias_Para_Vencer'].astype(float)
+                    df_base['Dias_Efectivos'] = pd.to_numeric(df_base['Dias_Para_Vencer'], errors='coerce').fillna(0)
                     
                     # Calcular fecha de vencimiento para filtro mensual
                     df_base['Fecha_Venc_Calc'] = fecha_hoy + pd.to_timedelta(df_base['Dias_Efectivos'], unit='D')
                     inicio_mes, fin_mes = obtener_ventana_mensual(fecha_hoy)
                     
+                    # Filtrar por ventana mensual
                     mask_ventana = (df_base['Fecha_Venc_Calc'] >= inicio_mes) & (df_base['Fecha_Venc_Calc'] <= fin_mes)
                     if not incluir_fuera_ventana:
                         df_base = df_base[mask_ventana].copy()
                     
+                    # Clasificación
                     df_base['Riesgo_BI'] = df_base['Dias_Efectivos'].apply(
                         lambda d: clasificar_riesgo_mensual(d, fecha_hoy, inicio_mes, fin_mes)
                     )
@@ -356,7 +378,7 @@ if uploaded_files:
                     sel_cat = st.multiselect("📦 Categorías", categorias_disp, default=categorias_disp, key="filter_cat")
                 
                 with col_f3:
-                    riesgos_disp = [r for r in COLOR_MAP.keys() if r in df_base['Riesgo_BI'].values and r != 'FUERA_VENTANA']
+                    riesgos_disp = [r for r in COLOR_MAP.keys() if r in df_base['Riesgo_BI'].values and r not in ['FUERA_VENTANA', 'SIN_DATO']]
                     sel_risk = st.multiselect("⚠️ Nivel de Riesgo", riesgos_disp, default=['VENCIDO', 'CRITICO', 'URGENTE'], key="filter_risk")
                 
                 # Aplicar filtros
@@ -393,10 +415,10 @@ if uploaded_files:
                 """, unsafe_allow_html=True)
                 
                 # ========================================
-                # KPIs EJECUTIVOS
+                # KPIs EJECUTIVOS (Solo ventana mensual)
                 # ========================================
-                # Excluir FUERA_VENTANA de cálculos principales
-                df_riesgo = df_f[df_f['Riesgo_BI'] != 'FUERA_VENTANA'].copy()
+                # Excluir FUERA_VENTANA y SIN_DATO de cálculos principales
+                df_riesgo = df_f[df_f['Riesgo_BI'].isin(['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO'])].copy()
                 
                 val_total = df_riesgo["Valor_Costo_Total"].sum()
                 venc_val = df_riesgo[df_riesgo['Riesgo_BI'] == 'VENCIDO']['Valor_Costo_Total'].sum()
@@ -619,7 +641,7 @@ if uploaded_files:
                 # ========================================
                 st.markdown("---")
                 st.caption(f"""
-                🛡️ **Command Center v2.1** • Generado: {datetime.now(tz_cl).strftime('%d/%m/%Y %H:%M:%S')} CLT  
+                🛡️ **Command Center v2.2** • Generado: {datetime.now(tz_cl).strftime('%d/%m/%Y %H:%M:%S')} CLT  
                 📅 Ventana de análisis: {inicio_mes.strftime('%d/%m/%Y')} al {fin_mes.strftime('%d/%m/%Y')}  
                 📁 Fuentes: {', '.join([f.name for f in uploaded_files])} • Registros en ventana: {len(df_riesgo):,}
                 """)
@@ -663,12 +685,13 @@ else:
         | `4_INVENTARIO_COMPLETO.csv` | Lote_ID, Sucursal, Tipo_Movimiento, Fecha_Movimiento | Historial de movimientos |
         | `5_STOCK_ACTUAL_GEO.csv` | Lote_ID, Stock_Teorico_Unidades, Valor_Unitario_CLP, Latitud | Snapshot actual con geo |
         
-        > 💡 **Lógica de Ventana Mensual**: 
+        > 💡 **Lógica de Ventana Mensual Corregida**: 
         > - Si hoy es **15 de febrero 2026**, el análisis incluye productos que vencen entre **01/02/2026 y 28/02/2026**
-        > - Dentro de esa ventana, se mantiene la clasificación original: 
-        >   - 🟣 **VENCIDO**: ≤0 días desde hoy
+        > - Si hoy es **28 de febrero 2026**, el análisis incluye productos que vencen entre **01/02/2026 y 28/02/2026** (NO marzo)
+        > - Dentro de esa ventana, se mantiene la clasificación original ANCLADA A HOY: 
+        >   - 🟣 **VENCIDO**: ≤0 días desde hoy (vence hoy o antes)
         >   - 🔴 **CRÍTICO**: 1-3 días desde hoy  
         >   - 🟠 **URGENTE**: 4-7 días desde hoy
-        >   - 🟡 **PREVENTIVO**: 8-30 días desde hoy (dentro del mes)
-        > - Productos que vencen fuera del mes se excluyen del análisis de riesgo inmediato (opcional mostrar como referencia)
+        >   - 🟡 **PREVENTIVO**: 8-30 días desde hoy (pero SOLO si vence dentro del mes)
+        > - Productos que vencen fuera del mes se excluyen del análisis de riesgo inmediato
         """)
