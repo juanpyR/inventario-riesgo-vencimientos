@@ -113,3 +113,19 @@ if uploaded_files:
 
     else:
         st.info("Sube los archivos para activar el Centro de Comando.")
+st.markdown("---")
+st.subheader("📈 Evolución de Movimientos en el Tiempo")
+
+# Agrupar por fecha y tipo de movimiento
+df_trend = df_filtered.groupby(['Fecha_Movimiento', 'Tipo_Movimiento'])['Cantidad_Salida'].sum().reset_index()
+
+fig_line = px.line(
+    df_trend, 
+    x='Fecha_Movimiento', 
+    y='Cantidad_Salida', 
+    color='Tipo_Movimiento',
+    title="Volumen de Salidas (Ventas vs Transferencias)",
+    markers=True
+)
+fig_line.update_layout(hovermode="x unified", mapbox_style="carto-positron")
+st.plotly_chart(fig_line, use_container_width=True)
