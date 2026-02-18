@@ -838,7 +838,7 @@ def mostrar_analisis_sensibilidad(stats):
     """, unsafe_allow_html=True)
 
 def mostrar_plan_48h(stats, df_riesgo):
-    """Muestra el plan de acción de 48 horas con valores coherentes"""
+    """Muestra el plan de acción de 48 horas con desglose por sucursal"""
 
     if stats is None:
         return
@@ -852,17 +852,60 @@ def mostrar_plan_48h(stats, df_riesgo):
     valor_urgente = stats['URGENTE']['valor']
     valor_preventivo = stats['PREVENTIVO']['valor']
 
-    # Cálculos del escenario BASE (no optimista)
-    credito_trib = valor_vencido * 0.27                        # 27% crédito tributario
-    recuperacion_criticos = valor_critico * 0.50               # 50% de críticos
-    recuperacion_urgentes = valor_urgente * 0.40               # 40% de urgentes
-    recuperacion_preventivo = valor_preventivo * 0.15          # 15% de preventivo
+    # Cálculos del escenario BASE
+    credito_trib = valor_vencido * 0.27
+    recuperacion_criticos = valor_critico * 0.50
+    recuperacion_urgentes = valor_urgente * 0.40
+    recuperacion_preventivo = valor_preventivo * 0.15
     
     recuperacion_descuentos = recuperacion_criticos + recuperacion_urgentes + recuperacion_preventivo
     total_recuperado = credito_trib + recuperacion_descuentos
 
-    # Sección VENCIDOS
+    # =========================================================================
+    # FUNCIÓN AUXILIAR PARA MOSTRAR DESGLOSE POR SUCURSAL
+    # =========================================================================
+    def mostrar_desglose_sucursal(df_nivel, titulo_color):
+        """Muestra tabla de productos agrupados por sucursal"""
+        if len(df_nivel) == 0:
+            return
+        
+        # Agrupar por sucursal
+        resumen_sucursal = df_nivel.groupby('Sucursal').agg({
+            'Producto': lambda x: list(x.unique()),
+            'Stock_Teorico_Unidades': 'sum',
+            'Valor_Stock': 'sum'
+        }).reset_index()
+        
+        resumen_sucursal = resumen_sucursal.sort_values('Valor_Stock', ascending=False)
+        
+        st.markdown(f"**📍 Desglose por Sucursal:**")
+        
+        for _, row in resumen_sucursal.iterrows():
+            sucursal = row['Sucursal']
+            productos = row['Producto']
+            unidades = int(row['Stock_Teorico_Unidades'])
+            valor = row['Valor_Stock']
+            
+            productos_str = ", ".join(productos[:5])  # Mostrar máx 5 productos
+            if len(productos) > 5:
+                productos_str += f" (+{len(productos)-5} más)"
+            
+            st.markdown(f"""
+            <div style='background: white; padding: 12px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {titulo_color};'>
+                <strong>🏪 {sucursal}</strong><br>
+                <span style='color: #666; font-size: 0.9rem;'>
+                    📦 {unidades:,} unidades | 💰 {clp(valor)} CLP<br>
+                    📋 Productos: {productos_str}
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # =========================================================================
+    # SECCIÓN VENCIDOS CON DESGLOSE
+    # =========================================================================
     if stats['VENCIDO']['productos'] > 0:
+        df_vencidos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO'].copy()
+        
         st.markdown(f"""
         <div class="plan-section plan-vencido">
             <h3 style='color: #d32f2f; margin: 0 0 15px 0;'>🟣 HOY 08:00-12:00 | DONACIONES (VENCIDOS - Día 0)</h3>
@@ -880,16 +923,26 @@ def mostrar_plan_48h(stats, df_riesgo):
                     <div class="metric-value">{clp(valor_vencido)}</div>
                 </div>
             </div>
-            <div style='background: #c8e6c9; padding: 15px; border-radius: 10px; text-align: center; margin-top: 15px;'>
-                <span style='font-size: 1.2rem; font-weight: 700; color: #2e7d32;'>
-                    💰 +{clp(credito_trib)} CLP ahorro fiscal (27%)
-                </span>
-            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Desglose por sucursal para VENCIDOS
+        mostrar_desglose_sucursal(df_vencidos, '#9c27b0')
+        
+        st.markdown(f"""
+        <div style='background: #c8e6c9; padding: 15px; border-radius: 10px; text-align: center; margin-top: 15px;'>
+            <span style='font-size: 1.2rem; font-weight: 700; color: #2e7d32;'>
+                💰 +{clp(credito_trib)} CLP ahorro fiscal (27%)
+            </span>
         </div>
         """, unsafe_allow_html=True)
 
-    # Sección CRÍTICOS
+    # =========================================================================
+    # SECCIÓN CRÍTICOS CON DESGLOSE
+    # =========================================================================
     if stats['CRITICO']['productos'] > 0:
+        df_criticos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO'].copy()
+        
         st.markdown(f"""
         <div class="plan-section plan-critico">
             <h3 style='color: #f57c00; margin: 0 0 15px 0;'>🔴 HOY 12:00-18:00 | MARKDOWN 40% (CRÍTICOS - 1 a 3 días)</h3>
@@ -907,16 +960,26 @@ def mostrar_plan_48h(stats, df_riesgo):
                     <div class="metric-value">{clp(valor_critico)}</div>
                 </div>
             </div>
-            <div style='background: #fff3e0; padding: 15px; border-radius: 10px; text-align: center; margin-top: 15px;'>
-                <span style='font-size: 1.2rem; font-weight: 700; color: #e65100;'>
-                    📈 Recuperación estimada: {clp(recuperacion_criticos)} CLP (50%)
-                </span>
-            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Desglose por sucursal para CRÍTICOS
+        mostrar_desglose_sucursal(df_criticos, '#d32f2f')
+        
+        st.markdown(f"""
+        <div style='background: #fff3e0; padding: 15px; border-radius: 10px; text-align: center; margin-top: 15px;'>
+            <span style='font-size: 1.2rem; font-weight: 700; color: #e65100;'>
+                📈 Recuperación estimada: {clp(recuperacion_criticos)} CLP (50%)
+            </span>
         </div>
         """, unsafe_allow_html=True)
 
-    # Sección URGENTES
+    # =========================================================================
+    # SECCIÓN URGENTES CON DESGLOSE
+    # =========================================================================
     if stats['URGENTE']['productos'] > 0:
+        df_urgentes = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE'].copy()
+        
         st.markdown(f"""
         <div class="plan-section plan-urgente">
             <h3 style='color: #f9a825; margin: 0 0 15px 0;'>🟠 MAÑANA 08:00-12:00 | MARKDOWN 25% (URGENTES - 4 a 7 días)</h3>
@@ -934,15 +997,60 @@ def mostrar_plan_48h(stats, df_riesgo):
                     <div class="metric-value">{clp(valor_urgente)}</div>
                 </div>
             </div>
-            <div style='background: #fffde7; padding: 15px; border-radius: 10px; text-align: center; margin-top: 15px;'>
-                <span style='font-size: 1.2rem; font-weight: 700; color: #f57c00;'>
-                    📈 Recuperación estimada: {clp(recuperacion_urgentes)} CLP (40%)
-                </span>
-            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Desglose por sucursal para URGENTES
+        mostrar_desglose_sucursal(df_urgentes, '#f57c00')
+        
+        st.markdown(f"""
+        <div style='background: #fffde7; padding: 15px; border-radius: 10px; text-align: center; margin-top: 15px;'>
+            <span style='font-size: 1.2rem; font-weight: 700; color: #f57c00;'>
+                📈 Recuperación estimada: {clp(recuperacion_urgentes)} CLP (40%)
+            </span>
         </div>
         """, unsafe_allow_html=True)
 
-    # Resumen total - ESCENARIO BASE
+    # =========================================================================
+    # SECCIÓN PREVENTIVO CON DESGLOSE
+    # =========================================================================
+    if stats['PREVENTIVO']['productos'] > 0:
+        df_preventivo = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'PREVENTIVO'].copy()
+        
+        st.markdown(f"""
+        <div class="plan-section" style="background: linear-gradient(135deg, #fffde7 0%, #fff9c4 100%); border-color: #fbc02d;">
+            <h3 style='color: #f9a825; margin: 0 0 15px 0;'>🟡 MAÑANA 12:00-18:00 | MARKDOWN 15% (PREVENTIVO - 8 a 10 días)</h3>
+            <div class="metric-grid">
+                <div class="metric-item">
+                    <div class="metric-label">📦 Productos</div>
+                    <div class="metric-value">{stats['PREVENTIVO']['productos']}</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">📊 Unidades</div>
+                    <div class="metric-value">{clp(stats['PREVENTIVO']['unidades'])}</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">💰 Valor</div>
+                    <div class="metric-value">{clp(valor_preventivo)}</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Desglose por sucursal para PREVENTIVO
+        mostrar_desglose_sucursal(df_preventivo, '#fbc02d')
+        
+        st.markdown(f"""
+        <div style='background: #fffde7; padding: 15px; border-radius: 10px; text-align: center; margin-top: 15px;'>
+            <span style='font-size: 1.2rem; font-weight: 700; color: #f9a825;'>
+                📈 Recuperación estimada: {clp(recuperacion_preventivo)} CLP (15%)
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # =========================================================================
+    # RESUMEN TOTAL (se mantiene igual)
+    # =========================================================================
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
                 border-radius: 15px; padding: 30px; margin: 20px 0;">
@@ -952,6 +1060,7 @@ def mostrar_plan_48h(stats, df_riesgo):
         <p style="color: #bbdefb; text-align: center; margin-bottom: 25px; font-size: 0.9rem;">
             Proyección basada en tasas de recuperación estándar
         </p>
+    </div>
     """, unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns(3)
@@ -959,62 +1068,32 @@ def mostrar_plan_48h(stats, df_riesgo):
     with col1:
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%);
-                    border-radius: 12px; padding: 25px; text-align: center;
-                    box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                    border-radius: 12px; padding: 25px; text-align: center;">
             <div style="font-size: 2rem; margin-bottom: 10px;">💰</div>
-            <div style="color: #0d47a1; font-weight: 600; font-size: 0.9rem;
-                        margin-bottom: 10px;">CRÉDITO TRIBUTARIO</div>
-            <div style="color: #0d47a1; font-size: 1.8rem; font-weight: 700;">
-                {clp(credito_trib)}
-            </div>
-            <div style="color: #1565c0; font-size: 0.85rem; margin-top: 5px;">
-                27% s/donaciones
-            </div>
+            <div style="color: #0d47a1; font-weight: 600;">CRÉDITO TRIBUTARIO</div>
+            <div style="color: #0d47a1; font-size: 1.8rem; font-weight: 700;">{clp(credito_trib)}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col2:
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #ffb74d 0%, #ffa726 100%);
-                    border-radius: 12px; padding: 25px; text-align: center;
-                    box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                    border-radius: 12px; padding: 25px; text-align: center;">
             <div style="font-size: 2rem; margin-bottom: 10px;">🏷️</div>
-            <div style="color: #e65100; font-weight: 600; font-size: 0.9rem;
-                        margin-bottom: 10px;">RECUPERACIÓN DESCUENTOS</div>
-            <div style="color: #e65100; font-size: 1.8rem; font-weight: 700;">
-                {clp(recuperacion_descuentos)}
-            </div>
-            <div style="color: #ef6c00; font-size: 0.85rem; margin-top: 5px;">
-                50%, 40%, 15% dto
-            </div>
+            <div style="color: #e65100; font-weight: 600;">RECUPERACIÓN DESCUENTOS</div>
+            <div style="color: #e65100; font-size: 1.8rem; font-weight: 700;">{clp(recuperacion_descuentos)}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col3:
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
-                    border-radius: 12px; padding: 25px; text-align: center;
-                    box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                    border-radius: 12px; padding: 25px; text-align: center;">
             <div style="font-size: 2rem; margin-bottom: 10px;">✅</div>
-            <div style="color: #1b5e20; font-weight: 600; font-size: 0.9rem;
-                        margin-bottom: 10px;">TOTAL RECUPERADO</div>
-            <div style="color: #1b5e20; font-size: 2.2rem; font-weight: 700;">
-                {clp(total_recuperado)}
-            </div>
-            <div style="color: #2e7d32; font-size: 0.85rem; margin-top: 5px;">
-                Inyección de liquidez
-            </div>
+            <div style="color: #1b5e20; font-weight: 600;">TOTAL RECUPERADO</div>
+            <div style="color: #1b5e20; font-size: 2.2rem; font-weight: 700;">{clp(total_recuperado)}</div>
         </div>
         """, unsafe_allow_html=True)
-
-    # Nota de proyección
-    st.markdown("""
-    <div class="nota-proyeccion" style="margin-top: 20px;">
-        <strong>⚠️ Nota:</strong> Los valores mostrados corresponden al <strong>Escenario Base</strong> de recuperación. 
-        Los resultados reales pueden variar entre -50% y +50% según condiciones de mercado.
-        Consulte el Análisis de Sensibilidad para ver todos los escenarios.
-    </div>
-    """, unsafe_allow_html=True)
 
 # =============================================================================
 # SECCIONES DEL DASHBOARD
