@@ -279,28 +279,28 @@ def crear_mapa_inventario(df_riesgo, df_sucursales=None):
         stock_por_sucursal['Color'] = stock_por_sucursal['Días_para_Vencimiento'].apply(color_por_dias)
         
         fig.add_trace(go.Scattermapbox(
-            lat=stock_por_sucursal['Latitud'],
-            lon=stock_por_sucursal['Longitud'],
-            mode='markers',
-            marker=dict(
-                size=stock_por_sucursal['Stock_Inicial'] / 100,
-                sizemode='area',
-                sizeref=2,
-                color=stock_por_sucursal['Color'],
-                opacity=0.8,
-                line=dict(width=2, color='white')
-            ),
-            text=stock_por_sucursal.apply(
-                lambda row: f"<b>{row[col_sucursal]}</b><br>"
-                           f"📦 Stock: {int(row['Stock_Inicial']):,} unidades<br>"
-                           f"💰 Valor: {clp(row['Valor_Stock_Costo'])} CLP<br>"
-                           f"⏰ Días prom: {row['Días_para_Vencimiento']:.1f}<br>"
-                           f"📍 {row['Direccion_Aprox']}",
-                axis=1
-            ),
-            hoverinfo='text',
-            name='Sucursales'
-        ))
+    lat=stock_por_sucursal['Latitud'],
+    lon=stock_por_sucursal['Longitud'],
+    mode='markers',
+    marker=dict(
+        size=stock_por_sucursal['Stock_Inicial'] / 100,
+        sizemode='area',
+        sizeref=2,
+        color=stock_por_sucursal['Color'],
+        opacity=0.8
+        # ❌ Eliminado: line=dict(width=2, color='white')
+    ),
+    text=stock_por_sucursal.apply(
+        lambda row: f"<b>{row['Sucursal']}</b><br>"
+                   f"📦 Stock: {int(row['Stock_Inicial']):,} unidades<br>"
+                   f"💰 Valor: {clp(row['Valor_Stock_Costo'])} CLP<br>"
+                   f"⏰ Días prom: {row['Días_para_Vencimiento']:.1f}<br>"
+                   f"📍 {row['Direccion_Aprox']}",
+        axis=1
+    ),
+    hoverinfo='text',
+    name='Sucursales'
+))
         
         fig.update_layout(
             height=600,
