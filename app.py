@@ -862,7 +862,7 @@ def mostrar_plan_48h(stats, df_riesgo):
 
     # FUNCIÓN AUXILIAR PARA MOSTRAR DESGLOSE POR SUCURSAL
     
-    def mostrar_desglose_sucursal(df_nivel, titulo_color,num_columnas=3):
+    def mostrar_desglose_sucursal(df_nivel, titulo_color,num_columnas=4):
    
         if len(df_nivel) == 0:
             return
