@@ -312,7 +312,7 @@ def crear_graficos_distribucion(stats):
     )
     
     fig.add_trace(go.Pie(labels=niveles, values=productos, marker_colors=colores, hole=0.4, textinfo='percent+label'), row=1, col=1)
-    fig.add_trace(go.Pie(labels=niveles, valores=colores, hole=0.4, textinfo='percent+label'), row=1, col=2)
+    fig.add_trace(go.Pie(labels=niveles, values=valores, marker_colors=colores, hole=0.4, textinfo='percent+label'), row=1, col=2)
     
     fig.update_layout(height=350, showlegend=False, title_text="<b>Distribución Inventario en Riesgo</b>", title_x=0.5, title_font_size=18, margin=dict(t=60, b=20, l=20, r=20))
     
@@ -659,33 +659,44 @@ def main():
     if fig_estado:
         st.plotly_chart(fig_estado, use_container_width=True)
     
-    # BOTÓN VER MÁS DETALLE
-    if 'ver_detalle' not in st.session_state:
-        st.session_state['ver_detalle'] = False
-    
-    col_btn1, col_btn2 = st.columns([1, 4])
-    with col_btn1:
-        if st.button("📊 Ver Análisis Completo", type="primary", use_container_width=True):
-            st.session_state['ver_detalle'] = True
-            st.rerun()
-    with col_btn2:
-        if st.session_state['ver_detalle']:
-            if st.button("⬆️ Ocultar Detalle", use_container_width=True):
-                st.session_state['ver_detalle'] = False
-                st.rerun()
+    # BOTÓN VER MÁS DETALLE - Usar checkbox en lugar de botón
+    ver_detalle = st.checkbox("📊 Ver Análisis Completo", value=False)
     
     # ANÁLISIS COMPLETO
-    if st.session_state['ver_detalle']:
+    if ver_detalle:
         st.markdown("---")
         
-        # Distribución
-        st.markdown('<div class="section-title-box"><h2>📊 Distribución del Inventario en Riesgo</h2></div>', unsafe_allow_html=True)
-        fig_dist = crear_graficos_distribucion(stats)
-        if fig_dist:
-            st.plotly_chart(fig_dist, use_container_width=True)
+        # Distribución - Mostrar los 2 gráficos en columnas
+        st.markdown("### 📊 Distribución del Inventario en Riesgo")
+        
+        col_dist1, col_dist2 = st.columns(2)
+        
+        with col_dist1:
+            # Gráfico por SKUs
+            fig_skus = go.Figure(go.Pie(
+                labels=['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO'],
+                values=[stats[n]['productos'] for n in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']],
+                marker_colors=['#9c27b0', '#d32f2f', '#f57c00', '#fbc02d'],
+                hole=0.4,
+                textinfo='percent+label'
+            ))
+            fig_skus.update_layout(height=350, title_text="<b>Por SKUs</b>", title_x=0.5)
+            st.plotly_chart(fig_skus, use_container_width=True)
+        
+        with col_dist2:
+            # Gráfico por Valor
+            fig_valor = go.Figure(go.Pie(
+                labels=['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO'],
+                values=[stats[n]['valor'] for n in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']],
+                marker_colors=['#9c27b0', '#d32f2f', '#f57c00', '#fbc02d'],
+                hole=0.4,
+                textinfo='percent+label'
+            ))
+            fig_valor.update_layout(height=350, title_text="<b>Por Valor (CLP)</b>", title_x=0.5)
+            st.plotly_chart(fig_valor, use_container_width=True)
         
         # Matriz
-        st.markdown('<div class="section-title-box"><h2>🎯 Matriz de Riesgo</h2></div>', unsafe_allow_html=True)
+        st.markdown("### 🎯 Matriz de Riesgo")
         fig_matriz = crear_matriz_riesgo(df_riesgo, fecha_actual)
         if fig_matriz:
             st.pyplot(fig_matriz)
