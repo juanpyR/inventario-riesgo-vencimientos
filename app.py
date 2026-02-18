@@ -1311,15 +1311,15 @@ def main():
             st.warning("No hay datos de inventario en riesgo con coordenadas geográficas.")
 
     st.markdown("---")
-
+    # Productos por nivel de riesgo (accordions)
+    mostrar_productos_por_riesgo(df_riesgo, stats)
+    
     # Análisis de sensibilidad (6 escenarios)
     mostrar_analisis_sensibilidad(stats)
 
     # Plan 48h
     mostrar_plan_48h(stats, df_riesgo)
 
-    # Productos por nivel de riesgo (accordions)
-    mostrar_productos_por_riesgo(df_riesgo, stats)
 
     st.markdown("---")
     st.markdown("""
