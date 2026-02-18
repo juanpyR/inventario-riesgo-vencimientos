@@ -838,7 +838,6 @@ def mostrar_analisis_sensibilidad(stats):
     """, unsafe_allow_html=True)
 
 def mostrar_plan_48h(stats, df_riesgo):
-    """Muestra el plan de acción de 48 horas con desglose por sucursal"""
 
     if stats is None:
         return
@@ -864,87 +863,40 @@ def mostrar_plan_48h(stats, df_riesgo):
     # FUNCIÓN AUXILIAR PARA MOSTRAR DESGLOSE POR SUCURSAL
     
     def mostrar_desglose_sucursal(df_nivel, titulo_color):
-    
+   
         if len(df_nivel) == 0:
             return
         
-        # Determinar nombres de columnas reales (pueden variar)
-        col_sucursal = 'Sucursal' if 'Sucursal' in df_nivel.columns else 'Ubicacion' if 'Ubicacion' in df_nivel.columns else None
-        col_producto = 'Producto' if 'Producto' in df_nivel.columns else 'SKU_Descripcion' if 'SKU_Descripcion' in df_nivel.columns else None
-        col_stock = 'Stock_Teorico_Unidades' if 'Stock_Teorico_Unidades' in df_nivel.columns else 'Stock_Inicial' if 'Stock_Inicial' in df_nivel.columns else None
-        col_valor = 'Valor_Stock' if 'Valor_Stock' in df_nivel.columns else 'Valor_Stock_Costo' if 'Valor_Stock_Costo' in df_nivel.columns else None
-        
-        # Validar que existen las columnas requeridas
-        if not all([col_sucursal, col_stock, col_valor]):
-            st.warning("⚠️ No hay suficientes datos para mostrar el desglose por sucursal")
-            return
-        
         # Agrupar por sucursal
-        resumen_sucursal = (
-            df_nivel.groupby(col_sucursal)
-            .agg({
-                col_producto: lambda x: list(x.unique()) if col_producto else [],
-                col_stock: 'sum',
-                col_valor: 'sum'
-            })
-            .reset_index()
-            .sort_values(col_valor, ascending=False)
-        )
+        resumen_sucursal = df_nivel.groupby('Sucursal').agg({
+            'Producto': lambda x: list(x.unique()),
+            'Stock_Teorico_Unidades': 'sum',
+            'Valor_Stock': 'sum'
+        }).reset_index()
         
-        # Renombrar columnas para uso consistente
-        resumen_sucursal.columns = ['Sucursal', 'Productos', 'Unidades', 'Valor']
+        resumen_sucursal = resumen_sucursal.sort_values('Valor_Stock', ascending=False)
         
-        cards = ""
+        st.markdown(f"**📍 Desglose por Sucursal:**")
         
         for _, row in resumen_sucursal.iterrows():
             sucursal = row['Sucursal']
-            productos = row['Productos'] if isinstance(row['Productos'], list) else [str(row['Productos'])]
-            unidades = int(row['Unidades'])
-            valor = row['Valor']
+            productos = row['Producto']
+            unidades = int(row['Stock_Teorico_Unidades'])
+            valor = row['Valor_Stock']
             
-            productos_str = ", ".join(str(p) for p in productos[:4])
-            if len(productos) > 4:
-                productos_str += f" (+{len(productos)-4} más)"
+            productos_str = ", ".join(productos[:5])  # Mostrar máx 5 productos
+            if len(productos) > 5:
+                productos_str += f" (+{len(productos)-5} más)"
             
-            cards += f"""
-            <div style="
-                background: white;
-                padding: 16px;
-                border-radius: 12px;
-                border-left: 5px solid {titulo_color};
-                box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-                transition: transform 0.2s;
-            " onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">
-                <div style="font-weight: 700; font-size: 1rem; margin-bottom: 6px; color: #1a237e;">
-                    🏪 {sucursal}
-                </div>
-    
-                <div style="font-size: 0.85rem; color: #666; margin-bottom: 8px;">
-                    📦 {unidades:,} unidades
-                </div>
-    
-                <div style="font-weight: 600; margin-bottom: 8px; color: #f57c00;">
-                    💰 {clp(valor)} CLP
-                </div>
-    
-                <div style="font-size: 0.8rem; color: #888; line-height: 1.4;">
-                    📋 {productos_str}
-                </div>
+            st.markdown(f"""
+            <div style='background: white; padding: 12px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {titulo_color};'>
+                <strong>🏪 {sucursal}</strong><br>
+                <span style='color: #666; font-size: 0.9rem;'>
+                    📦 {unidades:,} unidades | 💰 {clp(valor)} CLP<br>
+                    📋 Productos: {productos_str}
+                </span>
             </div>
-            """
-        
-        html = f"""
-        <div style="
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 16px;
-            margin-top: 15px;
-        ">
-            {cards}
-        </div>
-        """
-        
-        st.markdown(html, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
 
 
