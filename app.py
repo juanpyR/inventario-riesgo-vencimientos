@@ -862,12 +862,12 @@ def mostrar_plan_48h(stats, df_riesgo):
 
     # FUNCIÓN AUXILIAR PARA MOSTRAR DESGLOSE POR SUCURSAL
     
-    def mostrar_desglose_sucursal(df_nivel, titulo_color):
+    def mostrar_desglose_sucursal(df_nivel, titulo_color,num_columnas=3)):
    
         if len(df_nivel) == 0:
             return
         
-        # Agrupar por sucursal
+        # 1. Agrupación y preparación de datos
         resumen_sucursal = df_nivel.groupby('Sucursal').agg({
             'Producto': lambda x: list(x.unique()),
             'Stock_Teorico_Unidades': 'sum',
@@ -876,27 +876,51 @@ def mostrar_plan_48h(stats, df_riesgo):
         
         resumen_sucursal = resumen_sucursal.sort_values('Valor_Stock', ascending=False)
         
-        st.markdown(f"**📍 Desglose por Sucursal:**")
+        st.markdown(f"**📍 Desglose Estratégico por Sucursal:**")
         
-        for _, row in resumen_sucursal.iterrows():
-            sucursal = row['Sucursal']
-            productos = row['Producto']
-            unidades = int(row['Stock_Teorico_Unidades'])
-            valor = row['Valor_Stock']
-            
-            productos_str = ", ".join(productos[:5])  # Mostrar máx 5 productos
-            if len(productos) > 5:
-                productos_str += f" (+{len(productos)-5} más)"
-            
-            st.markdown(f"""
-            <div style='background: white; padding: 12px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {titulo_color};'>
-                <strong>🏪 {sucursal}</strong><br>
-                <span style='color: #666; font-size: 0.9rem;'>
-                    📦 {unidades:,} unidades | 💰 {clp(valor)} CLP<br>
-                    📋 Productos: {productos_str}
-                </span>
-            </div>
-            """, unsafe_allow_html=True)
+        # 2. Creación del Grid usando columnas de Streamlit
+        # Iteramos sobre las sucursales y las distribuimos en las columnas
+        for i in range(0, len(resumen_sucursal), num_columnas):
+            cols = st.columns(num_columnas)
+            for j in range(num_columnas):
+                if i + j < len(resumen_sucursal):
+                    row = resumen_sucursal.iloc[i + j]
+                    sucursal = row['Sucursal']
+                    productos = row['Producto']
+                    unidades = int(row['Stock_Teorico_Unidades'])
+                    valor = row['Valor_Stock']
+                    
+                    # Formatear lista de productos (máximo 3 para no alargar la card)
+                    productos_str = ", ".join(productos[:3])
+                    if len(productos) > 3:
+                        productos_str += f" (+{len(productos)-3})"
+                    
+                    # Renderizar la Card dentro de la columna
+                    with cols[j]:
+                        st.markdown(f"""
+                        <div style="
+                            background: white; 
+                            padding: 15px; 
+                            border-radius: 12px; 
+                            border-top: 4px solid {titulo_color}; 
+                            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+                            height: 160px;
+                            margin-bottom: 15px;
+                        ">
+                            <div style="color: #1a237e; font-weight: 700; font-size: 1.1rem; margin-bottom: 8px;">
+                                🏪 {sucursal}
+                            </div>
+                            <div style="font-size: 1.2rem; font-weight: 800; color: {titulo_color}; margin-bottom: 5px;">
+                                {clp(valor)} <span style="font-size: 0.8rem; color: #666; font-weight: 400;">CLP</span>
+                            </div>
+                            <div style="font-size: 0.9rem; color: #444; margin-bottom: 8px;">
+                                <b>{unidades:,}</b> unidades en riesgo
+                            </div>
+                            <div style="font-size: 0.75rem; color: #888; line-height: 1.2; font-style: italic;">
+                                {productos_str}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
 
 
 
