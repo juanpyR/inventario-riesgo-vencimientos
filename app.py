@@ -404,38 +404,51 @@ def cargar_css():
 
     /* TABLAS FORMATO EXPANSIBLE*/
     
-    .streamlit-expanderHeader {
+    
+    [data-testid="stExpander"] > div:first-child {
         font-weight: 700 !important;
         font-size: 1rem !important;
-        border-radius: 10px !important;
+        border-radius: 12px !important;
+        padding: 12px 16px !important;
     }
     
-    .expander-vencido .streamlit-expanderHeader {
+   
+    
+    .expander-vencido [data-testid="stExpander"] > div:first-child {
         background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%) !important;
         color: #6a1b9a !important;
         border-left: 6px solid #9c27b0 !important;
     }
+
+    /* CRITICO 🔴 */
+
     
-    .expander-critico .streamlit-expanderHeader {
+    .expander-critico [data-testid="stExpander"] > div:first-child {
         background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%) !important;
         color: #b71c1c !important;
         border-left: 6px solid #d32f2f !important;
     }
     
-    .expander-urgente .streamlit-expanderHeader {
+
+    /* URGENTE 🟠 */
+    
+    .expander-urgente [data-testid="stExpander"] > div:first-child {
         background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%) !important;
         color: #e65100 !important;
         border-left: 6px solid #f57c00 !important;
     }
     
-    .expander-preventivo .streamlit-expanderHeader {
+
+    /* PREVENTIVO 🟡 */
+    
+    .expander-preventivo [data-testid="stExpander"] > div:first-child {
         background: linear-gradient(135deg, #fffde7 0%, #fff9c4 100%) !important;
         color: #f9a825 !important;
         border-left: 6px solid #fbc02d !important;
     }
     
-    /* Cuerpo interno del expander */
-    .streamlit-expanderContent {
+    
+    [data-testid="stExpander"] > div:last-child {
         background: #fafafa !important;
         padding: 20px !important;
         border-radius: 0 0 12px 12px !important;
