@@ -951,18 +951,6 @@ def main():
                 'total_recuperado': st.session_state.get('metricas_plan', {}).get('total_recuperado', 0)
             }
             
-            # Botón de descarga de reporte
-            if total_riesgo > 0:
-                pdf_buffer = generar_pdf_reporte(df_riesgo, total_riesgo, fecha_hoy)
-                if pdf_buffer:
-                    st.download_button(
-                        label="📄 Descargar Reporte Ejecutivo (PDF)",
-                        data=pdf_buffer,
-                        file_name=f"reporte_vencimientos_{fecha_hoy.strftime('%Y%m%d')}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
-            
         except FileNotFoundError as e:
             st.error(f"❌ Archivo no encontrado: {e}")
         except pd.errors.EmptyDataError:
