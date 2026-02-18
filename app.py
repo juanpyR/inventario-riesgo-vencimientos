@@ -864,33 +864,49 @@ def mostrar_plan_48h(stats, df_riesgo):
     # FUNCIÓN AUXILIAR PARA MOSTRAR DESGLOSE POR SUCURSAL
     
     def mostrar_desglose_sucursal(df_nivel, titulo_color):
-
+    """Muestra el desglose de productos por sucursal en formato grid"""
+    
         if len(df_nivel) == 0:
             return
-    
+        
+        # Determinar nombres de columnas reales (pueden variar)
+        col_sucursal = 'Sucursal' if 'Sucursal' in df_nivel.columns else 'Ubicacion' if 'Ubicacion' in df_nivel.columns else None
+        col_producto = 'Producto' if 'Producto' in df_nivel.columns else 'SKU_Descripcion' if 'SKU_Descripcion' in df_nivel.columns else None
+        col_stock = 'Stock_Teorico_Unidades' if 'Stock_Teorico_Unidades' in df_nivel.columns else 'Stock_Inicial' if 'Stock_Inicial' in df_nivel.columns else None
+        col_valor = 'Valor_Stock' if 'Valor_Stock' in df_nivel.columns else 'Valor_Stock_Costo' if 'Valor_Stock_Costo' in df_nivel.columns else None
+        
+        # Validar que existen las columnas requeridas
+        if not all([col_sucursal, col_stock, col_valor]):
+            st.warning("⚠️ No hay suficientes datos para mostrar el desglose por sucursal")
+            return
+        
+        # Agrupar por sucursal
         resumen_sucursal = (
-            df_nivel.groupby('Sucursal')
+            df_nivel.groupby(col_sucursal)
             .agg({
-                'Producto': lambda x: list(x.unique()),
-                'Stock_Teorico_Unidades': 'sum',
-                'Valor_Stock': 'sum'
+                col_producto: lambda x: list(x.unique()) if col_producto else [],
+                col_stock: 'sum',
+                col_valor: 'sum'
             })
             .reset_index()
-            .sort_values('Valor_Stock', ascending=False)
+            .sort_values(col_valor, ascending=False)
         )
-    
+        
+        # Renombrar columnas para uso consistente
+        resumen_sucursal.columns = ['Sucursal', 'Productos', 'Unidades', 'Valor']
+        
         cards = ""
-    
+        
         for _, row in resumen_sucursal.iterrows():
             sucursal = row['Sucursal']
-            productos = row['Producto']
-            unidades = int(row['Stock_Teorico_Unidades'])
-            valor = row['Valor_Stock']
-    
-            productos_str = ", ".join(productos[:4])
+            productos = row['Productos'] if isinstance(row['Productos'], list) else [str(row['Productos'])]
+            unidades = int(row['Unidades'])
+            valor = row['Valor']
+            
+            productos_str = ", ".join(str(p) for p in productos[:4])
             if len(productos) > 4:
                 productos_str += f" (+{len(productos)-4} más)"
-    
+            
             cards += f"""
             <div style="
                 background: white;
@@ -898,8 +914,9 @@ def mostrar_plan_48h(stats, df_riesgo):
                 border-radius: 12px;
                 border-left: 5px solid {titulo_color};
                 box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-            ">
-                <div style="font-weight: 700; font-size: 1rem; margin-bottom: 6px;">
+                transition: transform 0.2s;
+            " onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">
+                <div style="font-weight: 700; font-size: 1rem; margin-bottom: 6px; color: #1a237e;">
                     🏪 {sucursal}
                 </div>
     
@@ -907,16 +924,16 @@ def mostrar_plan_48h(stats, df_riesgo):
                     📦 {unidades:,} unidades
                 </div>
     
-                <div style="font-weight: 600; margin-bottom: 8px;">
+                <div style="font-weight: 600; margin-bottom: 8px; color: #f57c00;">
                     💰 {clp(valor)} CLP
                 </div>
     
-                <div style="font-size: 0.8rem; color: #888;">
+                <div style="font-size: 0.8rem; color: #888; line-height: 1.4;">
                     📋 {productos_str}
                 </div>
             </div>
             """
-    
+        
         html = f"""
         <div style="
             display: grid;
@@ -927,7 +944,7 @@ def mostrar_plan_48h(stats, df_riesgo):
             {cards}
         </div>
         """
-    
+        
         st.markdown(html, unsafe_allow_html=True)
 
 
