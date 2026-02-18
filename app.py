@@ -1261,39 +1261,40 @@ def main():
                 <div class="upload-container">
                 
                 <div class="upload-title">
-                📂 Archivos Necesarios para el Análisis
+                📂 Carga de Archivos del Sistema
                 </div>
                 
                 <div class="upload-grid">
                 
                 <div class="upload-card grad-1">
-                🏢 1_SUCURSALES_MASTER.csv
+                📊 Datos Maestros
                 </div>
                 
                 <div class="upload-card grad-2">
-                📦 2_PRODUCTOS_MASTER.csv
+                📦 Información de Productos
                 </div>
                 
                 <div class="upload-card grad-3">
-                🏷️ 3_LOTES_PRODUCTOS.csv
+                🏷️ Información de Lotes
                 </div>
                 
                 <div class="upload-card grad-4">
-                📊 4_INVENTARIO_COMPLETO_LOTES.csv
+                🏪 Información de Inventario
                 </div>
                 
                 <div class="upload-card grad-5">
-                📍 5_STOCK_ACTUAL_GEO_POWERBI.csv
+                📍 Información Geográfica
                 </div>
                 
                 </div>
                 
                 <div class="upload-info">
-                💡 Sube los 5 archivos en el panel lateral y luego presiona <b>Ejecutar Análisis</b>.
+                💡 Sube los archivos requeridos en el panel lateral para comenzar el análisis de riesgo.
                 </div>
                 
                 </div>
                 """, unsafe_allow_html=True)
+
         return
 
     if len(archivos_subidos) < 5:
