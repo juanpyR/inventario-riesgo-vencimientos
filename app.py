@@ -1356,7 +1356,7 @@ def mostrar_productos_por_riesgo(df_riesgo, stats):
             clase_tabla = f"tabla-{nivel.lower()}"
 
             # 🔥 EXPANDER HTML PERSONALIZADO
-            html_block = f"
+            html_block = f"""
             <div class="{clase_css[nivel]}">
                 <details>
                     <summary>
@@ -1369,16 +1369,17 @@ def mostrar_productos_por_riesgo(df_riesgo, stats):
                     </div>
                 </details>
             </div>
-            "
+            """
 
             st.markdown(html_block, unsafe_allow_html=True)
 
         else:
-            st.markdown(f"
+            st.markdown(f"""
             <div style='padding: 10px; background: #f5f5f5; border-radius: 8px; margin: 5px 0;'>
                 <span style='color: #999;'>{emoji} {nivel} - Sin productos en esta categoría</span>
             </div>
-            ", unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+
 
 
 # =============================================================================
