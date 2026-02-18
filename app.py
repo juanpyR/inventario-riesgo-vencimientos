@@ -970,7 +970,7 @@ def mostrar_plan_48h(stats, df_riesgo):
         
         st.markdown(f"""
         <div class="plan-section plan-critico">
-            <h3 style='color: #f57c00; margin: 0 0 15px 0;'>🔴 HOY 12:00-18:00 | MARKDOWN 40% (CRÍTICOS - 1 a 3 días)</h3>
+            <h3 style='color: #f57c00; margin: 0 0 15px 0;'>🔴 HOY 12:00-18:00 | Descuento 40% (CRÍTICOS - 1 a 3 días)</h3>
             <div class="metric-grid">
                 <div class="metric-item">
                     <div class="metric-label">📦 Productos</div>
@@ -1007,7 +1007,7 @@ def mostrar_plan_48h(stats, df_riesgo):
         
         st.markdown(f"""
         <div class="plan-section plan-urgente">
-            <h3 style='color: #f9a825; margin: 0 0 15px 0;'>🟠 MAÑANA 08:00-12:00 | MARKDOWN 25% (URGENTES - 4 a 7 días)</h3>
+            <h3 style='color: #f9a825; margin: 0 0 15px 0;'>🟠 MAÑANA 08:00-12:00 | Descuento 25% (URGENTES - 4 a 7 días)</h3>
             <div class="metric-grid">
                 <div class="metric-item">
                     <div class="metric-label">📦 Productos</div>
