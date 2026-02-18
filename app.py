@@ -865,171 +865,171 @@ def mostrar_plan_48h(stats, df_riesgo):
     # FUNCIÓN AUXILIAR PARA MOSTRAR DESGLOSE POR SUCURSAL
     # =========================================================================
     def mostrar_desglose_sucursal(df_nivel, titulo_color):
-    """Muestra tabla de productos agrupados por sucursal en formato grid"""
-    if len(df_nivel) == 0:
-        return
-    
-    # Agrupar por sucursal
-    resumen_sucursal = df_nivel.groupby('Sucursal').agg({
-        'Producto': lambda x: list(x.unique()),
-        'Stock_Teorico_Unidades': 'sum',
-        'Valor_Stock': 'sum'
-    }).reset_index()
-    
-    resumen_sucursal = resumen_sucursal.sort_values('Valor_Stock', ascending=False)
-    
-    st.markdown(f"**📍 Desglose por Sucursal:**")
-    
-    # Calcular número de columnas (máximo 3-4 dependiendo de la cantidad)
-    num_sucursales = len(resumen_sucursal)
-    num_cols = min(3, num_sucursales) if num_sucursales > 1 else 1
-    
-    # Crear columnas
-    columnas = st.columns(num_cols)
-    
-    for idx, row in resumen_sucursal.iterrows():
-        sucursal = row['Sucursal']
-        productos = row['Producto']
-        unidades = int(row['Stock_Teorico_Unidades'])
-        valor = row['Valor_Stock']
+        """Muestra tabla de productos agrupados por sucursal en formato grid"""
+        if len(df_nivel) == 0:
+            return
         
-        productos_str = ", ".join(productos[:3])  # Mostrar máx 3 productos
-        if len(productos) > 3:
-            productos_str += f" (+{len(productos)-3} más)"
+        # Agrupar por sucursal
+        resumen_sucursal = df_nivel.groupby('Sucursal').agg({
+            'Producto': lambda x: list(x.unique()),
+            'Stock_Teorico_Unidades': 'sum',
+            'Valor_Stock': 'sum'
+        }).reset_index()
         
-        # Determinar en qué columna va
-        col_idx = idx % num_cols
+        resumen_sucursal = resumen_sucursal.sort_values('Valor_Stock', ascending=False)
         
-        with columnas[col_idx]:
+        st.markdown(f"**📍 Desglose por Sucursal:**")
+        
+        # Calcular número de columnas (máximo 3-4 dependiendo de la cantidad)
+        num_sucursales = len(resumen_sucursal)
+        num_cols = min(3, num_sucursales) if num_sucursales > 1 else 1
+        
+        # Crear columnas
+        columnas = st.columns(num_cols)
+        
+        for idx, row in resumen_sucursal.iterrows():
+            sucursal = row['Sucursal']
+            productos = row['Producto']
+            unidades = int(row['Stock_Teorico_Unidades'])
+            valor = row['Valor_Stock']
+            
+            productos_str = ", ".join(productos[:3])  # Mostrar máx 3 productos
+            if len(productos) > 3:
+                productos_str += f" (+{len(productos)-3} más)"
+            
+            # Determinar en qué columna va
+            col_idx = idx % num_cols
+            
+            with columnas[col_idx]:
+                st.markdown(f"""
+                <div style='background: white; padding: 15px; border-radius: 10px; margin: 8px 0; 
+                            border-left: 5px solid {titulo_color}; 
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+                    <strong style='font-size: 1.1rem;'>🏪 {sucursal}</strong><br><br>
+                    <div style='display: flex; justify-content: space-between; margin: 8px 0;'>
+                        <span style='color: #666;'>📦 Unidades:</span>
+                        <span style='font-weight: 600;'>{unidades:,}</span>
+                    </div>
+                    <div style='display: flex; justify-content: space-between; margin: 8px 0;'>
+                        <span style='color: #666;'>💰 Valor:</span>
+                        <span style='font-weight: 600; color: #d32f2f;'>{clp(valor)} CLP</span>
+                    </div>
+                    <div style='margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;'>
+                        <span style='color: #999; font-size: 0.85rem;'>📋 {productos_str}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+    
+        # =========================================================================
+        # SECCIÓN VENCIDOS CON DESGLOSE
+        # =========================================================================
+        if stats['VENCIDO']['productos'] > 0:
+            df_vencidos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO'].copy()
+            
             st.markdown(f"""
-            <div style='background: white; padding: 15px; border-radius: 10px; margin: 8px 0; 
-                        border-left: 5px solid {titulo_color}; 
-                        box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
-                <strong style='font-size: 1.1rem;'>🏪 {sucursal}</strong><br><br>
-                <div style='display: flex; justify-content: space-between; margin: 8px 0;'>
-                    <span style='color: #666;'>📦 Unidades:</span>
-                    <span style='font-weight: 600;'>{unidades:,}</span>
-                </div>
-                <div style='display: flex; justify-content: space-between; margin: 8px 0;'>
-                    <span style='color: #666;'>💰 Valor:</span>
-                    <span style='font-weight: 600; color: #d32f2f;'>{clp(valor)} CLP</span>
-                </div>
-                <div style='margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;'>
-                    <span style='color: #999; font-size: 0.85rem;'>📋 {productos_str}</span>
+            <div class="plan-section plan-vencido">
+                <h3 style='color: #d32f2f; margin: 0 0 15px 0;'>🟣 HOY 08:00-12:00 | DONACIONES (VENCIDOS - Día 0)</h3>
+                <div class="metric-grid">
+                    <div class="metric-item">
+                        <div class="metric-label">📦 Productos</div>
+                        <div class="metric-value">{stats['VENCIDO']['productos']}</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">📊 Unidades</div>
+                        <div class="metric-value">{clp(stats['VENCIDO']['unidades'])}</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">💰 Valor</div>
+                        <div class="metric-value">{clp(valor_vencido)}</div>
+                    </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
-
-    # =========================================================================
-    # SECCIÓN VENCIDOS CON DESGLOSE
-    # =========================================================================
-    if stats['VENCIDO']['productos'] > 0:
-        df_vencidos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO'].copy()
-        
-        st.markdown(f"""
-        <div class="plan-section plan-vencido">
-            <h3 style='color: #d32f2f; margin: 0 0 15px 0;'>🟣 HOY 08:00-12:00 | DONACIONES (VENCIDOS - Día 0)</h3>
-            <div class="metric-grid">
-                <div class="metric-item">
-                    <div class="metric-label">📦 Productos</div>
-                    <div class="metric-value">{stats['VENCIDO']['productos']}</div>
-                </div>
-                <div class="metric-item">
-                    <div class="metric-label">📊 Unidades</div>
-                    <div class="metric-value">{clp(stats['VENCIDO']['unidades'])}</div>
-                </div>
-                <div class="metric-item">
-                    <div class="metric-label">💰 Valor</div>
-                    <div class="metric-value">{clp(valor_vencido)}</div>
+            
+            # Desglose por sucursal para VENCIDOS
+            mostrar_desglose_sucursal(df_vencidos, '#9c27b0')
+            
+            st.markdown(f"""
+            <div style='background: #c8e6c9; padding: 15px; border-radius: 10px; text-align: center; margin-top: 15px;'>
+                <span style='font-size: 1.2rem; font-weight: 700; color: #2e7d32;'>
+                    💰 +{clp(credito_trib)} CLP ahorro fiscal (27%)
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+    
+        # =========================================================================
+        # SECCIÓN CRÍTICOS CON DESGLOSE
+        # =========================================================================
+        if stats['CRITICO']['productos'] > 0:
+            df_criticos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO'].copy()
+            
+            st.markdown(f"""
+            <div class="plan-section plan-critico">
+                <h3 style='color: #f57c00; margin: 0 0 15px 0;'>🔴 HOY 12:00-18:00 | MARKDOWN 40% (CRÍTICOS - 1 a 3 días)</h3>
+                <div class="metric-grid">
+                    <div class="metric-item">
+                        <div class="metric-label">📦 Productos</div>
+                        <div class="metric-value">{stats['CRITICO']['productos']}</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">📊 Unidades</div>
+                        <div class="metric-value">{clp(stats['CRITICO']['unidades'])}</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">💰 Valor</div>
+                        <div class="metric-value">{clp(valor_critico)}</div>
+                    </div>
                 </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Desglose por sucursal para VENCIDOS
-        mostrar_desglose_sucursal(df_vencidos, '#9c27b0')
-        
-        st.markdown(f"""
-        <div style='background: #c8e6c9; padding: 15px; border-radius: 10px; text-align: center; margin-top: 15px;'>
-            <span style='font-size: 1.2rem; font-weight: 700; color: #2e7d32;'>
-                💰 +{clp(credito_trib)} CLP ahorro fiscal (27%)
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # =========================================================================
-    # SECCIÓN CRÍTICOS CON DESGLOSE
-    # =========================================================================
-    if stats['CRITICO']['productos'] > 0:
-        df_criticos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO'].copy()
-        
-        st.markdown(f"""
-        <div class="plan-section plan-critico">
-            <h3 style='color: #f57c00; margin: 0 0 15px 0;'>🔴 HOY 12:00-18:00 | MARKDOWN 40% (CRÍTICOS - 1 a 3 días)</h3>
-            <div class="metric-grid">
-                <div class="metric-item">
-                    <div class="metric-label">📦 Productos</div>
-                    <div class="metric-value">{stats['CRITICO']['productos']}</div>
-                </div>
-                <div class="metric-item">
-                    <div class="metric-label">📊 Unidades</div>
-                    <div class="metric-value">{clp(stats['CRITICO']['unidades'])}</div>
-                </div>
-                <div class="metric-item">
-                    <div class="metric-label">💰 Valor</div>
-                    <div class="metric-value">{clp(valor_critico)}</div>
+            """, unsafe_allow_html=True)
+            
+            # Desglose por sucursal para CRÍTICOS
+            mostrar_desglose_sucursal(df_criticos, '#d32f2f')
+            
+            st.markdown(f"""
+            <div style='background: #fff3e0; padding: 15px; border-radius: 10px; text-align: center; margin-top: 15px;'>
+                <span style='font-size: 1.2rem; font-weight: 700; color: #e65100;'>
+                    📈 Recuperación estimada: {clp(recuperacion_criticos)} CLP (50%)
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+    
+        # =========================================================================
+        # SECCIÓN URGENTES CON DESGLOSE
+        # =========================================================================
+        if stats['URGENTE']['productos'] > 0:
+            df_urgentes = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE'].copy()
+            
+            st.markdown(f"""
+            <div class="plan-section plan-urgente">
+                <h3 style='color: #f9a825; margin: 0 0 15px 0;'>🟠 MAÑANA 08:00-12:00 | MARKDOWN 25% (URGENTES - 4 a 7 días)</h3>
+                <div class="metric-grid">
+                    <div class="metric-item">
+                        <div class="metric-label">📦 Productos</div>
+                        <div class="metric-value">{stats['URGENTE']['productos']}</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">📊 Unidades</div>
+                        <div class="metric-value">{clp(stats['URGENTE']['unidades'])}</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">💰 Valor</div>
+                        <div class="metric-value">{clp(valor_urgente)}</div>
+                    </div>
                 </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Desglose por sucursal para CRÍTICOS
-        mostrar_desglose_sucursal(df_criticos, '#d32f2f')
-        
-        st.markdown(f"""
-        <div style='background: #fff3e0; padding: 15px; border-radius: 10px; text-align: center; margin-top: 15px;'>
-            <span style='font-size: 1.2rem; font-weight: 700; color: #e65100;'>
-                📈 Recuperación estimada: {clp(recuperacion_criticos)} CLP (50%)
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # =========================================================================
-    # SECCIÓN URGENTES CON DESGLOSE
-    # =========================================================================
-    if stats['URGENTE']['productos'] > 0:
-        df_urgentes = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE'].copy()
-        
-        st.markdown(f"""
-        <div class="plan-section plan-urgente">
-            <h3 style='color: #f9a825; margin: 0 0 15px 0;'>🟠 MAÑANA 08:00-12:00 | MARKDOWN 25% (URGENTES - 4 a 7 días)</h3>
-            <div class="metric-grid">
-                <div class="metric-item">
-                    <div class="metric-label">📦 Productos</div>
-                    <div class="metric-value">{stats['URGENTE']['productos']}</div>
-                </div>
-                <div class="metric-item">
-                    <div class="metric-label">📊 Unidades</div>
-                    <div class="metric-value">{clp(stats['URGENTE']['unidades'])}</div>
-                </div>
-                <div class="metric-item">
-                    <div class="metric-label">💰 Valor</div>
-                    <div class="metric-value">{clp(valor_urgente)}</div>
-                </div>
+            """, unsafe_allow_html=True)
+            
+            # Desglose por sucursal para URGENTES
+            mostrar_desglose_sucursal(df_urgentes, '#f57c00')
+            
+            st.markdown(f"""
+            <div style='background: #fffde7; padding: 15px; border-radius: 10px; text-align: center; margin-top: 15px;'>
+                <span style='font-size: 1.2rem; font-weight: 700; color: #f57c00;'>
+                    📈 Recuperación estimada: {clp(recuperacion_urgentes)} CLP (40%)
+                </span>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Desglose por sucursal para URGENTES
-        mostrar_desglose_sucursal(df_urgentes, '#f57c00')
-        
-        st.markdown(f"""
-        <div style='background: #fffde7; padding: 15px; border-radius: 10px; text-align: center; margin-top: 15px;'>
-            <span style='font-size: 1.2rem; font-weight: 700; color: #f57c00;'>
-                📈 Recuperación estimada: {clp(recuperacion_urgentes)} CLP (40%)
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
 # =============================================================================
 # SECCIONES DEL DASHBOARD
