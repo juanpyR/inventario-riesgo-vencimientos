@@ -362,16 +362,25 @@ MESES_ESP = {
 }
 
 COLUMNAS_ESPERADAS = {
-    'Días_para_Vencimiento': ['Días_para_Vencimiento', 'Días para Vencimiento', 'Días_para_Vencer', 'Días Vencimiento'],
-    'Stock_Inicial': ['Stock_Inicial', 'Stock Sala', 'Stock_Sala', 'stock_sala', 'Stock'],
-    'Costo_Unitario_Neto': ['Costo_Unitario_Neto', 'Costo Unitario Neto', 'costo_unitario_neto', 'Costo'],
-    'Producto': ['Producto', 'producto', 'SKU_Descripcion'],
-    'Sucursal': ['Sucursal', 'sucursal', 'Tienda', 'Store'],
-    'Latitud': ['Latitud', 'lat', 'Latitude'],
-    'Longitud': ['Longitud', 'lon', 'Longitude', 'Lng']
+    'Días_para_Vencimiento': [
+        'Dias_Para_Vencer', 'Días_para_Vencimiento', 'Días para Vencimiento', 
+        'Días_para_Vencer', 'Dias_Vencimiento'
+    ],
+    'Stock_Inicial': [
+        'Stock_Teorico_Unidades', 'Stock_Inicial', 'Stock Sala', 
+        'Stock_Sala', 'stock_sala', 'Stock', 'Cantidad_Stock'
+    ],
+    'Costo_Unitario_Neto': [
+        'Valor_Unitario_CLP', 'Costo_Unitario_Neto', 'Costo Unitario Neto', 
+        'costo_unitario_neto', 'Costo', 'Precio_Costo', 'Valor_Costo'
+    ],
+    'Producto': ['Producto', 'producto', 'SKU_Descripcion', 'Nombre_Producto'],
+    'Sucursal': ['Sucursal', 'sucursal', 'Tienda', 'Store', 'ID_Sucursal'],
+    'Latitud': ['Latitud', 'lat', 'Latitude', 'Lat'],
+    'Longitud': ['Longitud', 'lon', 'Longitude', 'Lng', 'Long']
 }
 
-COLUMNAS_REQUERIDAS = ['Días_para_Vencimiento', 'Stock_Inicial', 'Costo_Unitario_Neto', 'Producto']
+COLUMNAS_REQUERIDAS = ['Días_para_Vencimiento', 'Stock_Inicial', 'Producto']
 
 # =============================================================================
 # FUNCIONES DE CARGA DE ARCHIVOS
@@ -423,12 +432,34 @@ def calcular_valor_stock(df):
 # =============================================================================
 # FUNCIONES DE MAPA
 # =============================================================================
-def crear_mapa_inventario(df_stock, df_sucursales=None):
+def crear_mapa_inventario(df_riesgo, df_sucursales=None):
     """Crea un mapa interactivo con Plotly"""
     
+    # Verificar columnas disponibles
+    if 'Stock_Inicial' not in df_riesgo.columns:
+        # Intentar con nombre alternativo
+        if 'Stock_Teorico_Unidades' in df_riesgo.columns:
+            df_riesgo['Stock_Inicial'] = df_riesgo['Stock_Teorico_Unidades']
+        else:
+            st.error("❌ No se encontró columna de Stock")
+            return None, None
+    
+    if 'Valor_Stock_Costo' not in df_riesgo.columns:
+        # Calcular si existe costo unitario
+        if 'Costo_Unitario_Neto' in df_riesgo.columns:
+            df_riesgo['Valor_Stock_Costo'] = df_riesgo['Stock_Inicial'] * df_riesgo['Costo_Unitario_Neto']
+        elif 'Valor_Unitario_CLP' in df_riesgo.columns:
+            df_riesgo['Valor_Stock_Costo'] = df_riesgo['Stock_Inicial'] * df_riesgo['Valor_Unitario_CLP']
+        elif 'Precio_Venta_CLP' in df_riesgo.columns:
+            # Usar precio de venta como aproximación (70% del precio = costo estimado)
+            df_riesgo['Valor_Stock_Costo'] = df_riesgo['Stock_Inicial'] * (df_riesgo['Precio_Venta_CLP'] * 0.7)
+        else:
+            # Sin costo, usar stock como valor
+            df_riesgo['Valor_Stock_Costo'] = df_riesgo['Stock_Inicial']
+    
     # Agrupar por sucursal
-    if 'Sucursal' in df_stock.columns:
-        stock_por_sucursal = df_stock.groupby('Sucursal').agg({
+    if 'Sucursal' in df_riesgo.columns:
+        stock_por_sucursal = df_riesgo.groupby('Sucursal').agg({
             'Stock_Inicial': 'sum',
             'Valor_Stock_Costo': 'sum',
             'Días_para_Vencimiento': 'mean'
@@ -470,7 +501,9 @@ def crear_mapa_inventario(df_stock, df_sucursales=None):
         
         # Colores según nivel de riesgo promedio
         def color_por_dias(dias):
-            if dias < 0:
+            if pd.isna(dias):
+                return '#9c27b0'
+            elif dias < 0:
                 return '#9c27b0'  # Violeta - Vencido
             elif dias <= 3:
                 return '#d32f2f'  # Rojo - Crítico
@@ -525,7 +558,6 @@ def crear_mapa_inventario(df_stock, df_sucursales=None):
         return fig, stock_por_sucursal
     
     return None, None
-
 # =============================================================================
 # FUNCIONES DE VISUALIZACIÓN
 # =============================================================================
