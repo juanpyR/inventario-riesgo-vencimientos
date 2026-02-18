@@ -21,10 +21,10 @@ def clp(valor):
     if isinstance(valor, str):
         return valor
     if valor is None or (isinstance(valor, float) and pd.isna(valor)):
-        return "0"
+        return "$0"
     try:
         valor_int = int(round(float(valor)))
-        return f"{valor_int:,}".replace(",", ".")
+        return f"${valor_int:,}".replace(",", ".")
     except:
         return str(valor)
 
@@ -121,18 +121,24 @@ def cargar_css():
     .plan-urgente { background: linear-gradient(135deg, #fffde7 0%, #fff9c4 100%); border-color: #fbc02d; }
     .plan-cierre { background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-color: #1976d2; }
     
-    .badge {
-        display: inline-block;
-        padding: 5px 12px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        margin: 20px 0;
     }
     
-    .badge-vencido { background: #f3e5f5; color: #7b1fa2; }
-    .badge-critico { background: #ffebee; color: #c62828; }
-    .badge-urgente { background: #fff3e0; color: #e65100; }
-    .badge-preventivo { background: #fffde7; color: #f9a825; }
+    .metric-item {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .metric-label { font-size: 0.85rem; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric-value { font-size: 1.8rem; font-weight: 700; color: #1a237e; }
+    .metric-sub { font-size: 0.75rem; color: #999; margin-top: 5px; }
     
     .dataframe {
         border-radius: 10px;
@@ -156,6 +162,19 @@ def cargar_css():
     .tabla-urgente thead th { background: linear-gradient(135deg, #f57c00 0%, #e65100 100%); }
     .tabla-preventivo thead th { background: linear-gradient(135deg, #fbc02d 0%, #f9a825 100%); }
     
+    .badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .badge-vencido { background: #f3e5f5; color: #7b1fa2; }
+    .badge-critico { background: #ffebee; color: #c62828; }
+    .badge-urgente { background: #fff3e0; color: #e65100; }
+    .badge-preventivo { background: #fffde7; color: #f9a825; }
+    
     .map-container {
         border-radius: 15px;
         overflow: hidden;
@@ -166,235 +185,136 @@ def cargar_css():
     """, unsafe_allow_html=True)
 
 # =============================================================================
-# CONSTANTES
-# =============================================================================
-COLUMNAS_ESPERADAS = {
-    'Días_para_Vencimiento': [
-        'Dias_Para_Vencer', 'Días_para_Vencimiento', 'Días para Vencimiento',
-        'Días_para_Vencer', 'Dias_Vencimiento'
-    ],
-    'Stock_Inicial': [
-        'Stock_Teorico_Unidades', 'Stock_Inicial', 'Stock Sala',
-        'Stock_Sala', 'stock_sala', 'Stock', 'Cantidad_Stock'
-    ],
-    'Costo_Unitario_Neto': [
-        'Valor_Unitario_CLP', 'Costo_Unitario_Neto', 'Costo Unitario Neto',
-        'costo_unitario_neto', 'Costo', 'Precio_Costo', 'Valor_Costo'
-    ],
-    'Precio_Venta_Bruto': [
-        'Precio_Venta_CLP', 'Precio_Venta_Bruto', 'Precio Venta Bruto',
-        'precio_venta_bruto', 'Precio'
-    ],
-    'Producto': ['Producto', 'producto', 'SKU_Descripcion'],
-    'Sucursal': ['Sucursal', 'sucursal', 'Tienda', 'Store'],
-    'Latitud': ['Latitud', 'lat', 'Latitude', 'Lat'],
-    'Longitud': ['Longitud', 'lon', 'Longitude', 'Lng', 'Long']
-}
-
-COLUMNAS_REQUERIDAS = ['Días_para_Vencimiento', 'Stock_Inicial', 'Producto']
-
-# =============================================================================
-# FUNCIONES DE CARGA DE ARCHIVOS
+# ETL - CARGA Y PROCESAMIENTO DE LOS 5 ARCHIVOS
 # =============================================================================
 @st.cache_data
-def cargar_archivo(archivo):
-    """Carga un archivo CSV"""
-    try:
-        df = pd.read_csv(archivo)
+def cargar_y_procesar_etl(archivo_sucursales, archivo_productos, archivo_lotes, 
+                          archivo_inventario, archivo_stock):
+    """
+    ETL Completo: Carga los 5 archivos, hace joins y crea columnas calculadas
+    """
+    
+    # 1. Cargar todos los archivos
+    df_sucursales = pd.read_csv(archivo_sucursales)
+    df_productos = pd.read_csv(archivo_productos)
+    df_lotes = pd.read_csv(archivo_lotes)
+    df_inventario = pd.read_csv(archivo_inventario)
+    df_stock = pd.read_csv(archivo_stock)
+    
+    # 2. Limpieza de columnas
+    for df in [df_sucursales, df_productos, df_lotes, df_inventario, df_stock]:
         df.columns = df.columns.str.strip()
-        return df
-    except Exception as e:
-        st.error(f"Error al cargar {archivo.name}: {str(e)}")
-        return None
-
-def mapear_columnas(df):
-    """Mapea columnas con nombres alternativos"""
-    for col_destino, col_posibles in COLUMNAS_ESPERADAS.items():
-        for col_posible in col_posibles:
-            if col_posible in df.columns and col_destino not in df.columns:
-                df.rename(columns={col_posible: col_destino}, inplace=True)
-                break
-    return df
-
-# =============================================================================
-# FUNCIONES DE CLASIFICACIÓN - CORREGIDAS
-# =============================================================================
-def clasificar_riesgo(dias):
-    """Clasifica el nivel de riesgo según días para vencimiento"""
-    if pd.isna(dias):
-        return 'SIN_DATO'
-    elif dias < 0:
-        return 'VENCIDO'
-    elif dias <= 3:
-        return 'CRITICO'
-    elif dias <= 7:
-        return 'URGENTE'
-    elif dias <= 10:
-        return 'PREVENTIVO'
-    else:
-        return 'NORMAL'
-
-def aplicar_clasificacion(df):
-    """Aplica clasificación de riesgo al dataframe - CORREGIDO"""
-    # ✅ VERIFICAR que la columna existe antes de aplicar
-    if 'Días_para_Vencimiento' not in df.columns:
-        st.warning("⚠️ Columna 'Días_para_Vencimiento' no encontrada. Clasificación omitida.")
-        df['Nivel_Riesgo'] = 'SIN_CLASIFICAR'
-        return df
     
-    df['Nivel_Riesgo'] = df['Días_para_Vencimiento'].apply(clasificar_riesgo)
-    return df
-
-def calcular_valor_stock(df):
-    """Calcula el valor del stock"""
-    if 'Stock_Inicial' not in df.columns:
-        st.warning("⚠️ Columna 'Stock_Inicial' no encontrada.")
-        df['Valor_Stock_Costo'] = 0
-        return df
+    # 3. Mapeo de columnas para estandarizar
+    # Sucursales
+    df_sucursales = df_sucursales.rename(columns={
+        'Direccion_Aprox': 'Direccion'
+    })
     
-    if 'Costo_Unitario_Neto' in df.columns:
-        df['Valor_Stock_Costo'] = df['Stock_Inicial'] * df['Costo_Unitario_Neto']
-    elif 'Precio_Venta_Bruto' in df.columns:
-        df['Costo_Unitario_Neto'] = df['Precio_Venta_Bruto'] * 0.70
-        df['Valor_Stock_Costo'] = df['Stock_Inicial'] * df['Costo_Unitario_Neto']
-    elif 'Precio_Venta_CLP' in df.columns:
-        df['Costo_Unitario_Neto'] = df['Precio_Venta_CLP'] * 0.70
-        df['Valor_Stock_Costo'] = df['Stock_Inicial'] * df['Costo_Unitario_Neto']
-    else:
-        df['Valor_Stock_Costo'] = df['Stock_Inicial']
-        st.warning("⚠️ Sin columnas de costo/precio. Usando stock como valor proxy.")
+    # Productos
+    df_productos = df_productos.rename(columns={
+        'Dias_Caducidad_Base': 'Dias_Caducidad',
+        'ETA_Proveedor_Dias': 'ETA_Proveedor',
+        'Categoria_Rotacion': 'Rotacion'
+    })
     
-    return df
-
-# =============================================================================
-# FUNCIONES DE MAPA
-# =============================================================================
-def crear_mapa_inventario(df_riesgo, df_sucursales=None):
-    """Crea un mapa interactivo con Plotly"""
+    # Lotes
+    df_lotes = df_lotes.rename(columns={
+        'Fecha_Creacion_Lote': 'Fecha_Creacion'
+    })
     
-    # Verificar columnas disponibles
-    if 'Stock_Inicial' not in df_riesgo.columns:
-        if 'Stock_Teorico_Unidades' in df_riesgo.columns:
-            df_riesgo['Stock_Inicial'] = df_riesgo['Stock_Teorico_Unidades']
+    # Inventario
+    df_inventario = df_inventario.rename(columns={
+        'Fecha_Movimiento': 'Fecha',
+        'Cantidad_Entrada': 'Entrada',
+        'Cantidad_Salida': 'Salida',
+        'Valor_Unitario_CLP': 'Costo_Unitario',
+        'Precio_Venta_CLP': 'Precio_Venta',
+        'Fecha_Vencimiento_Lote': 'Fecha_Vencimiento',
+        'Dias_Para_Vencer': 'Dias_Vencer',
+        'Estado_Inventario': 'Estado',
+        'Stock_Teorico_Unidades': 'Stock'
+    })
+    
+    # Stock Actual
+    df_stock = df_stock.rename(columns={
+        'Stock_Teorico_Unidades': 'Stock',
+        'Precio_Venta_CLP': 'Precio_Venta',
+        'Fecha_Vencimiento_Lote': 'Fecha_Vencimiento',
+        'Dias_Para_Vencer': 'Dias_Vencer',
+        'Estado_Inventario': 'Estado'
+    })
+    
+    # 4. JOINS - Unir todas las tablas
+    # Unir Stock con Sucursales (por Sucursal)
+    df_master = df_stock.merge(
+        df_sucursales[['Sucursal', 'Latitud', 'Longitud', 'Direccion']],
+        on='Sucursal',
+        how='left'
+    )
+    
+    # Unir con Productos (por Producto_ID)
+    df_master = df_master.merge(
+        df_productos[['Producto_ID', 'Producto', 'Categoria', 'Dias_Caducidad', 'Rotacion']],
+        on='Producto_ID',
+        how='left'
+    )
+    
+    # Unir con Lotes (por Lote_ID)
+    df_master = df_master.merge(
+        df_lotes[['Lote_ID', 'Fecha_Creacion']],
+        on='Lote_ID',
+        how='left'
+    )
+    
+    # 5. CREAR COLUMNAS CALCULADAS
+    # Valor del stock (costo)
+    df_master['Valor_Stock_Costo'] = df_master['Stock'] * df_master['Precio_Venta'] * 0.70  # 70% del precio = costo estimado
+    
+    # Clasificación de riesgo
+    def clasificar_riesgo(dias):
+        if pd.isna(dias):
+            return 'SIN_DATO'
+        elif dias < 0:
+            return 'VENCIDO'
+        elif dias <= 3:
+            return 'CRITICO'
+        elif dias <= 7:
+            return 'URGENTE'
+        elif dias <= 10:
+            return 'PREVENTIVO'
         else:
-            st.error("❌ No se encontró columna de Stock")
-            return None, None
+            return 'NORMAL'
     
-    if 'Valor_Stock_Costo' not in df_riesgo.columns:
-        df_riesgo = calcular_valor_stock(df_riesgo)
+    df_master['Nivel_Riesgo'] = df_master['Dias_Vencer'].apply(clasificar_riesgo)
     
-    # Agrupar por sucursal
-    if 'Sucursal' in df_riesgo.columns:
-        stock_por_sucursal = df_riesgo.groupby('Sucursal').agg({
-            'Stock_Inicial': 'sum',
-            'Valor_Stock_Costo': 'sum',
-            'Días_para_Vencimiento': 'mean'
-        }).reset_index()
-        
-        # Merge con coordenadas
-        if df_sucursales is not None and 'Latitud' in df_sucursales.columns:
-            stock_por_sucursal = stock_por_sucursal.merge(
-                df_sucursales[['Sucursal', 'Latitud', 'Longitud', 'Direccion_Aprox']],
-                on='Sucursal',
-                how='left'
-            )
-        else:
-            # Coordenadas hardcoded de Santiago
-            coordenadas_santiago = {
-                'Maipú Centro': [-33.5105, -70.7558],
-                'Las Condes': [-33.4028, -70.5652],
-                'Providencia': [-33.4251, -70.595],
-                'Ñuñoa': [-33.454, -70.5885],
-                'Pudahuel': [-33.44, -70.753],
-                'Lo Valledor': [-33.475, -70.68],
-                'San Bernardo': [-33.59, -70.71],
-                'La Florida': [-33.52, -70.56]
-            }
-            
-            stock_por_sucursal['Latitud'] = stock_por_sucursal['Sucursal'].map(
-                lambda x: coordenadas_santiago.get(x, [-33.45])[0]
-            )
-            stock_por_sucursal['Longitud'] = stock_por_sucursal['Sucursal'].map(
-                lambda x: coordenadas_santiago.get(x, [-70.65])[1]
-            )
-            stock_por_sucursal['Direccion_Aprox'] = stock_por_sucursal['Sucursal']
-        
-        # Filtrar sucursales sin coordenadas
-        stock_por_sucursal = stock_por_sucursal.dropna(subset=['Latitud', 'Longitud'])
-        
-        if len(stock_por_sucursal) == 0:
-            st.warning("⚠️ No hay datos de sucursales con coordenadas válidas")
-            return None, None
-        
-        # Crear mapa
-        fig = go.Figure()
-        
-        def color_por_dias(dias):
-            if pd.isna(dias):
-                return '#9c27b0'
-            elif dias < 0:
-                return '#9c27b0'
-            elif dias <= 3:
-                return '#d32f2f'
-            elif dias <= 7:
-                return '#f57c00'
-            else:
-                return '#fbc02d'
-        
-        stock_por_sucursal['Color'] = stock_por_sucursal['Días_para_Vencimiento'].apply(color_por_dias)
-        
-        fig.add_trace(go.Scattermapbox(
-            lat=stock_por_sucursal['Latitud'],
-            lon=stock_por_sucursal['Longitud'],
-            mode='markers',
-            marker=dict(
-                size=stock_por_sucursal['Stock_Inicial'] / 100,
-                sizemode='area',
-                sizeref=2,
-                color=stock_por_sucursal['Color'],
-                opacity=0.8,
-            ),
-            text=stock_por_sucursal.apply(
-                lambda row: f"<b>{row['Sucursal']}</b><br>"
-                           f"📦 Stock: {int(row['Stock_Inicial']):,} unidades<br>"
-                           f"💰 Valor: {clp(row['Valor_Stock_Costo'])} CLP<br>"
-                           f"⏰ Días prom: {row['Días_para_Vencimiento']:.1f}<br>"
-                           f"📍 {row['Direccion_Aprox']}",
-                axis=1
-            ),
-            hoverinfo='text',
-            name='Sucursales'
-        ))
-        
-        fig.update_layout(
-            height=600,
-            margin=dict(l=0, r=0, t=30, b=0),
-            mapbox=dict(
-                style='open-street-map',
-                center=dict(lat=-33.45, lon=-70.65),
-                zoom=9
-            ),
-            showlegend=False,
-            title=dict(
-                text='🗺️ Distribución de Inventario por Sucursal',
-                x=0.5,
-                font=dict(size=18, color='#1a237e')
-            )
-        )
-        
-        return fig, stock_por_sucursal
+    # Fecha de análisis
+    df_master['Fecha_Analisis'] = datetime.now()
     
-    return None, None
+    # Días hasta vencimiento desde hoy
+    df_master['Dias_Para_Vencimiento'] = df_master['Dias_Vencer']
+    
+    # 6. Filtrar productos con stock > 0
+    df_riesgo = df_master[df_master['Stock'] > 0].copy()
+    
+    return df_riesgo, df_master, {
+        'sucursales': df_sucursales,
+        'productos': df_productos,
+        'lotes': df_lotes,
+        'inventario': df_inventario,
+        'stock': df_stock
+    }
 
 # =============================================================================
 # FUNCIONES DE VISUALIZACIÓN
 # =============================================================================
-def mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy):
+def mostrar_resumen_ejecutivo(df_riesgo, total_riesgo, fecha_hoy):
     """Muestra el resumen ejecutivo"""
-    st.markdown('<h1 class="main-header">Resúmen</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">Resumen Ejecutivo</h1>', unsafe_allow_html=True)
     
-    total_productos = len(df_riesgo)
-    total_unidades = int(df_riesgo['Stock_Inicial'].sum()) if 'Stock_Inicial' in df_riesgo.columns else 0
+    total_productos = df_riesgo['Producto'].nunique()
+    total_unidades = int(df_riesgo['Stock'].sum())
+    total_sucursales = df_riesgo['Sucursal'].nunique()
     
     col1, col2, col3 = st.columns([1, 2.5, 1])
     
@@ -408,11 +328,14 @@ def mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy):
     with col2:
         st.markdown(f"""
         <div class='info-card'>
-            <h2 style='color: #1565c0; margin: 0;'>Análisis al {fecha_hoy.strftime('%d/%m/%Y') if hasattr(fecha_hoy, 'strftime') else fecha_hoy}</h2>
+            <h2 style='color: #1565c0; margin: 0;'>Análisis al {fecha_hoy.strftime('%d/%m/%Y')}</h2>
             <p style='font-size: 1.3rem; margin: 15px 0; font-weight: 600;'>
                 <span style='color: #d32f2f;'>{total_productos}</span> productos | 
                 <span style='color: #1976d2;'>{total_unidades:,}</span> unidades | 
-                <span style='color: #f57c00;'>{clp(total_riesgo)} CLP</span>
+                <span style='color: #f57c00;'>{clp(total_riesgo)}</span>
+            </p>
+            <p style='font-size: 0.9rem; color: #666;'>
+                🏪 {total_sucursales} sucursales analizadas
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -425,23 +348,18 @@ def mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy):
 
 def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy):
     """Muestra clasificación del inventario"""
-    st.markdown('<div class="section-title-box"><h2>Inventario</h2></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title-box"><h2>Inventario por Nivel de Riesgo</h2></div>', unsafe_allow_html=True)
     st.markdown("### Clasificación")
     
-    # ✅ VERIFICAR que Nivel_Riesgo existe antes de usarlo
-    if 'Nivel_Riesgo' not in df_riesgo.columns:
-        st.warning("⚠️ Columna 'Nivel_Riesgo' no encontrada. Aplicando clasificación...")
-        df_riesgo = aplicar_clasificacion(df_riesgo)
-    
-    vencidos = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO'])
-    criticos = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO'])
-    urgentes = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE'])
-    preventivos = len(df_riesgo[df_riesgo['Nivel_Riesgo'] == 'PREVENTIVO'])
-    
-    valor_vencidos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'VENCIDO']['Valor_Stock_Costo'].sum() if 'Valor_Stock_Costo' in df_riesgo.columns else 0
-    valor_criticos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'CRITICO']['Valor_Stock_Costo'].sum() if 'Valor_Stock_Costo' in df_riesgo.columns else 0
-    valor_urgentes = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'URGENTE']['Valor_Stock_Costo'].sum() if 'Valor_Stock_Costo' in df_riesgo.columns else 0
-    valor_preventivos = df_riesgo[df_riesgo['Nivel_Riesgo'] == 'PREVENTIVO']['Valor_Stock_Costo'].sum() if 'Valor_Stock_Costo' in df_riesgo.columns else 0
+    # Calcular métricas por nivel
+    metricas = {}
+    for nivel in ['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']:
+        df_nivel = df_riesgo[df_riesgo['Nivel_Riesgo'] == nivel]
+        metricas[nivel] = {
+            'productos': df_nivel['Producto'].nunique() if len(df_nivel) > 0 else 0,
+            'unidades': int(df_nivel['Stock'].sum()) if len(df_nivel) > 0 else 0,
+            'valor': df_nivel['Valor_Stock_Costo'].sum() if len(df_nivel) > 0 else 0
+        }
     
     col1, col2 = st.columns([1, 1])
     
@@ -449,21 +367,132 @@ def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy):
         st.markdown(f"""
         <div class='classification-item vencido'>
             <span class='indicator' style='background-color: #9c27b0;'></span>
-            <strong>Vencido:</strong> {vencidos} productos | {clp(valor_vencidos)} CLP
+            <strong>Vencido:</strong> {metricas['VENCIDO']['productos']} productos | {clp(metricas['VENCIDO']['valor'])}
         </div>
         <div class='classification-item critico'>
             <span class='indicator' style='background-color: #d32f2f;'></span>
-            <strong>Crítico:</strong> {criticos} productos | {clp(valor_criticos)} CLP
+            <strong>Crítico:</strong> {metricas['CRITICO']['productos']} productos | {clp(metricas['CRITICO']['valor'])}
         </div>
         <div class='classification-item urgente'>
             <span class='indicator' style='background-color: #f57c00;'></span>
-            <strong>Urgente:</strong> {urgentes} productos | {clp(valor_urgentes)} CLP
+            <strong>Urgente:</strong> {metricas['URGENTE']['productos']} productos | {clp(metricas['URGENTE']['valor'])}
         </div>
         <div class='classification-item preventivo'>
             <span class='indicator' style='background-color: #fbc02d;'></span>
-            <strong>Preventivo:</strong> {preventivos} productos | {clp(valor_preventivos)} CLP
+            <strong>Preventivo:</strong> {metricas['PREVENTIVO']['productos']} productos | {clp(metricas['PREVENTIVO']['valor'])}
         </div>
         """, unsafe_allow_html=True)
+    
+    with col2:
+        # Calcular plan de acción
+        credito_trib = metricas['VENCIDO']['valor'] * 0.27
+        recuperacion_crit = metricas['CRITICO']['valor'] * 0.50
+        recuperacion_urg = metricas['URGENTE']['valor'] * 0.40
+        total_recuperado = credito_trib + recuperacion_crit + recuperacion_urg
+        
+        st.session_state['metricas_plan'] = {
+            'credito_tributario': credito_trib,
+            'recuperacion_descuentos': recuperacion_crit + recuperacion_urg,
+            'total_recuperado': total_recuperado
+        }
+        
+        st.markdown(f"""
+        <div class='decision-box'>
+            <h3>💰 Impacto Financiero del Plan</h3>
+            <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 20px 0;'>
+                <div style='background: #e8f5e9; padding: 15px; border-radius: 8px;'>
+                    <div style='font-size: 0.9rem; color: #2e7d32;'>Crédito Tributario (27%)</div>
+                    <div style='font-size: 1.5rem; font-weight: 700; color: #1565c0;'>{clp(credito_trib)}</div>
+                </div>
+                <div style='background: #fff3e0; padding: 15px; border-radius: 8px;'>
+                    <div style='font-size: 0.9rem; color: #e65100;'>Recuperación Descuentos</div>
+                    <div style='font-size: 1.5rem; font-weight: 700; color: #ef6c00;'>{clp(recuperacion_crit + recuperacion_urg)}</div>
+                </div>
+            </div>
+            <div style='background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); padding: 20px; border-radius: 10px; text-align: center; color: white;'>
+                <div style='font-size: 1.2rem;'>TOTAL RECUPERADO</div>
+                <div style='font-size: 2.5rem; font-weight: 700;'>{clp(total_recuperado)}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+def crear_mapa_inventario(df_riesgo):
+    """Crea un mapa interactivo con Plotly"""
+    
+    # Agrupar por sucursal
+    stock_por_sucursal = df_riesgo.groupby('Sucursal').agg({
+        'Stock': 'sum',
+        'Valor_Stock_Costo': 'sum',
+        'Dias_Para_Vencimiento': 'mean',
+        'Latitud': 'first',
+        'Longitud': 'first'
+    }).reset_index()
+    
+    # Filtrar sucursales sin coordenadas
+    stock_por_sucursal = stock_por_sucursal.dropna(subset=['Latitud', 'Longitud'])
+    
+    if len(stock_por_sucursal) == 0:
+        return None, None
+    
+    # Crear mapa
+    fig = go.Figure()
+    
+    # Colores según nivel de riesgo promedio
+    def color_por_dias(dias):
+        if pd.isna(dias):
+            return '#9c27b0'
+        elif dias < 0:
+            return '#9c27b0'
+        elif dias <= 3:
+            return '#d32f2f'
+        elif dias <= 7:
+            return '#f57c00'
+        else:
+            return '#fbc02d'
+    
+    stock_por_sucursal['Color'] = stock_por_sucursal['Dias_Para_Vencimiento'].apply(color_por_dias)
+    
+    fig.add_trace(go.Scattermapbox(
+        lat=stock_por_sucursal['Latitud'],
+        lon=stock_por_sucursal['Longitud'],
+        mode='markers',
+        marker=dict(
+            size=stock_por_sucursal['Stock'] / 100,
+            sizemode='area',
+            sizeref=2,
+            color=stock_por_sucursal['Color'],
+            opacity=0.8,
+        ),
+        text=stock_por_sucursal.apply(
+            lambda row: f"<b>{row['Sucursal']}</b><br>"
+                       f"📦 Stock: {int(row['Stock']):,} unidades<br>"
+                       f"💰 Valor: {clp(row['Valor_Stock_Costo'])}<br>"
+                       f"⏰ Días prom: {row['Días_Para_Vencimiento']:.1f}<br>"
+                       f"📍 {row.get('Direccion', 'N/A')}",
+            axis=1
+        ),
+        hoverinfo='text',
+        name='Sucursales'
+    ))
+    
+    # Configurar layout
+    fig.update_layout(
+        height=600,
+        margin=dict(l=0, r=0, t=30, b=0),
+        mapbox=dict(
+            style='open-street-map',
+            center=dict(lat=-33.45, lon=-70.65),
+            zoom=9
+        ),
+        showlegend=False,
+        title=dict(
+            text='🗺️ Distribución de Inventario por Sucursal',
+            x=0.5,
+            font=dict(size=18, color='#1a237e')
+        )
+    )
+    
+    return fig, stock_por_sucursal
 
 # =============================================================================
 # FUNCIÓN PRINCIPAL
@@ -481,23 +510,44 @@ def main():
     st.markdown("---")
     
     # =============================================================================
-    # SIDEBAR - CARGA DE ARCHIVOS
+    # SIDEBAR - CARGA DE LOS 5 ARCHIVOS
     # =============================================================================
     with st.sidebar:
-        st.header("📁 Carga de Archivos")
+        st.header("📁 Carga de Archivos (ETL)")
         st.markdown("---")
         
-        st.markdown("**Archivos Requeridos:**")
+        st.markdown("**Se requieren los 5 archivos para el ETL completo:**")
         
         archivo_sucursales = st.file_uploader(
-            "1️⃣ Sucursales (1_SUCURSALES_MASTER.csv)",
+            "1️⃣ 1_SUCURSALES_MASTER.csv",
             type=['csv'],
             help="Ubicaciones de tiendas con coordenadas GPS",
             key="uploader_sucursales"
         )
         
+        archivo_productos = st.file_uploader(
+            "2️⃣ 2_PRODUCTOS_MASTER.csv",
+            type=['csv'],
+            help="Catálogo maestro de productos",
+            key="uploader_productos"
+        )
+        
+        archivo_lotes = st.file_uploader(
+            "3️⃣ 3_LOTES_PRODUCTOS.csv",
+            type=['csv'],
+            help="Información de lotes y caducidad",
+            key="uploader_lotes"
+        )
+        
+        archivo_inventario = st.file_uploader(
+            "4️⃣ 4_INVENTARIO_COMPLETO_LOTES.csv",
+            type=['csv'],
+            help="Inventario completo con movimientos",
+            key="uploader_inventario"
+        )
+        
         archivo_stock = st.file_uploader(
-            "2️⃣ Stock Actual Geo (5_STOCK_ACTUAL_GEO_POWERBI.csv)",
+            "5️⃣ 5_STOCK_ACTUAL_GEO_POWERBI.csv",
             type=['csv'],
             help="Stock actual con ubicación geográfica",
             key="uploader_stock"
@@ -508,21 +558,22 @@ def main():
         # Contador de archivos cargados
         archivos_cargados = sum([
             archivo_sucursales is not None,
+            archivo_productos is not None,
+            archivo_lotes is not None,
+            archivo_inventario is not None,
             archivo_stock is not None
         ])
         
-        st.progress(archivos_cargados / 2)
-        st.caption(f"{archivos_cargados}/2 archivos cargados")
+        st.progress(archivos_cargados / 5)
+        st.caption(f"{archivos_cargados}/5 archivos cargados")
         
-        mostrar_mapa = st.checkbox("🗺️ Mostrar Mapa de Sucursales", value=True)
+        # Botón de ejecutar (solo se habilita si todos los archivos están cargados)
+        todos_archivos = archivos_cargados == 5
         
-        # Se requiere al menos el archivo de stock
-        archivos_esenciales = archivo_stock is not None
-        
-        if archivos_esenciales:
-            boton_ejecutar = st.button("✅ Ejecutar Análisis", type="primary", use_container_width=True)
+        if todos_archivos:
+            boton_ejecutar = st.button("✅ Ejecutar ETL y Análisis", type="primary", use_container_width=True)
         else:
-            st.warning("⚠️ Cargue al menos el archivo de **Stock** para continuar")
+            st.warning(f"⚠️ Faltan {5 - archivos_cargados} archivos. Se necesitan los 5 para el ETL completo.")
             boton_ejecutar = False
     
     # =============================================================================
@@ -536,111 +587,59 @@ def main():
         st.session_state['ver_detalle'] = False
     if 'plan_aceptado' not in st.session_state:
         st.session_state['plan_aceptado'] = False
+    if 'metricas_plan' not in st.session_state:
+        st.session_state['metricas_plan'] = {}
     
     # =============================================================================
-    # EJECUCIÓN DEL ANÁLISIS
+    # EJECUCIÓN DEL ETL Y ANÁLISIS
     # =============================================================================
     if boton_ejecutar or st.session_state['ejecutar']:
         
-        if archivo_stock is None:
-            st.warning("⚠️ Por favor suba al menos el archivo de Stock")
+        if not todos_archivos:
+            st.warning("⚠️ Por favor cargue los 5 archivos para ejecutar el ETL completo")
             st.stop()
         
         try:
-            with st.spinner("🔄 Cargando y procesando datos..."):
+            with st.spinner("🔄 Ejecutando ETL: Cargando y procesando los 5 archivos..."):
                 
-                # Cargar archivo principal
-                df = pd.read_csv(archivo_stock)
-                df.columns = df.columns.str.strip()
-                
-                # Mapeo de columnas
-                column_mapping = {
-                    'Stock_Teorico_Unidades': 'Stock_Inicial',
-                    'Dias_Para_Vencer': 'Días_para_Vencimiento',
-                    'Precio_Venta_CLP': 'Precio_Venta_Bruto',
-                    'Valor_Unitario_CLP': 'Costo_Unitario_Neto',
-                    'Fecha_Movimiento': 'Fecha',
-                    'Fecha_Vencimiento_Lote': 'Fecha_Vencimiento',
-                    'Estado_Inventario': 'Estado',
-                    'Sucursal': 'Ubicacion',
-                    'ID_Ciudad': 'Codigo_Ciudad'
-                }
-                
-                for original, nuevo in column_mapping.items():
-                    if original in df.columns and nuevo not in df.columns:
-                        df.rename(columns={original: nuevo}, inplace=True)
-                
-                # Parsear fecha
-                fecha_col = 'Fecha' if 'Fecha' in df.columns else None
-                if fecha_col and df[fecha_col].dtype == 'object':
-                    for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y']:
-                        try:
-                            df[fecha_col] = pd.to_datetime(df[fecha_col], format=fmt, errors='coerce')
-                            if df[fecha_col].notna().sum() > len(df) * 0.8:
-                                break
-                        except:
-                            continue
-                    if df[fecha_col].isna().sum() > len(df) * 0.2:
-                        df[fecha_col] = pd.to_datetime(df[fecha_col], errors='coerce', dayfirst=True)
+                # EJECUTAR ETL COMPLETO
+                df_riesgo, df_master, dfs_originales = cargar_y_procesar_etl(
+                    archivo_sucursales,
+                    archivo_productos,
+                    archivo_lotes,
+                    archivo_inventario,
+                    archivo_stock
+                )
                 
                 # Fecha de referencia
-                if fecha_col and df[fecha_col].notna().any():
-                    fecha_hoy = df[fecha_col].max()
-                else:
-                    fecha_hoy = datetime.now()
-                    st.warning("⚠️ No se detectó columna de fecha válida, usando fecha actual")
-                
-                # Calcular Valor de Stock
-                df = calcular_valor_stock(df)
-                
-                # ✅ APLICAR CLASIFICACIÓN ANTES DE USARLA
-                df = aplicar_clasificacion(df)
-                
-                # Filtrar productos con riesgo
-                df_riesgo = df[
-                    (df['Stock_Inicial'] > 0) & 
-                    (df['Nivel_Riesgo'].isin(['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']))
-                ].copy()
+                fecha_hoy = datetime.now()
                 
                 # Calcular total en riesgo
-                total_riesgo = df_riesgo['Valor_Stock_Costo'].sum() if 'Valor_Stock_Costo' in df_riesgo.columns else 0
+                total_riesgo = df_riesgo['Valor_Stock_Costo'].sum()
                 
-                # Cargar sucursales
-                df_sucursales = None
-                if archivo_sucursales:
-                    try:
-                        df_sucursales = pd.read_csv(archivo_sucursales)
-                        df_sucursales.columns = df_sucursales.columns.str.strip()
-                        if 'Sucursal' in df_sucursales.columns and 'Ubicacion' in df_riesgo.columns:
-                            df_riesgo = df_riesgo.merge(
-                                df_sucursales[['Sucursal', 'Latitud', 'Longitud', 'Direccion_Aprox']],
-                                left_on='Ubicacion',
-                                right_on='Sucursal',
-                                how='left'
-                            )
-                    except Exception as e:
-                        st.warning(f"⚠️ No se pudo cargar archivo de sucursales: {e}")
+                st.success("✅ ETL completado exitosamente!")
+                st.info(f"📅 Análisis para: {fecha_hoy.strftime('%d/%m/%Y')} | Productos en riesgo: {len(df_riesgo)}")
                 
-                st.success(f"✅ Datos procesados correctamente!")
-                st.info(f"📅 Análisis para: {fecha_hoy.strftime('%d/%m/%Y') if hasattr(fecha_hoy, 'strftime') else fecha_hoy} | Productos en riesgo: {len(df_riesgo)}")
-                
-                # Verificar antigüedad de datos
-                dias_sin_actualizar = (datetime.now() - fecha_hoy).days if isinstance(fecha_hoy, (datetime, pd.Timestamp)) else 0
-                if dias_sin_actualizar > 0:
-                    st.warning(f"""
-                    ⚠️ **Datos con {dias_sin_actualizar} día(s) de antigüedad**
-                    
-                    Última actualización: {fecha_hoy.strftime('%d/%m/%Y') if hasattr(fecha_hoy, 'strftime') else 'Desconocida'}
-                    
-                    Para un plan efectivo, se recomienda actualizar **diariamente**.
-                    """)
+                # Mostrar resumen de datos cargados
+                with st.expander("📊 Resumen de Datos Cargados", expanded=False):
+                    col1, col2, col3, col4, col5 = st.columns(5)
+                    with col1:
+                        st.metric("🏪 Sucursales", len(dfs_originales['sucursales']))
+                    with col2:
+                        st.metric("📦 Productos", len(dfs_originales['productos']))
+                    with col3:
+                        st.metric("🔢 Lotes", len(dfs_originales['lotes']))
+                    with col4:
+                        st.metric("📋 Movimientos", len(dfs_originales['inventario']))
+                    with col5:
+                        st.metric("📍 Stock Actual", len(dfs_originales['stock']))
             
             # =============================================================================
             # MOSTRAR RESULTADOS
             # =============================================================================
             
             # 1. Resumen ejecutivo
-            mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy)
+            mostrar_resumen_ejecutivo(df_riesgo, total_riesgo, fecha_hoy)
             st.markdown("---")
             
             # 2. Clasificación de inventario
@@ -648,68 +647,53 @@ def main():
             st.markdown("---")
             
             # 3. MAPA DE SUCURSALES
-            if mostrar_mapa and 'Latitud' in df_riesgo.columns and 'Longitud' in df_riesgo.columns:
-                st.markdown('<div class="section-title-box"><h2>🗺️ Mapa de Sucursales</h2></div>', unsafe_allow_html=True)
-                
-                fig, stock_por_sucursal = crear_mapa_inventario(df_riesgo, df_sucursales)
-                
-                if fig:
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Resumen por sucursal
-                    if stock_por_sucursal is not None and not stock_por_sucursal.empty:
-                        st.markdown("### 📊 Resumen por Sucursal")
-                        cols_mostrar = [c for c in ['Ubicacion', 'Sucursal', 'Stock_Inicial', 'Valor_Stock_Costo', 'Días_para_Vencimiento'] 
-                                       if c in stock_por_sucursal.columns]
-                        if cols_mostrar:
-                            st.dataframe(
-                                stock_por_sucursal[cols_mostrar]
-                                .sort_values('Stock_Inicial', ascending=False)
-                                .head(20),
-                                use_container_width=True,
-                                hide_index=True
-                            )
-                
-                st.markdown("---")
+            st.markdown('<div class="section-title-box"><h2>🗺️ Mapa de Sucursales</h2></div>', unsafe_allow_html=True)
             
-            # 4. Vista de detalle
+            fig, stock_por_sucursal = crear_mapa_inventario(df_riesgo)
+            
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Resumen por sucursal
+                if stock_por_sucursal is not None and not stock_por_sucursal.empty:
+                    st.markdown("### 📊 Resumen por Sucursal")
+                    st.dataframe(
+                        stock_por_sucursal[['Sucursal', 'Stock', 'Valor_Stock_Costo', 'Días_Para_Vencimiento']]
+                        .sort_values('Stock', ascending=False)
+                        .head(20),
+                        use_container_width=True,
+                        hide_index=True
+                    )
+            
+            st.markdown("---")
+            
+            # 4. Vista de detalle (opcional)
             if st.session_state.get('ver_detalle', False):
                 with st.expander("📋 Ver Detalle Completo de Productos en Riesgo", expanded=True):
-                    cols_detalle = [c for c in ['Producto', 'Ubicacion', 'Stock_Inicial', 'Días_para_Vencimiento', 
-                                               'Valor_Stock_Costo', 'Nivel_Riesgo', 'Fecha_Vencimiento'] 
-                                   if c in df_riesgo.columns]
-                    if cols_detalle:
-                        st.dataframe(
-                            df_riesgo[cols_detalle]
-                            .sort_values(['Nivel_Riesgo', 'Valor_Stock_Costo'], ascending=[False, False]),
-                            use_container_width=True,
-                            hide_index=True
-                        )
-                    else:
-                        st.dataframe(df_riesgo.head(100), use_container_width=True)
+                    cols_detalle = ['Producto', 'Sucursal', 'Stock', 'Días_Para_Vencimiento', 
+                                   'Valor_Stock_Costo', 'Nivel_Riesgo', 'Categoria']
+                    st.dataframe(
+                        df_riesgo[cols_detalle]
+                        .sort_values(['Nivel_Riesgo', 'Valor_Stock_Costo'], ascending=[False, False]),
+                        use_container_width=True,
+                        hide_index=True
+                    )
                 
                 if st.button("⬅️ Volver al Resumen", type="primary"):
                     st.session_state['ver_detalle'] = False
                     st.rerun()
             
-            # Guardar estado
+            # Guardar estado de ejecución
             st.session_state['ejecutar'] = True
             st.session_state['datos_procesados'] = {
                 'fecha': fecha_hoy,
                 'total_riesgo': total_riesgo,
-                'total_productos': len(df_riesgo)
+                'total_productos': len(df_riesgo),
+                'total_recuperado': st.session_state.get('metricas_plan', {}).get('total_recuperado', 0)
             }
             
-        except FileNotFoundError as e:
-            st.error(f"❌ Archivo no encontrado: {e}")
-        except pd.errors.EmptyDataError:
-            st.error("❌ El archivo CSV está vacío o tiene formato incorrecto")
-        except pd.errors.ParserError as e:
-            st.error(f"❌ Error al parsear el CSV: {e}")
-        except KeyError as e:
-            st.error(f"❌ Columna esperada no encontrada: {e}. Verifique la estructura del archivo.")
         except Exception as e:
-            st.error(f"❌ Error inesperado en el análisis: {type(e).__name__}: {str(e)}")
+            st.error(f"❌ Error en el ETL: {type(e).__name__}: {str(e)}")
             with st.expander("🔍 Ver detalles técnicos del error"):
                 st.exception(e)
 
