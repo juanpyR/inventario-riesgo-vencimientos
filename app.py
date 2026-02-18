@@ -374,8 +374,12 @@ COLUMNAS_ESPERADAS = {
         'Valor_Unitario_CLP', 'Costo_Unitario_Neto', 'Costo Unitario Neto', 
         'costo_unitario_neto', 'Costo', 'Precio_Costo', 'Valor_Costo'
     ],
-    'Producto': ['Producto', 'producto', 'SKU_Descripcion', 'Nombre_Producto'],
-    'Sucursal': ['Sucursal', 'sucursal', 'Tienda', 'Store', 'ID_Sucursal'],
+    'Precio_Venta_Bruto': [
+        'Precio_Venta_CLP', 'Precio_Venta_Bruto', 'Precio Venta Bruto', 
+        'precio_venta_bruto', 'Precio'
+    ],
+    'Producto': ['Producto', 'producto', 'SKU_Descripcion'],
+    'Sucursal': ['Sucursal', 'sucursal', 'Tienda', 'Store'],
     'Latitud': ['Latitud', 'lat', 'Latitude', 'Lat'],
     'Longitud': ['Longitud', 'lon', 'Longitude', 'Lng', 'Long']
 }
@@ -640,6 +644,7 @@ def mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy):
 # FUNCIÓN PRINCIPAL
 # =============================================================================
 def main():
+    """Función principal de la aplicación Streamlit"""
     st.set_page_config(
         page_title="Sistema de Gestión de Vencimientos",
         page_icon="📦",
@@ -663,42 +668,47 @@ def main():
         archivo_sucursales = st.file_uploader(
             "1️⃣ Sucursales (1_SUCURSALES_MASTER.csv)",
             type=['csv'],
-            help="Ubicaciones de tiendas con coordenadas GPS"
+            help="Ubicaciones de tiendas con coordenadas GPS",
+            key="uploader_sucursales"
         )
         
         archivo_productos = st.file_uploader(
             "2️⃣ Productos Master (2_PRODUCTOS_MASTER.csv)",
             type=['csv'],
-            help="Catálogo maestro de productos"
+            help="Catálogo maestro de productos",
+            key="uploader_productos"
         )
         
         archivo_lotes = st.file_uploader(
             "3️⃣ Lotes (3_LOTES_PRODUCTOS.csv)",
             type=['csv'],
-            help="Información de lotes y caducidad"
+            help="Información de lotes y caducidad",
+            key="uploader_lotes"
         )
         
         archivo_inventario = st.file_uploader(
             "4️⃣ Inventario Completo (4_INVENTARIO_COMPLETO_LOTES.csv)",
             type=['csv'],
-            help="Inventario completo con lotes"
+            help="Inventario completo con lotes",
+            key="uploader_inventario"
         )
         
         archivo_stock = st.file_uploader(
             "5️⃣ Stock Actual Geo (5_STOCK_ACTUAL_GEO_POWERBI.csv)",
             type=['csv'],
-            help="Stock actual con ubicación geográfica"
+            help="Stock actual con ubicación geográfica",
+            key="uploader_stock"
         )
         
         st.markdown("---")
         
         # Contador de archivos cargados
         archivos_cargados = sum([
-            bool(archivo_sucursales),
-            bool(archivo_productos),
-            bool(archivo_lotes),
-            bool(archivo_inventario),
-            bool(archivo_stock)
+            archivo_sucursales is not None,
+            archivo_productos is not None,
+            archivo_lotes is not None,
+            archivo_inventario is not None,
+            archivo_stock is not None
         ])
         
         st.progress(archivos_cargados / 5)
@@ -706,12 +716,13 @@ def main():
         
         mostrar_mapa = st.checkbox("🗺️ Mostrar Mapa de Sucursales", value=True)
         
-        todos_archivos = archivos_cargados >= 1  # Al menos 1 archivo para funcionar
+        # Se requiere al menos el archivo de stock o inventario
+        archivos_esenciales = archivo_stock is not None or archivo_inventario is not None
         
-        if todos_archivos:
+        if archivos_esenciales:
             boton_ejecutar = st.button("✅ Ejecutar Análisis", type="primary", use_container_width=True)
         else:
-            st.warning(f"⚠️ Faltan {5 - archivos_cargados} archivos por cargar")
+            st.warning(f"⚠️ Cargue al menos el archivo de **Stock** o **Inventario** para continuar")
             boton_ejecutar = False
     
     # =============================================================================
@@ -725,6 +736,10 @@ def main():
         st.session_state['ver_detalle'] = False
     if 'plan_aceptado' not in st.session_state:
         st.session_state['plan_aceptado'] = False
+    if 'metricas_inventario' not in st.session_state:
+        st.session_state['metricas_inventario'] = {}
+    if 'metricas_plan' not in st.session_state:
+        st.session_state['metricas_plan'] = {}
     
     # =============================================================================
     # EJECUCIÓN DEL ANÁLISIS
@@ -738,70 +753,134 @@ def main():
         try:
             with st.spinner("🔄 Cargando y procesando datos..."):
                 
-                # Cargar archivo principal (stock o inventario)
+                # Cargar archivo principal (stock o inventario) - Priorizar stock actual
                 if archivo_stock:
-                    df = cargar_archivo(archivo_stock)
+                    df = pd.read_csv(archivo_stock)
                 else:
-                    df = cargar_archivo(archivo_inventario)
+                    df = pd.read_csv(archivo_inventario)
                 
-                if df is None:
-                    st.error("Error al cargar el archivo principal")
-                    st.stop()
+                # Limpieza básica de columnas
+                df.columns = df.columns.str.strip()
                 
-                # Mapear columnas
-                df = mapear_columnas(df)
+                # Mapeo de columnas según estructura real de los archivos
+                column_mapping = {
+                    # Columnas de stock/inventario
+                    'Stock_Teorico_Unidades': 'Stock_Inicial',
+                    'Dias_Para_Vencer': 'Días_para_Vencimiento',
+                    'Precio_Venta_CLP': 'Precio_Venta_Bruto',
+                    'Valor_Unitario_CLP': 'Costo_Unitario_Neto',
+                    'Fecha_Movimiento': 'Fecha',
+                    'Fecha_Vencimiento_Lote': 'Fecha_Vencimiento',
+                    'Estado_Inventario': 'Estado',
+                    # Columnas de identificación
+                    'Producto_ID': 'ID_Producto',
+                    'Lote_ID': 'ID_Lote',
+                    'Sucursal': 'Ubicacion',
+                    'ID_Ciudad': 'Codigo_Ciudad'
+                }
                 
-                # Parsear fecha
-                if 'Fecha_Movimiento' in df.columns:
-                    df['Fecha'] = pd.to_datetime(df['Fecha_Movimiento'], errors='coerce')
-                elif 'Fecha' in df.columns:
-                    df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+                for original, nuevo in column_mapping.items():
+                    if original in df.columns and nuevo not in df.columns:
+                        df.rename(columns={original: nuevo}, inplace=True)
+                
+                # Parsear fecha - Manejar múltiples formatos
+                fecha_col = 'Fecha' if 'Fecha' in df.columns else None
+                if fecha_col and df[fecha_col].dtype == 'object':
+                    for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y']:
+                        try:
+                            df[fecha_col] = pd.to_datetime(df[fecha_col], format=fmt, errors='coerce')
+                            if df[fecha_col].notna().sum() > len(df) * 0.8:  # 80% de éxito
+                                break
+                        except:
+                            continue
+                    # Fallback final
+                    if df[fecha_col].isna().sum() > len(df) * 0.2:
+                        df[fecha_col] = pd.to_datetime(df[fecha_col], errors='coerce', dayfirst=True)
+                
+                # Fecha de referencia para el análisis
+                if fecha_col and df[fecha_col].notna().any():
+                    fecha_hoy = df[fecha_col].max()
                 else:
-                    df['Fecha'] = datetime.now()
+                    fecha_hoy = datetime.now()
+                    st.warning("⚠️ No se detectó columna de fecha válida, usando fecha actual")
                 
-                # Fecha de referencia
-                fecha_hoy = df['Fecha'].max() if df['Fecha'].notna().any() else datetime.now()
+                # Calcular Valor de Stock si no existe
+                if 'Valor_Stock_Costo' not in df.columns:
+                    if 'Stock_Inicial' in df.columns and 'Costo_Unitario_Neto' in df.columns:
+                        # Usar costo real si está disponible
+                        df['Valor_Stock_Costo'] = df['Stock_Inicial'] * df['Costo_Unitario_Neto']
+                    elif 'Stock_Inicial' in df.columns and 'Precio_Venta_Bruto' in df.columns:
+                        # Estimar costo como 70% del precio de venta
+                        df['Costo_Unitario_Neto'] = df['Precio_Venta_Bruto'] * 0.70
+                        df['Valor_Stock_Costo'] = df['Stock_Inicial'] * df['Costo_Unitario_Neto']
+                    else:
+                        # Fallback: usar precio como proxy
+                        precio_col = 'Precio_Venta_Bruto' if 'Precio_Venta_Bruto' in df.columns else None
+                        if precio_col and 'Stock_Inicial' in df.columns:
+                            df['Valor_Stock_Costo'] = df['Stock_Inicial'] * df[precio_col]
+                        else:
+                            df['Valor_Stock_Costo'] = 0
+                            st.warning("⚠️ No se pudo calcular Valor de Stock - verifique columnas de costo/precio")
                 
-                # Calcular valor de stock si no existe
-                if 'Valor_Stock_Costo' not in df.columns and 'Stock_Inicial' in df.columns and 'Costo_Unitario_Neto' in df.columns:
-                    df = calcular_valor_stock(df)
-                elif 'Valor_Stock_Costo' not in df.columns and 'Stock_Teorico_Unidades' in df.columns:
-                    df['Stock_Inicial'] = df['Stock_Teorico_Unidades']
-                    if 'Precio_Venta_CLP' in df.columns:
-                        df['Costo_Unitario_Neto'] = df['Precio_Venta_CLP'] * 0.7  # Estimado 70% del precio
-                        df = calcular_valor_stock(df)
-                
-                # Aplicar clasificación
+                # Aplicar clasificación de riesgo basada en días para vencer
                 if 'Días_para_Vencimiento' in df.columns:
-                    df = aplicar_clasificacion(df)
-                    df_riesgo = df[df['Stock_Inicial'] > 0].copy()
+                    def clasificar_riesgo(dias):
+                        if pd.isna(dias):
+                            return 'SIN_DATO'
+                        elif dias < 0:
+                            return 'VENCIDO'
+                        elif dias <= 3:
+                            return 'CRITICO'
+                        elif dias <= 7:
+                            return 'URGENTE'
+                        elif dias <= 10:
+                            return 'PREVENTIVO'
+                        else:
+                            return 'NORMAL'
+                    
+                    df['Nivel_Riesgo'] = df['Días_para_Vencimiento'].apply(clasificar_riesgo)
+                    
+                    # Filtrar productos con riesgo (excluir NORMAL para el análisis principal)
+                    df_riesgo = df[
+                        (df['Stock_Inicial'] > 0) & 
+                        (df['Nivel_Riesgo'].isin(['VENCIDO', 'CRITICO', 'URGENTE', 'PREVENTIVO']))
+                    ].copy()
                 else:
+                    # Sin columna de días, marcar todo como preventivo para revisión manual
                     df_riesgo = df[df['Stock_Inicial'] > 0].copy()
                     df_riesgo['Nivel_Riesgo'] = 'PREVENTIVO'
+                    st.warning("⚠️ No se encontró columna de días para vencimiento")
                 
-                # Calcular total riesgo
-                if 'Valor_Stock_Costo' in df_riesgo.columns:
-                    total_riesgo = df_riesgo['Valor_Stock_Costo'].sum()
-                else:
-                    total_riesgo = 0
+                # Calcular total en riesgo
+                total_riesgo = df_riesgo['Valor_Stock_Costo'].sum() if 'Valor_Stock_Costo' in df_riesgo.columns else 0
                 
-                # Cargar sucursales si existe
+                # Cargar sucursales para enriquecimiento de datos
                 df_sucursales = None
                 if archivo_sucursales:
-                    df_sucursales = cargar_archivo(archivo_sucursales)
-                    if df_sucursales is not None:
-                        df_sucursales = mapear_columnas(df_sucursales)
+                    try:
+                        df_sucursales = pd.read_csv(archivo_sucursales)
+                        df_sucursales.columns = df_sucursales.columns.str.strip()
+                        # Mapear si es necesario
+                        if 'Sucursal' in df_sucursales.columns and 'Ubicacion' in df_riesgo.columns:
+                            df_riesgo = df_riesgo.merge(
+                                df_sucursales[['Sucursal', 'Latitud', 'Longitud', 'Direccion_Aprox']],
+                                left_on='Ubicacion',
+                                right_on='Sucursal',
+                                how='left'
+                            )
+                    except Exception as e:
+                        st.warning(f"⚠️ No se pudo cargar archivo de sucursales: {e}")
                 
-                st.success(f"✅ Archivos cargados correctamente!")
-                st.info(f"📅 Análisis para: {fecha_hoy.strftime('%d/%m/%Y')} | Productos: {len(df_riesgo)}")
+                st.success(f"✅ Datos procesados correctamente!")
+                st.info(f"📅 Análisis para: {fecha_hoy.strftime('%d/%m/%Y')} | Productos en riesgo: {len(df_riesgo)}")
                 
                 # Verificar antigüedad de datos
-                dias_sin_actualizar = (datetime.now() - fecha_hoy).days
+                dias_sin_actualizar = (datetime.now() - fecha_hoy).days if isinstance(fecha_hoy, (datetime, pd.Timestamp)) else 0
                 if dias_sin_actualizar > 0:
                     st.warning(f"""
                     ⚠️ **Datos con {dias_sin_actualizar} día(s) de antigüedad**
                     
-                    Última actualización: {fecha_hoy.strftime('%d/%m/%Y')}
+                    Última actualización: {fecha_hoy.strftime('%d/%m/%Y') if isinstance(fecha_hoy, (datetime, pd.Timestamp)) else 'Desconocida'}
                     
                     Para un plan efectivo, se recomienda actualizar **diariamente**.
                     """)
@@ -810,16 +889,16 @@ def main():
             # MOSTRAR RESULTADOS
             # =============================================================================
             
-            # Resumen ejecutivo
+            # 1. Resumen ejecutivo
             mostrar_resumen_ejecutivo_nuevo(df_riesgo, total_riesgo, fecha_hoy)
             st.markdown("---")
             
-            # Inventario
+            # 2. Clasificación de inventario
             mostrar_inventario_nuevo(df_riesgo, total_riesgo, fecha_hoy)
             st.markdown("---")
             
-            # MAPA DE SUCURSALES
-            if mostrar_mapa and archivo_stock:
+            # 3. MAPA DE SUCURSALES (solo si hay datos geográficos)
+            if mostrar_mapa and 'Latitud' in df_riesgo.columns and 'Longitud' in df_riesgo.columns:
                 st.markdown('<div class="section-title-box"><h2>🗺️ Mapa de Sucursales</h2></div>', unsafe_allow_html=True)
                 
                 fig, stock_por_sucursal = crear_mapa_inventario(df_riesgo, df_sucursales)
@@ -828,38 +907,74 @@ def main():
                     st.plotly_chart(fig, use_container_width=True)
                     
                     # Resumen por sucursal
-                    st.markdown("### 📊 Resumen por Sucursal")
-                    if stock_por_sucursal is not None:
-                        st.dataframe(
-                            stock_por_sucursal[[
-                                'Sucursal', 'Stock_Inicial', 'Valor_Stock_Costo', 
-                                'Días_para_Vencimiento'
-                            ]].sort_values('Stock_Inicial', ascending=False),
-                            use_container_width=True,
-                            hide_index=True
-                        )
+                    if stock_por_sucursal is not None and not stock_por_sucursal.empty:
+                        st.markdown("### 📊 Resumen por Sucursal")
+                        cols_mostrar = [c for c in ['Ubicacion', 'Sucursal', 'Stock_Inicial', 'Valor_Stock_Costo', 'Días_para_Vencimiento'] 
+                                       if c in stock_por_sucursal.columns]
+                        if cols_mostrar:
+                            st.dataframe(
+                                stock_por_sucursal[cols_mostrar]
+                                .sort_values('Stock_Inicial', ascending=False)
+                                .head(20),  # Limitar a 20 filas para legibilidad
+                                use_container_width=True,
+                                hide_index=True
+                            )
                 
                 st.markdown("---")
             
-            # Vista detalle
-            if st.session_state['ver_detalle']:
-                st.markdown("### 📋 Detalle Completo")
-                st.dataframe(df_riesgo, use_container_width=True)
+            # 4. Vista de detalle (opcional)
+            if st.session_state.get('ver_detalle', False):
+                with st.expander("📋 Ver Detalle Completo de Productos en Riesgo", expanded=True):
+                    cols_detalle = [c for c in ['Producto', 'Ubicacion', 'Stock_Inicial', 'Días_para_Vencimiento', 
+                                               'Valor_Stock_Costo', 'Nivel_Riesgo', 'Fecha_Vencimiento'] 
+                                   if c in df_riesgo.columns]
+                    if cols_detalle:
+                        st.dataframe(
+                            df_riesgo[cols_detalle]
+                            .sort_values(['Nivel_Riesgo', 'Valor_Stock_Costo'], ascending=[False, False]),
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                    else:
+                        st.dataframe(df_riesgo.head(100), use_container_width=True)
                 
                 if st.button("⬅️ Volver al Resumen", type="primary"):
                     st.session_state['ver_detalle'] = False
                     st.rerun()
             
+            # Guardar estado de ejecución
             st.session_state['ejecutar'] = True
             st.session_state['datos_procesados'] = {
                 'fecha': fecha_hoy,
                 'total_riesgo': total_riesgo,
-                'total_recuperado': 0
+                'total_productos': len(df_riesgo),
+                'total_recuperado': st.session_state.get('metricas_plan', {}).get('total_recuperado', 0)
             }
             
+            # Botón de descarga de reporte
+            if total_riesgo > 0:
+                pdf_buffer = generar_pdf_reporte(df_riesgo, total_riesgo, fecha_hoy)
+                if pdf_buffer:
+                    st.download_button(
+                        label="📄 Descargar Reporte Ejecutivo (PDF)",
+                        data=pdf_buffer,
+                        file_name=f"reporte_vencimientos_{fecha_hoy.strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+            
+        except FileNotFoundError as e:
+            st.error(f"❌ Archivo no encontrado: {e}")
+        except pd.errors.EmptyDataError:
+            st.error("❌ El archivo CSV está vacío o tiene formato incorrecto")
+        except pd.errors.ParserError as e:
+            st.error(f"❌ Error al parsear el CSV: {e}")
+        except KeyError as e:
+            st.error(f"❌ Columna esperada no encontrada: {e}. Verifique la estructura del archivo.")
         except Exception as e:
-            st.error(f"❌ Error en el análisis: {str(e)}")
-            st.exception(e)
+            st.error(f"❌ Error inesperado en el análisis: {type(e).__name__}: {str(e)}")
+            with st.expander("🔍 Ver detalles técnicos del error"):
+                st.exception(e)
 
 if __name__ == "__main__":
     main()
