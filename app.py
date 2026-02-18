@@ -605,7 +605,7 @@ def crear_mapa_stock(df_stock):
             bearing=0,
             pitch=0,
             zoom=9
-        )
+        ), dragmode='zoom'
     )
 
     return fig
@@ -728,7 +728,7 @@ def crear_mapa_inventario_riesgo(df_riesgo):
             xanchor="left",
             x=0.01,
             bgcolor="rgba(255,255,255,0.8)"
-        )
+        ), dragmode='zoom'
     )
 
     return fig
