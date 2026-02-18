@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ================================================================================
 SISTEMA DE GESTIÓN DE INVENTARIO - ANÁLISIS COMPLETO
@@ -1162,7 +1160,7 @@ def main():
     configurar_pagina()
     cargar_css()
 
-    st.title("📦 Sistema de Gestión de Inventario BI")
+    st.title("📦 Sistema de Gestión de Inventario")
     st.markdown("---")
 
     # =====================================================================
@@ -1185,7 +1183,7 @@ def main():
     if not archivos_subidos:
         st.markdown("""
         <div style='text-align: center; padding: 50px;'>
-            <h2>📦 Sistema de Gestión de Inventario BI</h2>
+            <h2>📦 Sistema de Gestión de Inventario</h2>
             <p style='color: #666; font-size: 1.2rem;'>
                 Por favor sube los 5 archivos CSV en el panel lateral.
             </p>
@@ -1326,7 +1324,7 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style='text-align: center; color: #666; padding: 20px;'>
-        <p>📊 <strong>Sistema de Gestión de Inventario BI</strong></p>
+        <p>📊 <strong>Sistema de Gestión de Inventario</strong></p>
         <p>Desarrollado con Streamlit</p>
     </div>
     """, unsafe_allow_html=True)
