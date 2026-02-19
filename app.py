@@ -1259,49 +1259,33 @@ def mostrar_resumen_ejecutivo(stats, proporcion_mes, fecha_actual):
         """, unsafe_allow_html=True)
 
 def mostrar_clasificacion(stats):
-    """Muestra la clasificación del inventario con diseño de tarjeta profesional"""
+    """Muestra la clasificación del inventario"""
 
     st.markdown('<div class="section-title-box"><h2>📊 Clasificación por Nivel de Riesgo</h2></div>', unsafe_allow_html=True)
 
     col1, col2, col3, col4 = st.columns(4)
 
-    # Configuración de niveles: Nombre, Clase CSS, Color Hex, Descripción
     niveles = [
-        ('VENCIDO', 'vencido', '#9c27b0', 'Día 0 (Hoy)'),
-        ('CRITICO', 'critico', '#d32f2f', '1-3 días'),
-        ('URGENTE', 'urgente', '#f57c00', '4-7 días'),
-        ('PREVENTIVO', 'preventivo', '#fbc02d', '8-10 días')
+        ('VENCIDO', 'vencido', '🟣', '#9c27b0', 'Día 0 (Hoy)'),
+        ('CRITICO', 'critico', '🔴', '#d32f2f', '1-3 días'),
+        ('URGENTE', 'urgente', '🟠', '#f57c00', '4-7 días'),
+        ('PREVENTIVO', 'preventivo', '🟡', '#fbc02d', '8-10 días')
     ]
 
     columnas = [col1, col2, col3, col4]
 
-    for (nivel, clase, color, dias), col in zip(niveles, columnas):
-        # Extraemos datos de forma segura (Defensa de Backend)
-        data = stats.get(nivel, {'productos': 0, 'unidades': 0, 'valor': 0})
-        
-        prod_count = data.get('productos', 0)
-        unit_count = data.get('unidades', 0)
-        valor_clp = data.get('valor', 0)
-
+    for (nivel, clase, emoji, color, dias), col in zip(niveles, columnas):
         with col:
             st.markdown(f"""
-            <div class='classification-item {clase}' style='text-align: center; display: block; border-top: 5px solid {color}; padding: 20px; min-height: 250px;'>
-                <div style='background-color: {color}; width: 14px; height: 14px; border-radius: 50%; margin: 0 auto 10px auto; box-shadow: 0 2px 4px rgba(0,0,0,0.2);'></div>
-                
-                <strong style='color: #1a237e; font-size: 1.1rem; text-transform: uppercase;'>{nivel}</strong><br>
-                <small style='color: #666; font-weight: 500;'>{dias}</small>
-                
-                <hr style='margin: 15px 0; border: 0; border-top: 1px solid #eee;'>
-                
-                <div style='font-size: 1.8rem; font-weight: 800; color: #333;'>{prod_count}</div>
-                <div style='font-size: 0.75rem; text-transform: uppercase; color: #888; letter-spacing: 1px; margin-bottom: 10px;'>SKUs / Productos</div>
-                
-                <div style='font-size: 1.3rem; font-weight: 600; color: #444;'>{clp(unit_count)}</div>
-                <div style='font-size: 0.75rem; text-transform: uppercase; color: #888; letter-spacing: 1px; margin-bottom: 15px;'>Unidades Totales</div>
-                
-                <div style='background: {color}15; padding: 8px; border-radius: 6px;'>
-                    <strong style='font-size: 1.1rem; color: {color};'>{clp(valor_clp)} CLP</strong>
-                </div>
+            <div class='classification-item {clase}' style='text-align: center; display: block;'>
+                <span class='indicator' style='background-color: {color}; margin: 0 auto 10px auto;'></span>
+                <strong>{emoji} {nivel}</strong><br>
+                <small style='color: #666;'>({dias})</small><br><br>
+                <div style='font-size: 1.4rem;'>{stats[nivel]['productos']}</div>
+                <small>productos</small><br>
+                <div style='font-size: 1.1rem;'>{clp(stats[nivel]['unidades'])}</div>
+                <small>unidades</small><br>
+                <div style='font-size: 1rem; color: {color};'><strong>{clp(stats[nivel]['valor'])} CLP</strong></div>
             </div>
             """, unsafe_allow_html=True)
 
