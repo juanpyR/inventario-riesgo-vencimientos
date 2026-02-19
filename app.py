@@ -1398,7 +1398,6 @@ def main():
     # =====================================================================
 
     st.sidebar.header("📁 Carga de Datos")
-    st.sidebar.markdown("Sube los 5 archivos CSV:")
 
     archivos_subidos = st.sidebar.file_uploader(
         "Seleccionar archivos CSV",
